@@ -40,6 +40,17 @@ Config::Config() {
     T = 5;
     K = 1080;
     landmark_n = 5;
+    int feats[5] = { 500, 500, 500, 300, 300 };
+    double radius[5] = { 0.4, 0.3, 0.2, 0.15, 0.1 };
+    double probs[5] = { 0.9, 0.8, 0.7, 0.6, 0.5 };
+    this->feats.clear();
+    this->radius.clear();
+    this->probs.clear();
+    for (int i = 0; i < 5; i++) {
+        this->feats.push_back(feats[i]);
+        this->radius.push_back(radius[i]);
+        this->probs.push_back(radius[i]);
+    }
 }
 
 } // namespace jda

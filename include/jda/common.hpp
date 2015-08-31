@@ -26,14 +26,21 @@ namespace jda {
 */
 class Feature {
 public:
-    int scale;
+    enum Scale {
+        ORIGIN,
+        HALF,
+        QUARTER
+    };
+
+public:
+    Scale scale;
     int landmark_id1, landmark_id2;
     double offset1_x, offset1_y;
     double offset2_x, offset2_y;
 
     static inline Feature Default() {
         Feature f;
-        f.scale = 0;
+        f.scale = ORIGIN;
         f.landmark_id1 = f.landmark_id2 = 0;
         f.offset1_x = f.offset1_y = f.offset2_x = f.offset2_y = 0;
         return f;
@@ -51,11 +58,14 @@ public:
     }
 
 public:
-    // parameters of `Config`, see initialization in `common.hpp::Config()`
+    // parameters of `Config`, see initialization in `common.cpp::Config()`
     int T;
     int K;
     int landmark_n;
     int tree_depth;
+    std::vector<double> radius;
+    std::vector<int> feats;
+    std::vector<double> probs;
 
 private:
     Config();
@@ -74,6 +84,16 @@ void LOG(const char* fmt, ...);
  */
 double calcVariance(const cv::Mat_<double>& vec);
 double calcVariance(const std::vector<double>& vec);
+
+/**
+* Check the point (x, y) in Image, modify if needed
+*/
+inline void checkBoundaryOfImage(int w, int h, double& x, double& y) {
+    if (x < 0) x = 0.0;
+    if (y < 0) y = 0.0;
+    if (x > w) x = double(w);
+    if (y > h) y = double(h);
+}
 
 } // namespace jda
 

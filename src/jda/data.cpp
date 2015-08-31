@@ -1,5 +1,7 @@
+#include <cmath>
 #include "jda/data.hpp"
 #include "jda/cart.hpp"
+#include "jda/common.hpp"
 
 using namespace cv;
 using namespace std;
@@ -15,8 +17,48 @@ DataSet& DataSet::operator=(const DataSet& other) {
 }
 
 Mat DataSet::CalcFeatureValues(vector<Feature>& feature_pool, vector<int>& idx) {
-    // **TODO** calculate feature values
-    return Mat();
+    const int n = feature_pool.size();
+    const int m = idx.size();
+    Mat_<int> features(n, m);
+
+    for (int i = 0; i < n; i++) {
+        const Feature& feature = feature_pool[i];
+        int* ptr = features.ptr<int>(i);
+        for (int j = 0; j < m; j++) {
+            const Mat& img = imgs[idx[j]];
+            const Mat_<double>& shape = current_shapes[idx[j]];
+            const int width = img.cols - 1;
+            const int height = img.rows - 1;
+
+            double x1, y1, x2, y2, scale;
+            switch (feature.scale) {
+            case Feature::ORIGIN:
+                scale = 1.0; break;
+            case Feature::HALF:
+                scale = 0.5; break;
+            case Feature::QUARTER:
+                scale = 0.25; break;
+            default:
+                scale = 1.0; break;
+            }
+            x1 = shape(0, 2 * feature.landmark_id1) + scale*feature.offset1_x;
+            y1 = shape(0, 2 * feature.landmark_id1 + 1) + scale*feature.offset1_y;
+            x2 = shape(0, 2 * feature.landmark_id2) + scale*feature.offset2_x;
+            y2 = shape(0, 2 * feature.landmark_id2 + 1) + scale*feature.offset2_y;
+
+            checkBoundaryOfImage(width, height, x1, y1);
+            checkBoundaryOfImage(width, height, x2, y2);
+
+            const int x1_ = int(round(x1));
+            const int y1_ = int(round(y1));
+            const int x2_ = int(round(x2));
+            const int y2_ = int(round(y2));
+
+            ptr[j] = img.at<uchar>(x1_, y1_) - img.at<uchar>(x2, y2);
+        }
+    }
+
+    return features;
 }
 
 Mat DataSet::CalcShapeResidual(vector<int>& idx, int landmark_id) {
@@ -54,7 +96,7 @@ void DataSet::UpdateWeights() {
 void DataSet::UpdateScores(Cart& cart) {
     for (int i = 0; i < size; i++) {
         Mat& img = imgs[i];
-        Mat& shape = current_shapes[i];
+        Mat_<double>& shape = current_shapes[i];
         int leaf_node_idx = cart.Forward(img, shape);
         scores[i] += cart.scores[leaf_node_idx];
     }

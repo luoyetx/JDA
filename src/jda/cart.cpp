@@ -16,6 +16,17 @@ Cart& Cart::operator=(const Cart& other) {
     if (this == &other) return *this;
     return *this;
 }
+void Cart::Initialize(int stage, int landmark_id) {
+    const Config& c = Config::GetInstance();
+    this->stage = stage;
+    this->landmark_id = landmark_id;
+    depth = c.tree_depth;
+    leafNum = 1 << (depth - 1);
+    nodes_n = 1 << depth;
+    featNum = c.feats[stage];
+    radius = c.radius[stage];
+    p = c.probs[stage];
+}
 
 void Cart::Train(DataSet& pos, DataSet& neg) {
     vector<int> pos_idx, neg_idx;
@@ -236,7 +247,16 @@ void Cart::GenFeaturePool(vector<Feature>& feature_pool) {
             continue;
         }
         Feature& feat = feature_pool[i];
-        feat.scale = rng.uniform(0, 2);
+        switch (rng.uniform(0, 2)) {
+        case 0:
+            feat.scale = Feature::ORIGIN; break;
+        case 1:
+            feat.scale = Feature::HALF; break;
+        case 2:
+            feat.scale = Feature::QUARTER; break;
+        default:
+            feat.scale = Feature::ORIGIN; break;
+        }
         feat.landmark_id1 = rng.uniform(0, landmark_n);
         feat.landmark_id2 = rng.uniform(0, landmark_n);
         feat.offset1_x = x1*radius;
@@ -246,9 +266,44 @@ void Cart::GenFeaturePool(vector<Feature>& feature_pool) {
     }
 }
 
-int Cart::Forward(Mat& img, Mat& shape) {
-    // **TODO** go through the tree and get the leaf node index
-    return 0;
+int Cart::Forward(Mat& img, Mat_<double>& shape) {
+    int node_idx = 1;
+    int len = depth - 1;
+    const int width = img.cols - 1;
+    const int height = img.rows - 1;
+    while (len--) {
+        Feature& feature = features[node_idx];
+
+        double x1, y1, x2, y2, scale;
+        switch (feature.scale) {
+        case Feature::ORIGIN:
+            scale = 1.0; break;
+        case Feature::HALF:
+            scale = 0.5; break;
+        case Feature::QUARTER:
+            scale = 0.25; break;
+        default:
+            scale = 1.0; break;
+        }
+        x1 = shape(0, 2 * feature.landmark_id1) + scale*feature.offset1_x;
+        y1 = shape(0, 2 * feature.landmark_id1 + 1) + scale*feature.offset1_y;
+        x2 = shape(0, 2 * feature.landmark_id2) + scale*feature.offset2_x;
+        y2 = shape(0, 2 * feature.landmark_id2 + 1) + scale*feature.offset2_y;
+
+        checkBoundaryOfImage(width, height, x1, y1);
+        checkBoundaryOfImage(width, height, x2, y2);
+
+        const int x1_ = int(round(x1));
+        const int y1_ = int(round(y1));
+        const int x2_ = int(round(x2));
+        const int y2_ = int(round(y2));
+
+        int val = img.at<uchar>(x1_, y1_) - img.at<uchar>(x2, y2);
+        if (val < thresholds[node_idx]) node_idx = 2 * node_idx;
+        else node_idx = 2 * node_idx + 1;
+    }
+    const int bias = 1 << (depth - 1);
+    return node_idx - bias;
 }
 
 } // namespace jda

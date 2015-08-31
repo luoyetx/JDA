@@ -20,6 +20,10 @@ public:
     ~Cart();
     Cart(const Cart& other);
     Cart& operator=(const Cart& other);
+    /**
+     * Initialize Cart
+     */
+    void Initialize(int stage, int landmark_id);
 
 public:
     /**
@@ -60,18 +64,19 @@ public:
      * Forward a data point to leaf node
      * :return:     leaf node index in this tree
      */
-    int Forward(cv::Mat& img, cv::Mat& shape);
+    int Forward(cv::Mat& img, cv::Mat_<double>& shape);
 
 public:
+    int stage; // cascade stage
     int depth; // depth of cart
     int nodes_n; // numbers of nodes, `nodes_n = 2^depth`
     int featNum; // number of feature points used in training
     double radius; // radius for sampling feature points
     int leafNum; // number of leaf on cart
-    double th; // threshold, see more on paper about `\theta_k^t`
     double p; // probability of internel node to do classification or regression
     int landmark_id; // landmark id for regression in this tree
 
+    double th; // threshold, see more on paper about `\theta_k^t`
     std::vector<Feature> features; // features used by this cart, in sequence
     std::vector<int> thresholds; // thresholds associated with features
     std::vector<bool> is_classifications; // classification of internel node
