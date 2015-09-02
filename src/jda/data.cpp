@@ -54,7 +54,7 @@ Mat DataSet::CalcFeatureValues(vector<Feature>& feature_pool, vector<int>& idx) 
             const int x2_ = int(round(x2));
             const int y2_ = int(round(y2));
 
-            ptr[j] = img.at<uchar>(x1_, y1_) - img.at<uchar>(x2, y2);
+            ptr[j] = img.at<uchar>(x1_, y1_) - img.at<uchar>(x2_, y2_);
         }
     }
 

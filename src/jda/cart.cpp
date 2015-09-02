@@ -298,7 +298,7 @@ int Cart::Forward(Mat& img, Mat_<double>& shape) {
         const int x2_ = int(round(x2));
         const int y2_ = int(round(y2));
 
-        int val = img.at<uchar>(x1_, y1_) - img.at<uchar>(x2, y2);
+        int val = img.at<uchar>(x1_, y1_) - img.at<uchar>(x2_, y2_);
         if (val < thresholds[node_idx]) node_idx = 2 * node_idx;
         else node_idx = 2 * node_idx + 1;
     }
