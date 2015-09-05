@@ -16,7 +16,7 @@ DataSet& DataSet::operator=(const DataSet& other) {
     return *this;
 }
 
-Mat DataSet::CalcFeatureValues(vector<Feature>& feature_pool, vector<int>& idx) {
+Mat_<int> DataSet::CalcFeatureValues(vector<Feature>& feature_pool, vector<int>& idx) {
     const int n = feature_pool.size();
     const int m = idx.size();
     Mat_<int> features(n, m);
@@ -61,7 +61,7 @@ Mat DataSet::CalcFeatureValues(vector<Feature>& feature_pool, vector<int>& idx) 
     return features;
 }
 
-Mat DataSet::CalcShapeResidual(vector<int>& idx, int landmark_id) {
+Mat_<double> DataSet::CalcShapeResidual(vector<int>& idx, int landmark_id) {
     assert(is_pos == true);
     Mat_<double> shape_residual;
     const int n = idx.size();

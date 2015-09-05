@@ -40,13 +40,25 @@ void Cart::Train(DataSet& pos, DataSet& neg) {
     SplitNode(pos, pos_idx, neg, neg_idx, 1);
 }
 
-// **TODO** Calculate scores on leaf
 void Cart::SplitNode(DataSet& pos, vector<int>& pos_idx, \
                      DataSet& neg, vector<int>& neg_idx, \
                      int node_idx) {
     int pos_n = pos_idx.size();
     int neg_n = neg_idx.size();
-    // **TODO** check boundary
+    if (node_idx >= nodes_n / 2) {
+        // we are on a leaf node
+        const int idx = node_idx - nodes_n / 2;
+        double pos_w, neg_w;
+        pos_w = neg_w = 0;
+        for (int i = 0; i < pos_idx.size(); i++) {
+            pos_w += pos.weights[pos_idx[i]];
+        }
+        for (int i = 0; i < neg_idx.size(); i++) {
+            neg_w += neg.weights[neg_idx[i]];
+        }
+        scores[idx] = 0.5 * log(pos_w / neg_w);
+        return;
+    }
 
     // feature pool
     vector<Feature> feature_pool;
@@ -93,10 +105,8 @@ void Cart::SplitNode(DataSet& pos, vector<int>& pos_idx, \
     thresholds[node_idx] = threshold;
     is_classifications[node_idx] = is_classification;
     // split node in DFS way
-    if (2 * node_idx < nodes_n / 2) {
-        SplitNode(pos, left_pos_idx, neg, left_neg_idx, 2 * node_idx);
-        SplitNode(pos, right_pos_idx, neg, right_neg_idx, 2 * node_idx + 1);
-    }
+    SplitNode(pos, left_pos_idx, neg, left_neg_idx, 2 * node_idx);
+    SplitNode(pos, right_pos_idx, neg, right_neg_idx, 2 * node_idx + 1);
 }
 
 /**
@@ -266,7 +276,7 @@ void Cart::GenFeaturePool(vector<Feature>& feature_pool) {
     }
 }
 
-int Cart::Forward(Mat& img, Mat_<double>& shape) {
+int Cart::Forward(const Mat& img, const Mat_<double>& shape) {
     int node_idx = 1;
     int len = depth - 1;
     const int width = img.cols - 1;

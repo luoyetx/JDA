@@ -63,6 +63,7 @@ public:
     int K;
     int landmark_n;
     int tree_depth;
+    double tp_rate, fn_rate;
     std::vector<double> radius;
     std::vector<int> feats;
     std::vector<double> probs;

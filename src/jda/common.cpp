@@ -40,6 +40,8 @@ Config::Config() {
     T = 5;
     K = 1080;
     landmark_n = 5;
+    tp_rate = 0.95;
+    fn_rate = 0.3;
     int feats[5] = { 500, 500, 500, 300, 300 };
     double radius[5] = { 0.4, 0.3, 0.2, 0.15, 0.1 };
     double probs[5] = { 0.9, 0.8, 0.7, 0.6, 0.5 };

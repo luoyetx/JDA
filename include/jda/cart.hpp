@@ -64,7 +64,7 @@ public:
      * Forward a data point to leaf node
      * :return:     leaf node index in this tree
      */
-    int Forward(cv::Mat& img, cv::Mat_<double>& shape);
+    int Forward(const cv::Mat& img, const cv::Mat_<double>& shape);
 
 public:
     int stage; // cascade stage
@@ -94,6 +94,7 @@ public:
     ~BoostCart();
     BoostCart(const BoostCart& other);
     BoostCart& operator=(const BoostCart& other);
+    void Initialize(int stage);
 
 public:
     /**
@@ -106,10 +107,24 @@ public:
      * we only use DataSet of pos, X = lbf, Y = shape_residual
      * see more detail on paper in section 4
      */
-    void GlobalRegression(DataSet& pos);
+    void GlobalRegression(const cv::Mat_<int>& lbf, \
+                          const cv::Mat_<double>& shape_residual);
+
+public:
+    /**
+     * Generate Local Binary Feature
+     * :return:         one row of local binary feature
+     */
+    cv::Mat_<int> GenLBF(const cv::Mat& img, const cv::Mat_<double>& shape);
+    /**
+     * Generate delta shape with given lbf
+     * :return:         one row of delta shape
+     */
+    cv::Mat_<double> GenDeltaShape(const cv::Mat_<int>& lbf);
 
 public:
     int K; // number of carts
+    int stage; // which stage this boost cart lies
     double tp_rate; // true positive rate
     double fn_rate; // false negative rate
 

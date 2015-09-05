@@ -15,6 +15,17 @@ BoostCart& BoostCart::operator=(const BoostCart& other) {
     if (this == &other) return *this;
     return *this;
 }
+void BoostCart::Initialize(int stage) {
+    const Config& c = Config::GetInstance();
+    this->stage = stage;
+    K = c.K;
+    tp_rate = c.tp_rate;
+    fn_rate = c.fn_rate;
+    carts.resize(K);
+    const int landmark_n = c.landmark_n;
+    const int m = K*(1 << c.tree_depth);
+    w = Mat_<double>(2 * landmark_n, m);
+}
 
 void BoostCart::Train(DataSet& pos, DataSet& neg) {
     assert(carts.size() == K);
@@ -22,17 +33,18 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     const Config& c = Config::GetInstance();
     const int landmark_n = c.landmark_n;
     RNG rng(getTickCount());
-    // real boost
-    for (int i = 0; i < K; i++) {
-        Cart& cart = carts[i];
+    // Real Boost
+    for (int k = 0; k < K; k++) {
+        Cart& cart = carts[k];
         pos.UpdateWeights();
         neg.UpdateWeights();
-        int landmark_id = i % landmark_n;
+        int landmark_id = k % landmark_n;
+        cart.Initialize(stage, k);
         // train cart
         TIMER_BEGIN
-            LOG("Train %th Cart", i);
+            LOG("Train %th Cart", k);
             cart.Train(pos, neg);
-            LOG("Done with %th Cart, costs %.4lf s", i, TIMER_NOW);
+            LOG("Done with %th Cart, costs %.4lf s", k, TIMER_NOW);
         TIMER_END
         // update score
         pos.UpdateScores(cart);
@@ -46,8 +58,32 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
         neg.Remove(cart.th);
         // **TODO** more neg if needed
     }
-    GlobalRegression(pos);
-    // **TODO** update shapes
+    // Global Regression with LBF
+    // generate lbf
+    const int pos_n = pos.size;
+    const int neg_n = neg.size;
+    const int m = K;
+    Mat_<int> pos_lbf(pos_n, m);
+    Mat_<int> neg_lbf(pos_n, m);
+    for (int i = 0; i < pos_n; i++) {
+        pos_lbf.row(i) = GenLBF(pos.imgs[i], pos.current_shapes[i]);
+    }
+    for (int i = 0; i < neg_n; i++) {
+        neg_lbf.row(i) = GenLBF(neg.imgs[i], neg.current_shapes[i]);
+    }
+    // regression
+    vector<int> pos_idx(pos.size);
+    for (int i = 0; i < pos.size; i++) pos_idx[i] = i;
+    Mat_<double> shape_residual = pos.CalcShapeResidual(pos_idx);
+    GlobalRegression(pos_lbf, shape_residual);
+    // update shapes
+    for (int i = 0; i < pos_n; i++) {
+        pos.current_shapes[i] += GenDeltaShape(pos_lbf.row(i));
+    }
+    for (int i = 0; i < neg_n; i++) {
+        neg.current_shapes[i] += GenDeltaShape(neg_lbf.row(i));
+    }
+    // Done
 }
 
 /**
@@ -59,16 +95,13 @@ static inline void freeModel(struct model* model) {
     free(model);
 }
 
-void BoostCart::GlobalRegression(DataSet& pos) {
+void BoostCart::GlobalRegression(const Mat_<int>& lbf, const Mat_<double>& shape_residual) {
     Config& c = Config::GetInstance();
     const int landmark_n = c.landmark_n;
-    const int n = pos.size; // size of dataset
-    const int m = carts[0].leafNum * carts.size(); // true size of local binary feature
-    const int f = m*(1 << (c.tree_depth - 1)); // full size of local binary feature
-    Mat_<int> lbf(n, m);
+    const int n = lbf.rows;
+    const int m = K; // true size of local binary feature
+    const int f = m*carts[0].leafNum; // full size of local binary feature
     vector<int> idx;
-    for (int i = 0; i < pos.size; i++) idx[i] = i;
-    Mat_<double> shape_residual = pos.CalcShapeResidual(idx);
     // prepare linear regression X, Y
     struct feature_node** X = (struct feature_node**)malloc(n*sizeof(struct feature_node *));
     double** Y = (double**)malloc(2 * landmark_n*sizeof(double *));
@@ -120,6 +153,39 @@ void BoostCart::GlobalRegression(DataSet& pos) {
     for (int i = 0; i < 2 * landmark_n; i++) free(Y[i]);
     free(X);
     free(Y);
+}
+
+Mat_<int> BoostCart::GenLBF(const Mat& img, const Mat_<double>& shape) {
+    Mat_<int> lbf(1, K);
+    int* ptr = lbf.ptr<int>(0);
+    const int base = carts[0].leafNum;
+    int offset = 0;
+    for (int k = 0; k < K; k++) {
+        ptr[k] = offset + carts[k].Forward(img, shape);
+        offset += base;
+    }
+    return lbf;
+}
+
+Mat_<double> BoostCart::GenDeltaShape(const Mat_<int>& lbf) {
+    const int landmark_n = w.rows / 2;
+    const int m = lbf.cols;
+    Mat_<double> delta_shape(1, 2 * landmark_n);
+    double* w_ptr;
+    double* ds_ptr;
+    const int* lbf_ptr = lbf.ptr<int>(0);
+    for (int i = 0; i < landmark_n; i++) {
+        w_ptr = w.ptr<double>(2 * i);
+        double y = 0;
+        for (int j = 0; j < m; j++) y += w_ptr[lbf_ptr[j]];
+        delta_shape(0, 2 * i) = y;
+
+        w_ptr = w.ptr<double>(2 * i + 1);
+        y = 0;
+        for (int j = 0; j < m; j++) y += w_ptr[lbf_ptr[j]];
+        delta_shape(0, 2 * i + 1) = y;
+    }
+    return delta_shape;
 }
 
 } // namespace jda

@@ -26,13 +26,13 @@ public:
      * :return:     every row presents a feature with every colum presents a data point
      *              `feature_{i, j} = f_i(data_j)`
      */ 
-    cv::Mat CalcFeatureValues(std::vector<Feature>& feature_pool, \
-                              std::vector<int>& idx);
+    cv::Mat_<int> CalcFeatureValues(std::vector<Feature>& feature_pool, \
+                                    std::vector<int>& idx);
     /**
      * Calcualte shape residual of landmark_id over positive dataset
      * :return:     every data point in each row
      */
-    cv::Mat CalcShapeResidual(std::vector<int>& idx, int landmark_id = -1);
+    cv::Mat_<double> CalcShapeResidual(std::vector<int>& idx, int landmark_id = -1);
     /**
      * Update weights
      *
@@ -63,6 +63,7 @@ public:
 
 public:
     std::vector<cv::Mat> imgs; // face/none-face images
+    // all shapes follows (x_1, y_1, x_2, y_2, ... , x_n, y_n)
     std::vector<cv::Mat_<double>> gt_shapes; // ground-truth shapes for face
     std::vector<cv::Mat_<double>> current_shapes; // current shapes
     std::vector<double> scores; // scores, see more about `f_i` on paper
