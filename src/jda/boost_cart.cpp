@@ -1,7 +1,5 @@
 #include <liblinear/linear.h>
-#include "jda/common.hpp"
-#include "jda/data.hpp"
-#include "jda/cart.hpp"
+#include "jda/jda.hpp"
 
 using namespace cv;
 using namespace std;
@@ -56,7 +54,8 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
         cart.th = (th2 < th1) ? rng.uniform(th2, th1) : th1;
         pos.Remove(cart.th);
         neg.Remove(cart.th);
-        // **TODO** more neg if needed
+        // more neg if needed
+        neg.MoreNegSamples(k, pos.size);
     }
     // Global Regression with LBF
     // generate lbf

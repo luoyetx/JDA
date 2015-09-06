@@ -40,7 +40,7 @@ Config::Config() {
     T = 5;
     K = 1080;
     landmark_n = 5;
-    tp_rate = 0.95;
+    tp_rate = 0.99;
     fn_rate = 0.3;
     int feats[5] = { 500, 500, 500, 300, 300 };
     double radius[5] = { 0.4, 0.3, 0.2, 0.15, 0.1 };
@@ -48,7 +48,7 @@ Config::Config() {
     this->feats.clear();
     this->radius.clear();
     this->probs.clear();
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < T; i++) {
         this->feats.push_back(feats[i]);
         this->radius.push_back(radius[i]);
         this->probs.push_back(radius[i]);

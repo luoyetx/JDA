@@ -1,8 +1,6 @@
 #include <cmath>
 #include <climits>
-#include "jda/common.hpp"
-#include "jda/data.hpp"
-#include "jda/cart.hpp"
+#include "jda/jda.hpp"
 
 using namespace cv;
 using namespace std;

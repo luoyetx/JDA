@@ -2,9 +2,11 @@
 #define CASCADOR_HPP_
 
 #include <vector>
-#include "jda/cart.hpp"
 
 namespace jda {
+
+// pre-define
+class BoostCart;
 
 /**
  * JoinCascador for face classification and landmark regression

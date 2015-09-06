@@ -8,6 +8,7 @@ namespace jda {
 // pre-define
 class Feature;
 class DataSet;
+class JoinCascador;
 
 /**
  * Classification and Regression Random Tree
@@ -109,6 +110,10 @@ public:
      */
     void GlobalRegression(const cv::Mat_<int>& lbf, \
                           const cv::Mat_<double>& shape_residual);
+    /**
+     * Set Join Cascador
+     */
+    void set_joincascador(JoinCascador* joincascador) { this->joincascador = joincascador; }
 
 public:
     /**
@@ -130,6 +135,9 @@ public:
 
     std::vector<Cart> carts; // boosted carts
     cv::Mat_<double> w; // weight of global regression
+
+private:
+    JoinCascador* joincascador; // join cascador for hard negative sample mining
 };
 
 } // namespace jda

@@ -59,14 +59,14 @@ public:
 
 public:
     // parameters of `Config`, see initialization in `common.cpp::Config()`
-    int T;
-    int K;
-    int landmark_n;
-    int tree_depth;
+    int T; // stages
+    int K; // number of boost carts in each stage
+    int landmark_n; // number of landmarks
+    int tree_depth; // depth of cart
     double tp_rate, fn_rate;
-    std::vector<double> radius;
-    std::vector<int> feats;
-    std::vector<double> probs;
+    std::vector<double> radius; // sample radius of feature points in each stages
+    std::vector<int> feats; // feature numbers used by carts in each stages
+    std::vector<double> probs; // probability of classification in each stages
 
 private:
     Config();

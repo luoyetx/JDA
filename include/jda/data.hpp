@@ -9,6 +9,45 @@ namespace jda {
 // pre-define
 class Feature;
 class Cart;
+class JoinCascador;
+
+/**
+ * Negative Training Sample Generator
+ *
+ * hard negative training sample will be needed if less negative alives
+ */
+class NegGenerator {
+public:
+    NegGenerator();
+    ~NegGenerator();
+    NegGenerator(const NegGenerator& other);
+    NegGenerator& operator=(const NegGenerator& other);
+
+public:
+    /**
+     * Generate more negative samples
+     * :input join_cascdor: JoinCascador in training
+     * :input size:         how many samples we need
+     * :input stage:        we will run join_cascador to stage
+     * :output imgs:        negative samples
+     * :output scores:      scores of negative samples
+     * :return:             real size
+     *
+     * We will generate negative training samples from origin images, all generated samples
+     * should be hard enough to get through all stages of Join Cascador in current training
+     * state, it may be every hard to generate enough hard negative samples, we may fail with
+     * real size smaller than `int size`. We will give back all negative training samples with
+     * their scores and current shapes for further training.
+     */
+    int Generate(JoinCascador& joincascador, int size, int stage, \
+                 std::vector<cv::Mat>& imgs, std::vector<double>& scores, \
+                 std::vector<cv::Mat_<double> >& shapes);
+
+public:
+    std::vector<cv::Mat> imgs; // original images of negative training data
+    cv::Mat_<double> mean_shape; // mean shape of pos dataset for prediction
+};
+
 
 /**
  * DataSet Wrapper
@@ -32,7 +71,8 @@ public:
      * Calcualte shape residual of landmark_id over positive dataset
      * :return:     every data point in each row
      */
-    cv::Mat_<double> CalcShapeResidual(std::vector<int>& idx, int landmark_id = -1);
+    cv::Mat_<double> CalcShapeResidual(std::vector<int>& idx);
+    cv::Mat_<double> CalcShapeResidual(std::vector<int>& idx, int landmark_id);
     /**
      * Update weights
      *
@@ -56,12 +96,23 @@ public:
      */
     void Remove(double th);
     /**
+     * More Negative Samples if needed (only neg dataset needs)
+     * :input stage:    which stage it is
+     * :input size:     positive dataset size, reference for generating
+     */
+    void MoreNegSamples(int stage, int size);
+    /**
+     * Set Join Cascador (only neg dataset needs)
+     */
+    void set_joincascador(JoinCascador* joincascador) { this->joincascador = joincascador; }
+    /**
      * Quick Sort by scores
      */
     void QSort();
     void _QSort_(int left, int right);
 
 public:
+    NegGenerator neg_generator; // generator for more negtive samples
     std::vector<cv::Mat> imgs; // face/none-face images
     // all shapes follows (x_1, y_1, x_2, y_2, ... , x_n, y_n)
     std::vector<cv::Mat_<double>> gt_shapes; // ground-truth shapes for face
@@ -71,6 +122,9 @@ public:
     bool is_pos; // is positive dataset
     bool is_sorted; // is sorted by scores
     int size; // size of dataset
+
+private:
+    JoinCascador* joincascador; // join cascador for hard negative sample mining
 };
 
 } // namespace jda

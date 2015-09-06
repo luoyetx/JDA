@@ -1,7 +1,5 @@
 #include <cmath>
-#include "jda/data.hpp"
-#include "jda/cart.hpp"
-#include "jda/common.hpp"
+#include "jda/jda.hpp"
 
 using namespace cv;
 using namespace std;
@@ -61,35 +59,43 @@ Mat_<int> DataSet::CalcFeatureValues(vector<Feature>& feature_pool, vector<int>&
     return features;
 }
 
+Mat_<double> DataSet::CalcShapeResidual(vector<int>& idx) {
+    assert(is_pos == true);
+    Mat_<double> shape_residual;
+    const int n = idx.size();
+    // all landmark
+    const int landmark_n = gt_shapes[0].cols / 2;
+    shape_residual.create(n, landmark_n * 2);
+    for (int i = 0; i < n; i++) {
+        shape_residual.row(i) = gt_shapes[idx[i]] - current_shapes[idx[i]];
+    }
+    return shape_residual;
+}
 Mat_<double> DataSet::CalcShapeResidual(vector<int>& idx, int landmark_id) {
     assert(is_pos == true);
     Mat_<double> shape_residual;
     const int n = idx.size();
-    if (landmark_id < 0) {
-        // all landmark
-        const int landmark_n = gt_shapes[0].cols / 2;
-        shape_residual.create(n, landmark_n * 2);
-        for (int i = 0; i < n; i++) {
-            shape_residual.row(i) = gt_shapes[idx[i]] - current_shapes[idx[i]];
-        }
-    }
-    else {
-        // specific landmark
-        shape_residual.create(n, 2);
-        for (int i = 0; i < n; i++) {
-            shape_residual(i, 0) = gt_shapes[idx[i]](0, 2 * landmark_id) - \
-                                   current_shapes[idx[i]](0, 2 * landmark_id);
-            shape_residual(i, 1) = gt_shapes[idx[i]](0, 2 * landmark_id + 1) - \
-                                   current_shapes[idx[i]](0, 2 * landmark_id + 1);
-        }
+    // specific landmark
+    shape_residual.create(n, 2);
+    for (int i = 0; i < n; i++) {
+        shape_residual(i, 0) = gt_shapes[idx[i]](0, 2 * landmark_id) - \
+            current_shapes[idx[i]](0, 2 * landmark_id);
+        shape_residual(i, 1) = gt_shapes[idx[i]](0, 2 * landmark_id + 1) - \
+            current_shapes[idx[i]](0, 2 * landmark_id + 1);
     }
     return shape_residual;
 }
 
 void DataSet::UpdateWeights() {
     const double flag = -(is_pos ? 1 : -1);
+    double sum_w = 0;
     for (int i = 0; i < size; i++) {
         weights[i] = exp(flag*scores[i]);
+        sum_w += weights[i];
+    }
+    // normalize to 1
+    for (int i = 0; i < size; i++) {
+        weights[i] /= sum_w;
     }
 }
 
@@ -100,6 +106,7 @@ void DataSet::UpdateScores(Cart& cart) {
         int leaf_node_idx = cart.Forward(img, shape);
         scores[i] += cart.scores[leaf_node_idx];
     }
+    is_sorted = false;
 }
 
 double DataSet::CalcThresholdByRate(double rate) {
@@ -147,6 +154,44 @@ void DataSet::_QSort_(int left, int right) {
     } while (i <= j);
     if (left < j) _QSort_(left, j);
     if (i < right) _QSort_(i, right);
+}
+
+void DataSet::MoreNegSamples(int stage, int size) {
+    assert(is_pos == false);
+    // **TODO** calculate size_ for size of negative samples to generate
+    int size_ = 0;
+    vector<Mat> imgs_;
+    vector<double> scores_;
+    vector<Mat_<double> > shapes_;
+    const int extra_size = neg_generator.Generate(*joincascador, size_, stage, \
+                                                  imgs_, scores_, shapes_);
+    const int expanded = extra_size+ imgs_.size();
+    imgs.reserve(expanded);
+    current_shapes.reserve(expanded);
+    scores.reserve(expanded);
+    weights.reserve(expanded);
+    for (int i = 0; i < extra_size; i++) {
+        imgs.push_back(imgs_[i]);
+        current_shapes.push_back(shapes_[i]);
+        scores.push_back(scores_[i]);
+        weights.push_back(0); // all weights will be updated by calling `UpdataWeights`
+    }
+}
+
+
+NegGenerator::NegGenerator() {}
+NegGenerator::~NegGenerator() {}
+NegGenerator::NegGenerator(const NegGenerator& other) {}
+NegGenerator& NegGenerator::operator=(const NegGenerator& other) {
+    if (this == &other) return *this;
+    return *this;
+}
+
+int NegGenerator::Generate(JoinCascador& joincascador, int size, int stage, \
+                           vector<Mat>& imgs, vector<double>& scores, \
+                           vector<Mat_<double> >& shapes) {
+    // **TODO** generate negative samples with a strategy
+    return 0;
 }
 
 } // namespace jda

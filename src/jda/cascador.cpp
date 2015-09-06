@@ -1,4 +1,4 @@
-#include "jda/cascador.hpp"
+#include "jda/jda.hpp"
 
 namespace jda {
 
@@ -12,6 +12,9 @@ JoinCascador& JoinCascador::operator=(const JoinCascador& other) {
 void JoinCascador::Initialize(int T) {
     this->T = T;
     boost_carts.resize(T);
+    for (int i = 0; i < T; i++) {
+        boost_carts[i].set_joincascador(this);
+    }
 }
 
 // **TODO** implement train
