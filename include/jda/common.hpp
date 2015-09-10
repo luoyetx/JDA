@@ -13,8 +13,8 @@
  *          ....
  *      TIMER_END
  */
-#define TIMER_BEGIN { double __time__ = getTickCount();
-#define TIMER_NOW   ((getTickCount() - __time__) / getTickFrequency())
+#define TIMER_BEGIN { double __time__ = cv::getTickCount();
+#define TIMER_NOW   ((cv::getTickCount() - __time__) / cv::getTickFrequency())
 #define TIMER_END   }
 
 namespace jda {
@@ -27,7 +27,7 @@ namespace jda {
 class Feature {
 public:
     enum Scale {
-        ORIGIN,
+        ORIGIN = 0,
         HALF,
         QUARTER
     };
@@ -68,6 +68,10 @@ public:
     std::vector<int> feats; // feature numbers used by carts in each stages
     std::vector<double> probs; // probability of classification in each stages
 
+    std::string positive_dataset; // a text file for positive samples
+    std::string negative_dataset; // a text file for negative samples
+    std::string test; // a text file for test dataset
+
 private:
     Config();
     ~Config() {}
@@ -87,8 +91,8 @@ double calcVariance(const cv::Mat_<double>& vec);
 double calcVariance(const std::vector<double>& vec);
 
 /**
-* Check the point (x, y) in Image, modify if needed
-*/
+ * Check the point (x, y) in Image, modify if needed
+ */
 inline void checkBoundaryOfImage(int w, int h, double& x, double& y) {
     if (x < 0) x = 0.0;
     if (y < 0) y = 0.0;

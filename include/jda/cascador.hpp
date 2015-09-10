@@ -25,12 +25,12 @@ public:
      *
      * See Full Algorithm on paper `Algorithm 3`
      */
-    void Train();
+    void Train(DataSet& pos, DataSet& neg);
 
 public:
     int T; // number of stages
 
-    std::vector<BoostCart> boost_carts;
+    std::vector<BoostCart> btcarts;
 };
 
 } // namespace jda

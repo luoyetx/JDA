@@ -6,5 +6,15 @@ using namespace std;
 using namespace jda;
 
 void train() {
-    // **TODO** implement training process of JDA
+    const Config& c = Config::GetInstance();
+
+    DataSet pos, neg;
+    LOG("Load Positive And Negative DataSet");
+    DataSet::LoadDataSet(pos, neg);
+
+    JoinCascador joincascador;
+    joincascador.Initialize(c.T);
+    LOG("Start training JoinCascador");
+    joincascador.Train(pos, neg);
+    LOG("End of JoinCascador Training");
 }

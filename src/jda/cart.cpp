@@ -125,7 +125,7 @@ static T min(const Mat_<T>& m) {
     const T* ptr = NULL;
     T min_v = numeric_limits<T>::max();
     for (int i = 0; i < m.rows; i++) {
-        ptr = m.ptr<T>(i);
+        ptr = m.template ptr<T>(i); // gcc needs this style
         for (int j = 0; j < m.cols; j++) {
             if (ptr[j] < min_v) min_v = ptr[j];
         }
@@ -137,7 +137,7 @@ static T max(const Mat_<T>& m) {
     const T* ptr = NULL;
     T max_v = numeric_limits<T>::min();
     for (int i = 0; i < m.rows; i++) {
-        ptr = m.ptr<T>(i);
+        ptr = m.template ptr<T>(i);
         for (int j = 0; j < m.cols; j++) {
             if (ptr[j] > max_v) max_v = ptr[j];
         }

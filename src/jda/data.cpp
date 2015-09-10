@@ -1,4 +1,6 @@
 #include <cmath>
+#include <cassert>
+#include <opencv2/highgui/highgui.hpp>
 #include "jda/jda.hpp"
 
 using namespace cv;
@@ -84,6 +86,24 @@ Mat_<double> DataSet::CalcShapeResidual(vector<int>& idx, int landmark_id) {
             current_shapes[idx[i]](0, 2 * landmark_id + 1);
     }
     return shape_residual;
+}
+
+Mat_<double> DataSet::CalcMeanShape() {
+    Mat_<double> mean_shape = gt_shapes[0].clone();
+    const int n = gt_shapes.size();
+    for (int i = 1; i < n; i++) {
+        mean_shape += gt_shapes[i];
+    }
+    mean_shape /= n;
+    return mean_shape;
+}
+
+void DataSet::RandomShapes(Mat_<double>& mean_shape, vector<Mat_<double> >& shapes) {
+    // **TODO** random perturbation on mean_shapes
+    const int n = shapes.size();
+    for (int i = 0; i < n; i++) {
+
+    }
 }
 
 void DataSet::UpdateWeights() {
@@ -178,6 +198,53 @@ void DataSet::MoreNegSamples(int stage, int size) {
     }
 }
 
+void DataSet::LoadPositiveDataSet(const string& positive) {
+    const Config& c = Config::GetInstance();
+    const int landmark_n = c.landmark_n;
+    FILE* file = fopen(positive.c_str(), "r");
+    assert(file);
+
+    char buff[300];
+    imgs.clear();
+    gt_shapes.clear();
+    while (fscanf(file, "%s", buff) > 0) {
+        Mat_<double> shape(1, 2 * landmark_n);
+        const double* ptr = shape.ptr<double>(0);
+        for (int i = 0; i < 2 * landmark_n; i++) {
+            fscanf(file, "%lf", ptr + i);
+        }
+        Mat img = imread(buff, CV_LOAD_IMAGE_GRAYSCALE);
+        imgs.push_back(img);
+        gt_shapes.push_back(shape);
+    }
+    size = imgs.size();
+    is_pos = true;
+    current_shapes.resize(size);
+
+    fclose(file);
+}
+void DataSet::LoadNegativeDataSet(const string& negative) {
+    neg_generator.SetOriginList(negative);
+    imgs.clear();
+    gt_shapes.clear();
+    current_shapes.clear();
+    size = 0;
+    is_pos = false;
+}
+void DataSet::LoadDataSet(DataSet& pos, DataSet& neg) {
+    const Config& c = Config::GetInstance();
+    pos.LoadPositiveDataSet(c.positive_dataset);
+    neg.LoadNegativeDataSet(c.negative_dataset);
+    Mat_<double> mean_shape = pos.CalcMeanShape();
+    // for current_shapes
+    DataSet::RandomShapes(mean_shape, pos.current_shapes);
+    // for negative generator
+    neg.neg_generator.mean_shape = mean_shape;
+    // **TODO** calculate size_ for size of negative samples to generate
+    const int size = 0;
+    neg.MoreNegSamples(0, size);
+}
+
 
 NegGenerator::NegGenerator() {}
 NegGenerator::~NegGenerator() {}
@@ -192,6 +259,17 @@ int NegGenerator::Generate(JoinCascador& joincascador, int size, int stage, \
                            vector<Mat_<double> >& shapes) {
     // **TODO** generate negative samples with a strategy
     return 0;
+}
+
+void NegGenerator::SetOriginList(const string& path) {
+    FILE* file = fopen(path.c_str(), "r");
+    assert(file);
+
+    char buff[300];
+    list.clear();
+    while (fscanf(file, "%s", buff) > 0) {
+        list.push_back(buff);
+    }
 }
 
 } // namespace jda

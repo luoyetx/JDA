@@ -53,6 +53,9 @@ Config::Config() {
         this->radius.push_back(radius[i]);
         this->probs.push_back(radius[i]);
     }
+    positive_dataset = "data/positive.txt";
+    negative_dataset = "data/negative.txt";
+    test = "data/test.txt";
 }
 
 } // namespace jda
