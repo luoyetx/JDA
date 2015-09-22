@@ -14,6 +14,13 @@ class JoinCascador;
  * Classification and Regression Random Tree
  *
  * see more detail on paper in section 4 about `CR_k^t`
+ * We organize the nodes in sequence, the index is started from 1
+ * the structure is shown below
+ *
+ *          root(idx = i)
+ *          |           |
+ *  left(idx = 2*i)     right(idx = 2*i + 1)
+ *
  */
 class Cart {
 public:
@@ -63,7 +70,7 @@ public:
 public:
     /**
      * Forward a data point to leaf node
-     * :return:     leaf node index in this tree
+     * :return:     leaf node index in this tree, start from 0
      */
     int Forward(const cv::Mat& img, const cv::Mat_<double>& shape);
 

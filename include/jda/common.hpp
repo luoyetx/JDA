@@ -26,14 +26,12 @@ namespace jda {
 */
 class Feature {
 public:
-    enum Scale {
-        ORIGIN = 0,
-        HALF,
-        QUARTER
-    };
+    static const int ORIGIN = 0;
+    static const int HALF = 1;
+    static const int QUARTER = 2;
 
 public:
-    Scale scale;
+    int scale;
     int landmark_id1, landmark_id2;
     double offset1_x, offset1_y;
     double offset2_x, offset2_y;
@@ -64,13 +62,16 @@ public:
     int landmark_n; // number of landmarks
     int tree_depth; // depth of cart
     double tp_rate, fn_rate;
+    int img_width, img_height; // size of all training data
+    int shift_size; // maximum random shift size on mean shape range [0, shift_size]
+    double np_ratio; // N(negative) / N(postive)
     std::vector<double> radius; // sample radius of feature points in each stages
     std::vector<int> feats; // feature numbers used by carts in each stages
     std::vector<double> probs; // probability of classification in each stages
 
-    std::string positive_dataset; // a text file for positive samples
-    std::string negative_dataset; // a text file for negative samples
-    std::string test; // a text file for test dataset
+    std::string train_txt; // a text file for train dataset
+    std::string nega_txt; // a text file for negative dataset
+    std::string test_txt; // a text file for test dataset
 
 private:
     Config();

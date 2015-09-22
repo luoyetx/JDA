@@ -34,10 +34,11 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     // Real Boost
     for (int k = 0; k < K; k++) {
         Cart& cart = carts[k];
+        // update weights
         pos.UpdateWeights();
         neg.UpdateWeights();
         int landmark_id = k % landmark_n;
-        cart.Initialize(stage, k);
+        cart.Initialize(stage, landmark_id);
         // train cart
         TIMER_BEGIN
             LOG("Train %th Cart", k);
@@ -55,7 +56,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
         pos.Remove(cart.th);
         neg.Remove(cart.th);
         // more neg if needed
-        neg.MoreNegSamples(k, pos.size);
+        neg.MoreNegSamples(pos.size);
     }
     // Global Regression with LBF
     // generate lbf

@@ -14,6 +14,9 @@ void train() {
 
     JoinCascador joincascador;
     joincascador.Initialize(c.T);
+    joincascador.current_stage_idx = -1;
+    joincascador.current_cart_idx = -1;
+    joincascador.mean_shape = pos.CalcMeanShape();
     LOG("Start training JoinCascador");
     joincascador.Train(pos, neg);
     LOG("End of JoinCascador Training");

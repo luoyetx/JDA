@@ -6,4 +6,4 @@
 #include "jda/common.hpp"
 #include "jda/cascador.hpp"
 
-#endif // JDA_HPP
+#endif // JDA_HPP_

@@ -99,10 +99,15 @@ Mat_<double> DataSet::CalcMeanShape() {
 }
 
 void DataSet::RandomShapes(Mat_<double>& mean_shape, vector<Mat_<double> >& shapes) {
-    // **TODO** random perturbation on mean_shapes
+    const Config& c = Config::GetInstance();
+    const int shift_size = c.shift_size;
     const int n = shapes.size();
+    RNG rng = RNG(getTickCount());
+    Mat_<double> shift(shapes[0].rows, shapes[0].cols);
     for (int i = 0; i < n; i++) {
-
+        // we use a uniform distribution over [0, shift_size]
+        rng.fill(shift, RNG::UNIFORM, 0, shift_size);
+        shapes[i] += shift;
     }
 }
 
@@ -176,14 +181,19 @@ void DataSet::_QSort_(int left, int right) {
     if (i < right) _QSort_(i, right);
 }
 
-void DataSet::MoreNegSamples(int stage, int size) {
+void DataSet::MoreNegSamples(int pos_size) {
     assert(is_pos == false);
-    // **TODO** calculate size_ for size of negative samples to generate
-    int size_ = 0;
+    const Config& c = Config::GetInstance();
+    // get the size of negative to generate
+    const int size_ = c.np_ratio*pos_size - this->size;
+    if (size_ <= 0) {
+        // generation is not needed
+        return;
+    }
     vector<Mat> imgs_;
     vector<double> scores_;
     vector<Mat_<double> > shapes_;
-    const int extra_size = neg_generator.Generate(*joincascador, size_, stage, \
+    const int extra_size = neg_generator.Generate(*joincascador, size_, \
                                                   imgs_, scores_, shapes_);
     const int expanded = extra_size+ imgs_.size();
     imgs.reserve(expanded);
@@ -194,7 +204,7 @@ void DataSet::MoreNegSamples(int stage, int size) {
         imgs.push_back(imgs_[i]);
         current_shapes.push_back(shapes_[i]);
         scores.push_back(scores_[i]);
-        weights.push_back(0); // all weights will be updated by calling `UpdataWeights`
+        weights.push_back(0); // all weights will be updated by calling `UpdateWeights`
     }
 }
 
@@ -224,7 +234,7 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
     fclose(file);
 }
 void DataSet::LoadNegativeDataSet(const string& negative) {
-    neg_generator.SetOriginList(negative);
+    neg_generator.SetImageList(negative);
     imgs.clear();
     gt_shapes.clear();
     current_shapes.clear();
@@ -233,16 +243,14 @@ void DataSet::LoadNegativeDataSet(const string& negative) {
 }
 void DataSet::LoadDataSet(DataSet& pos, DataSet& neg) {
     const Config& c = Config::GetInstance();
-    pos.LoadPositiveDataSet(c.positive_dataset);
-    neg.LoadNegativeDataSet(c.negative_dataset);
+    pos.LoadPositiveDataSet(c.train_txt);
+    neg.LoadNegativeDataSet(c.nega_txt);
     Mat_<double> mean_shape = pos.CalcMeanShape();
     // for current_shapes
     DataSet::RandomShapes(mean_shape, pos.current_shapes);
     // for negative generator
     neg.neg_generator.mean_shape = mean_shape;
-    // **TODO** calculate size_ for size of negative samples to generate
-    const int size = 0;
-    neg.MoreNegSamples(0, size);
+    neg.MoreNegSamples(pos.size);
 }
 
 
@@ -254,14 +262,30 @@ NegGenerator& NegGenerator::operator=(const NegGenerator& other) {
     return *this;
 }
 
-int NegGenerator::Generate(JoinCascador& joincascador, int size, int stage, \
+int NegGenerator::Generate(JoinCascador& joincascador, int size, \
                            vector<Mat>& imgs, vector<double>& scores, \
                            vector<Mat_<double> >& shapes) {
     // **TODO** generate negative samples with a strategy
-    return 0;
+    imgs.reserve(size);
+    scores.reserve(size);
+    shapes.reserve(size);
+    const int list_size = list.size();
+    double score = 0;
+    Mat_<double> shape;
+    for (int i = current_idx; i < list_size; i++) {
+        // **TODO** get the region
+        Mat region;
+        bool is_face = joincascador.Validate(region, score, shape);
+        if (is_face) {
+            imgs.push_back(region);
+            scores.push_back(score);
+            shapes.push_back(shape);
+        }
+    }
+    return imgs.size();
 }
 
-void NegGenerator::SetOriginList(const string& path) {
+void NegGenerator::SetImageList(const string& path) {
     FILE* file = fopen(path.c_str(), "r");
     assert(file);
 

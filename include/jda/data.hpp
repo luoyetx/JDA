@@ -28,9 +28,9 @@ public:
      * Generate more negative samples
      * :input join_cascdor: JoinCascador in training
      * :input size:         how many samples we need
-     * :input stage:        we will run join_cascador to stage
      * :output imgs:        negative samples
      * :output scores:      scores of negative samples
+     * :oupput shapes:      shapes of samples, for training
      * :return:             real size
      *
      * We will generate negative training samples from origin images, all generated samples
@@ -38,22 +38,19 @@ public:
      * state, it may be every hard to generate enough hard negative samples, we may fail with
      * real size smaller than `int size`. We will give back all negative training samples with
      * their scores and current shapes for further training.
-     * Online or Offline ?
      */
-    int Generate(JoinCascador& joincascador, int size, int stage, \
+    int Generate(JoinCascador& joincascador, int size, \
                  std::vector<cv::Mat>& imgs, std::vector<double>& scores, \
                  std::vector<cv::Mat_<double> >& shapes);
     /**
      * Set file list from path
      */
-    void SetOriginList(const std::string& path);
+    void SetImageList(const std::string& path);
 
 public:
     std::vector<std::string> list; // negative file list
-    std::vector<std::string> current;
-    int list_idx;
-    int current_idx;
-    cv::Mat_<double> mean_shape; // mean shape of pos dataset for prediction
+    int current_idx; // which image index we are
+    cv::Mat_<double> mean_shape; // mean shape of pos dataset for init_shape
 };
 
 
@@ -141,10 +138,9 @@ public:
     void Remove(double th);
     /**
      * More Negative Samples if needed (only neg dataset needs)
-     * :input stage:    which stage it is
-     * :input size:     positive dataset size, reference for generating
+     * :input pos_size: positive dataset size, reference for generating
      */
-    void MoreNegSamples(int stage, int size);
+    void MoreNegSamples(int pos_size);
     /**
      * Set Join Cascador (only neg dataset needs)
      */

@@ -24,6 +24,9 @@ void Cart::Initialize(int stage, int landmark_id) {
     featNum = c.feats[stage];
     radius = c.radius[stage];
     p = c.probs[stage];
+    features.resize(nodes_n / 2);
+    scores.resize(nodes_n / 2);
+    is_classifications.resize(nodes_n / 2);
 }
 
 void Cart::Train(DataSet& pos, DataSet& neg) {

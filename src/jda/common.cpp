@@ -42,6 +42,9 @@ Config::Config() {
     landmark_n = 5;
     tp_rate = 0.99;
     fn_rate = 0.3;
+    shift_size = 10;
+    np_ratio = 1.1;
+    img_height = img_height = 80;
     int feats[5] = { 500, 500, 500, 300, 300 };
     double radius[5] = { 0.4, 0.3, 0.2, 0.15, 0.1 };
     double probs[5] = { 0.9, 0.8, 0.7, 0.6, 0.5 };
@@ -53,9 +56,9 @@ Config::Config() {
         this->radius.push_back(radius[i]);
         this->probs.push_back(radius[i]);
     }
-    positive_dataset = "data/positive.txt";
-    negative_dataset = "data/negative.txt";
-    test = "data/test.txt";
+    train_txt = "../data/train.txt";
+    test_txt = "../data/test.txt";
+    nega_txt = "../data/nega.txt";
 }
 
 } // namespace jda
