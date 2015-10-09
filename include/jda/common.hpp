@@ -1,6 +1,7 @@
 #ifndef COMMON_HPP_
 #define COMMON_HPP_
 
+#include <cassert>
 #include <opencv2/core/core.hpp>
 
 /**
@@ -9,21 +10,37 @@
  * usage:
  *      TIMER_BEGIN
  *          ....
- *          TIMER_NOW // get delta time from TIMER_BEGIN
+ *          TIMER_NOW # get delta time from TIMER_BEGIN
  *          ....
  *      TIMER_END
+ * 
+ * The Timer can be cascaded
+ *
+ *      TIMER_BEGIN # TIMER-1
+ *          ....
+ *          TIMER_BEGIN # TIMER-2
+ *              ....
+ *              TIMER_NOW # delta time from TIMER-2
+ *              ....
+ *          TIMER_END # End of TIMER-2
+ *          ....
+ *          TIMER_NOW # delta time from TIMER-1
+ *          ....
+ *      TIMER_END # End of TIMER-1
  */
 #define TIMER_BEGIN { double __time__ = cv::getTickCount();
 #define TIMER_NOW   ((cv::getTickCount() - __time__) / cv::getTickFrequency())
 #define TIMER_END   }
 
+#define JDA_Assert(expr, msg) assert((expr) && (msg))
+
 namespace jda {
 
 /**
-* Feature used by Cart
-*
-* see more detail on paper in section 4.2
-*/
+ * Feature used by Cart
+ *
+ * see more detail on paper in section 4.2
+ */
 class Feature {
 public:
     static const int ORIGIN = 0;
@@ -31,9 +48,24 @@ public:
     static const int QUARTER = 2;
 
 public:
+    /**
+     * Calculate feature value
+     * :input o:        original image
+     * :input h:        half of original image
+     * :input q:        quanter of original image
+     * :input s:        shape of origin image
+     * :return:         feature value
+     *
+     * We have three scaled image and one shape of original image, the shape of half size
+     * and quarter size will be calculated in this function for feature value
+     */
+    int CalcFeatureValue(const cv::Mat& o, const cv::Mat& h, const cv::Mat& q, \
+                         const cv::Mat_<double>& s) const;
+
+public:
     int scale;
     int landmark_id1, landmark_id2;
-    double offset1_x, offset1_y;
+    double offset1_x, offset1_y; // relative offset range in [0, 1]
     double offset2_x, offset2_y;
 
     static inline Feature Default() {
@@ -61,13 +93,18 @@ public:
     int K; // number of boost carts in each stage
     int landmark_n; // number of landmarks
     int tree_depth; // depth of cart
-    double tp_rate, fn_rate;
-    int img_width, img_height; // size of all training data
+    double accept_rate, reject_rate;
+    int img_o_width, img_o_height; // size of all training data
+    int img_h_width, img_h_height;
+    int img_q_width, img_q_height;
     int shift_size; // maximum random shift size on mean shape range [0, shift_size]
     double np_ratio; // N(negative) / N(postive)
     std::vector<double> radius; // sample radius of feature points in each stages
     std::vector<int> feats; // feature numbers used by carts in each stages
     std::vector<double> probs; // probability of classification in each stages
+
+    double scale_factor; // hard negative mining parameters
+    int x_step, y_step;
 
     std::string train_txt; // a text file for train dataset
     std::string nega_txt; // a text file for negative dataset
@@ -81,9 +118,15 @@ private:
 };
 
 /**
- * printf with timestamp
+ * Printf with timestamp
  */
 void LOG(const char* fmt, ...);
+
+/**
+ * Terminate the program with a message
+ * **NOTICE** the message shouldn't be too long
+ */
+void dieWithMsg(const char* fmt, ...);
 
 /**
  * Calculate Variance of vector
@@ -92,13 +135,23 @@ double calcVariance(const cv::Mat_<double>& vec);
 double calcVariance(const std::vector<double>& vec);
 
 /**
- * Check the point (x, y) in Image, modify if needed
+ * Calculate Mean Error between gt_shapes and current_shapes
  */
-inline void checkBoundaryOfImage(int w, int h, double& x, double& y) {
-    if (x < 0) x = 0.0;
-    if (y < 0) y = 0.0;
-    if (x > w) x = double(w);
-    if (y > h) y = double(h);
+double calcMeanError(const std::vector<cv::Mat_<double> >& gt_shapes, \
+                     const std::vector<cv::Mat_<double> >& current_shapes);
+
+/**
+ * Check the point (x, y) in Image, modify if needed
+ * :input w:    width of image
+ * :input h:    height of image
+ * :output x:   x of point
+ * :output y:   y of point
+ */
+inline void checkBoundaryOfImage(int w, int h, int& x, int& y) {
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
+    if (x >= w) x = w - 1;
+    if (y >= h) y = w - 1;
 }
 
 } // namespace jda

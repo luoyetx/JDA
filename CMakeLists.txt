@@ -7,5 +7,5 @@ include(libjda.cmake)
 
 file(GLOB SRC src/*.cpp)
 
-add_executable(${PROJECT_NAME} ${SRC})
-target_link_libraries(${PROJECT_NAME} libjda ${OpenCV_LIBS})
+add_executable(jda ${SRC})
+target_link_libraries(jda libjda ${OpenCV_LIBS})

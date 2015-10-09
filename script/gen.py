@@ -7,6 +7,7 @@ import cv2
 
 TRAIN = 'data/cuhk/train.txt'
 TEST = 'data/cuhk/test.txt'
+NEGA = 'data/nega'
 
 
 def load_txt(txt):
@@ -23,7 +24,7 @@ def load_txt(txt):
     return data_points
 
 def main():
-    assert(exists(TRAIN) and exists(TEST))
+    assert(exists(TRAIN) and exists(TEST) and exists(NEGA))
     # train
     data_points = load_txt(TRAIN)
     train = []
@@ -41,7 +42,7 @@ def main():
                       x_t(landmark[6]), y_t(landmark[7]),
                       x_t(landmark[8]), y_t(landmark[9]),]
         train.append((face_o, landmark_o))
-        face_f = cv2.flip(face_o, 1)
+        face_f = cv2.flip(face_o, 1) # flip
         landmark_f = [80-x_t(landmark[2]), y_t(landmark[3]),
                       80-x_t(landmark[0]), y_t(landmark[1]),
                       80-x_t(landmark[4]), y_t(landmark[5]),
@@ -55,7 +56,7 @@ def main():
         for face, landmark in train:
             idx += 1
             print 'Save %05d.jpg'%idx
-            fn = 'data/train/%05d.jpg'%idx
+            fn = '../data/train/%05d.jpg'%idx
             cv2.imwrite(fn, face)
             fd.write(fn)
             for _ in landmark:
@@ -86,12 +87,18 @@ def main():
         for face, landmark in test:
             idx += 1
             print 'Save %05d.jpg'%idx
-            fn = 'data/test/%05d.jpg'%idx
+            fn = '../data/test/%05d.jpg'%idx
             cv2.imwrite(fn, face)
             fd.write(fn)
             for _ in landmark:
                 fd.write(' %lf'%_)
             fd.write('\n')
+    # negative
+    with open('data/nega.txt', 'w') as fd:
+        fs = os.listdir(NEGA)
+        shuffle(fs)
+        for f in fs:
+            fd.write('../data/nega/%s\n'%f)
 
 
 if __name__ == '__main__':

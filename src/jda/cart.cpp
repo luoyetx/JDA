@@ -1,5 +1,6 @@
 #include <cmath>
 #include <climits>
+#include <opencv2/imgproc/imgproc.hpp>
 #include "jda/jda.hpp"
 
 using namespace cv;
@@ -9,11 +10,11 @@ namespace jda {
 
 Cart::Cart() {}
 Cart::~Cart() {}
-Cart::Cart(const Cart& other) {}
-Cart& Cart::operator=(const Cart& other) {
-    if (this == &other) return *this;
-    return *this;
-}
+//Cart::Cart(const Cart& other) {}
+//Cart& Cart::operator=(const Cart& other) {
+//    if (this == &other) return *this;
+//    return *this;
+//}
 void Cart::Initialize(int stage, int landmark_id) {
     const Config& c = Config::GetInstance();
     this->stage = stage;
@@ -25,6 +26,7 @@ void Cart::Initialize(int stage, int landmark_id) {
     radius = c.radius[stage];
     p = c.probs[stage];
     features.resize(nodes_n / 2);
+    thresholds.resize(nodes_n / 2);
     scores.resize(nodes_n / 2);
     is_classifications.resize(nodes_n / 2);
 }
@@ -44,17 +46,18 @@ void Cart::Train(DataSet& pos, DataSet& neg) {
 void Cart::SplitNode(DataSet& pos, vector<int>& pos_idx, \
                      DataSet& neg, vector<int>& neg_idx, \
                      int node_idx) {
-    int pos_n = pos_idx.size();
-    int neg_n = neg_idx.size();
+    const int pos_n = pos_idx.size();
+    const int neg_n = neg_idx.size();
     if (node_idx >= nodes_n / 2) {
         // we are on a leaf node
         const int idx = node_idx - nodes_n / 2;
         double pos_w, neg_w;
-        pos_w = neg_w = 0;
-        for (int i = 0; i < pos_idx.size(); i++) {
+        static double esp = 0.00001;
+        pos_w = neg_w = esp;
+        for (int i = 0; i < pos_n; i++) {
             pos_w += pos.weights[pos_idx[i]];
         }
-        for (int i = 0; i < neg_idx.size(); i++) {
+        for (int i = 0; i < neg_n; i++) {
             neg_w += neg.weights[neg_idx[i]];
         }
         scores[idx] = 0.5 * log(pos_w / neg_w);
@@ -69,12 +72,14 @@ void Cart::SplitNode(DataSet& pos, vector<int>& pos_idx, \
     neg_feature = neg.CalcFeatureValues(feature_pool, neg_idx);
     // classification or regression
     RNG rng(getTickCount());
-    bool is_classification = (rng.uniform(0, 1) < p) ? true : false;
+    bool is_classification = (rng.uniform(0., 1.) < p) ? true : false;
     int feature_idx, threshold;
     if (is_classification) {
+        LOG("\tSplit %d th node by Classification", node_idx);
         SplitNodeWithClassification(pos_feature, neg_feature, feature_idx, threshold);
     }
     else {
+        LOG("\tSplit %d th node by Regression", node_idx);
         Mat_<double> shape_residual = pos.CalcShapeResidual(pos_idx, landmark_id);
         SplitNodeWithRegression(pos_feature, shape_residual, feature_idx, threshold);
     }
@@ -85,8 +90,9 @@ void Cart::SplitNode(DataSet& pos, vector<int>& pos_idx, \
     right_pos_idx.reserve(pos_n);
     left_neg_idx.reserve(neg_n);
     right_neg_idx.reserve(neg_n);
+
     for (int i = 0; i < pos_n; i++) {
-        if (pos_feature(feature_idx, pos_idx[i]) < threshold) {
+        if (pos_feature(feature_idx, i) < threshold) {
             left_pos_idx.push_back(pos_idx[i]);
         }
         else {
@@ -94,7 +100,7 @@ void Cart::SplitNode(DataSet& pos, vector<int>& pos_idx, \
         }
     }
     for (int i = 0; i < neg_n; i++) {
-        if (neg_feature(feature_idx, neg_idx[i]) < threshold) {
+        if (neg_feature(feature_idx, i) < threshold) {
             left_neg_idx.push_back(neg_idx[i]);
         }
         else {
@@ -148,8 +154,8 @@ static T max(const Mat_<T>& m) {
     return max_v;
 }
 
-void Cart::SplitNodeWithClassification(Mat_<int>& pos_feature, \
-                                       Mat_<int>& neg_feature, \
+void Cart::SplitNodeWithClassification(const Mat_<int>& pos_feature, \
+                                       const Mat_<int>& neg_feature, \
                                        int& feature_idx, int& threshold) {
     const int feature_n = pos_feature.rows;
     const int pos_n = pos_feature.cols;
@@ -161,16 +167,18 @@ void Cart::SplitNodeWithClassification(Mat_<int>& pos_feature, \
     RNG rng(getTickCount());
     feature_idx = 0;
     threshold = 0;
+
+    if (pos_n == 0 || neg_n == 0) {
+        return;
+    }
     double entropy_reduce_max = 0;
     // select a feature reduce maximum entropy
     for (int i = 0; i < feature_n; i++) {
         left_pos = left_neg = 0;
         right_pos = right_neg = 0;
-        int pos_feaure_max = max<int>(pos_feature.row(i));
-        int neg_feature_min = min<int>(neg_feature.row(i));
-        int threshold_ = (pos_feaure_max < neg_feature_min) ? \
-                          rng.uniform(pos_feaure_max, neg_feature_min) : \
-                          rng.uniform(neg_feature_min, pos_feaure_max);
+        int max_ = std::min(max<int>(pos_feature.row(i)), max<int>(neg_feature.row(i)));
+        int min_ = std::max(min<int>(neg_feature.row(i)), min<int>(neg_feature.row(i)));
+        int threshold_ = rng.uniform(min_, max_);
         for (int j = 0; j < pos_n; j++) {
             if (pos_feature(i, j) < threshold_) {
                 left_pos++;
@@ -188,8 +196,11 @@ void Cart::SplitNodeWithClassification(Mat_<int>& pos_feature, \
             }
         }
         double e_ = calcBinaryEntropy(left_pos, left_neg)*(left_pos + left_neg) + \
-                    calcBinaryEntropy(right_pos, right_neg)*(left_pos + left_neg);
+                    calcBinaryEntropy(right_pos, right_neg)*(right_pos + right_neg);
         double entropy_reduce = entropy_all - e_;
+        //LOG("(left_pos, left_neg) = (%d, %d)", left_pos, left_neg);
+        //LOG("(right_pos, right_neg) = (%d, %d)", right_pos, right_neg);
+        //LOG("entropy = %lf", e_);
         if (entropy_reduce > entropy_reduce_max) {
             entropy_reduce_max = entropy_reduce;
             feature_idx = i;
@@ -199,8 +210,8 @@ void Cart::SplitNodeWithClassification(Mat_<int>& pos_feature, \
     // Done
 }
 
-void Cart::SplitNodeWithRegression(Mat_<int>& pos_feature, \
-                                   Mat_<double>& shape_residual, \
+void Cart::SplitNodeWithRegression(const Mat_<int>& pos_feature, \
+                                   const Mat_<double>& shape_residual, \
                                    int& feature_idx, int& threshold) {
     const int feature_n = pos_feature.rows;
     const int pos_n = pos_feature.cols;
@@ -215,6 +226,10 @@ void Cart::SplitNodeWithRegression(Mat_<int>& pos_feature, \
     RNG rng(getTickCount());
     feature_idx = 0;
     threshold = 0;
+
+    if (pos_n == 0) {
+        return;
+    }
     double variance_reduce_max = 0;
     // select a feature reduce maximum variance
     for (int i = 0; i < feature_n; i++) {
@@ -250,15 +265,15 @@ void Cart::GenFeaturePool(vector<Feature>& feature_pool) {
     feature_pool.resize(featNum);
     for (int i = 0; i < featNum; i++) {
         double x1, y1, x2, y2;
-        x1 = rng.uniform(-1, 1); y1 = rng.uniform(-1, 1);
-        x2 = rng.uniform(-1, 1); y2 = rng.uniform(-1, 1);
+        x1 = rng.uniform(-1., 1.); y1 = rng.uniform(-1., 1.);
+        x2 = rng.uniform(-1., 1.); y2 = rng.uniform(-1., 1.);
         // needs to be in a circle
         if (x1*x1 + y1*y1 > 1. || x2*x2 + y2*y2 > 1.) {
             i--;
             continue;
         }
         Feature& feat = feature_pool[i];
-        switch (rng.uniform(0, 2)) {
+        switch (rng.uniform(0, 3)) {
         case 0:
             feat.scale = Feature::ORIGIN; break;
         case 1:
@@ -277,39 +292,16 @@ void Cart::GenFeaturePool(vector<Feature>& feature_pool) {
     }
 }
 
-int Cart::Forward(const Mat& img, const Mat_<double>& shape) {
+int Cart::Forward(const Mat& img, const Mat_<double>& shape) const {
+    const Config& c = Config::GetInstance();
     int node_idx = 1;
     int len = depth - 1;
-    const int width = img.cols - 1;
-    const int height = img.rows - 1;
+    Mat img_half, img_quarter;
+    cv::resize(img, img_half, Size(c.img_h_width, c.img_h_height));
+    cv::resize(img, img_quarter, Size(c.img_q_width, c.img_q_height));
     while (len--) {
-        Feature& feature = features[node_idx];
-
-        double x1, y1, x2, y2, scale;
-        switch (feature.scale) {
-        case Feature::ORIGIN:
-            scale = 1.0; break;
-        case Feature::HALF:
-            scale = 0.5; break;
-        case Feature::QUARTER:
-            scale = 0.25; break;
-        default:
-            scale = 1.0; break;
-        }
-        x1 = shape(0, 2 * feature.landmark_id1) + scale*feature.offset1_x;
-        y1 = shape(0, 2 * feature.landmark_id1 + 1) + scale*feature.offset1_y;
-        x2 = shape(0, 2 * feature.landmark_id2) + scale*feature.offset2_x;
-        y2 = shape(0, 2 * feature.landmark_id2 + 1) + scale*feature.offset2_y;
-
-        checkBoundaryOfImage(width, height, x1, y1);
-        checkBoundaryOfImage(width, height, x2, y2);
-
-        const int x1_ = int(round(x1));
-        const int y1_ = int(round(y1));
-        const int x2_ = int(round(x2));
-        const int y2_ = int(round(y2));
-
-        int val = img.at<uchar>(x1_, y1_) - img.at<uchar>(x2_, y2_);
+        const Feature& feature = features[node_idx];
+        int val = feature.CalcFeatureValue(img, img_half, img_quarter, shape);
         if (val < thresholds[node_idx]) node_idx = 2 * node_idx;
         else node_idx = 2 * node_idx + 1;
     }

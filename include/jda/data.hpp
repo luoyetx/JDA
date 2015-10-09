@@ -20,37 +20,48 @@ class NegGenerator {
 public:
     NegGenerator();
     ~NegGenerator();
-    NegGenerator(const NegGenerator& other);
-    NegGenerator& operator=(const NegGenerator& other);
+    //NegGenerator(const NegGenerator& other);
+    //NegGenerator& operator=(const NegGenerator& other);
 
 public:
     /**
      * Generate more negative samples
-     * :input join_cascdor: JoinCascador in training
-     * :input size:         how many samples we need
-     * :output imgs:        negative samples
-     * :output scores:      scores of negative samples
-     * :oupput shapes:      shapes of samples, for training
-     * :return:             real size
+     * :input join_cascador:    JoinCascador in training
+     * :input size:             how many samples we need
+     * :output imgs:            negative samples
+     * :output scores:          scores of negative samples
+     * :oupput shapes:          shapes of samples, for training
+     * :return:                 real size
      *
      * We will generate negative training samples from origin images, all generated samples
      * should be hard enough to get through all stages of Join Cascador in current training
-     * state, it may be every hard to generate enough hard negative samples, we may fail with
+     * state, it may be very hard to generate enough hard negative samples, we may fail with
      * real size smaller than `int size`. We will give back all negative training samples with
      * their scores and current shapes for further training.
      */
     int Generate(JoinCascador& joincascador, int size, \
                  std::vector<cv::Mat>& imgs, std::vector<double>& scores, \
                  std::vector<cv::Mat_<double> >& shapes);
+
     /**
-     * Set file list from path
+     * Generate negative samples online for hard negative mining
+     * :return:     negative sample
      */
-    void SetImageList(const std::string& path);
+    cv::Mat Next();
+
+    /**
+     * Load nagetive image file list from path
+     */
+    void Load(const std::string& path);
 
 public:
     std::vector<std::string> list; // negative file list
-    int current_idx; // which image index we are
     cv::Mat_<double> mean_shape; // mean shape of pos dataset for init_shape
+
+private:
+    int current_idx; // which image index we are
+    int x, y;
+    cv::Mat img;
 };
 
 
@@ -61,8 +72,8 @@ class DataSet {
 public:
     DataSet();
     ~DataSet();
-    DataSet(const DataSet& other);
-    DataSet& operator=(const DataSet& other);
+    //DataSet(const DataSet& other);
+    //DataSet& operator=(const DataSet& other);
 
 public:
     /**
@@ -93,27 +104,34 @@ public:
     static void LoadDataSet(DataSet& pos, DataSet& neg);
     /**
      * Calculate feature values from `feature_pool` with `idx`
-     * :return:     every row presents a feature with every colum presents a data point
-     *              `feature_{i, j} = f_i(data_j)`
+     * :input feature_pool: features
+     * :input idx:          index of dataset to calculate feature value
+     * :return:             every row presents a feature with every colum presents a data point
+     *                      `feature_{i, j} = f_i(data_j)`
      */
-    cv::Mat_<int> CalcFeatureValues(std::vector<Feature>& feature_pool, \
-                                    std::vector<int>& idx);
+    cv::Mat_<int> CalcFeatureValues(const std::vector<Feature>& feature_pool, \
+                                    const std::vector<int>& idx) const;
     /**
      * Calcualte shape residual of landmark_id over positive dataset
-     * :return:     every data point in each row
+     * :input idx:          index of positive dataset
+     * :input landmark_id:  landmark id to calculate shape residual
+     * :return:             every data point in each row
      */
-    cv::Mat_<double> CalcShapeResidual(std::vector<int>& idx);
-    cv::Mat_<double> CalcShapeResidual(std::vector<int>& idx, int landmark_id);
+    cv::Mat_<double> CalcShapeResidual(const std::vector<int>& idx) const;
+    cv::Mat_<double> CalcShapeResidual(const std::vector<int>& idx, int landmark_id) const;
     /**
      * Calculate Mean Shape over gt_shapes
+     * :return:             mean_shape of gt_shapes in positive dataset
      */
-    cv::Mat_<double> CalcMeanShape();
+    cv::Mat_<double> CalcMeanShape() const;
     /**
      * Random Shapes, a random perturbations on mean_shape
      * :input mean_shape:       mean shape of positive samples
+     * :output shape:           random shape
      * :output shapes:          this vector should already malloc memory for shapes
      */
-    static void RandomShapes(cv::Mat_<double>& mean_shape, std::vector<cv::Mat_<double> >& shapes);
+    static void RandomShape(const cv::Mat_<double>& mean_shape, cv::Mat_<double>& shape);
+    static void RandomShapes(const cv::Mat_<double>& mean_shape, std::vector<cv::Mat_<double> >& shapes);
     /**
      * Update weights
      *
@@ -125,7 +143,7 @@ public:
      *
      * `f_i = f_i + Cart(x, s)`, see more on paper in `Algorithm 3`
      */
-    void UpdateScores(Cart& cart);
+    void UpdateScores(const Cart& cart);
     /**
      * Calculate threshold which seperate scores in two part
      *
@@ -146,14 +164,16 @@ public:
      */
     void set_joincascador(JoinCascador* joincascador) { this->joincascador = joincascador; }
     /**
-     * Quick Sort by scores
+     * Quick Sort by scores descending
      */
     void QSort();
     void _QSort_(int left, int right);
 
 public:
-    NegGenerator neg_generator; // generator for more negtive samples
+    NegGenerator neg_generator; // generator for more negative samples
     std::vector<cv::Mat> imgs; // face/none-face images
+    std::vector<cv::Mat> imgs_half;
+    std::vector<cv::Mat> imgs_quarter;
     // all shapes follows (x_1, y_1, x_2, y_2, ... , x_n, y_n)
     std::vector<cv::Mat_<double> > gt_shapes; // ground-truth shapes for face
     std::vector<cv::Mat_<double> > current_shapes; // current shapes

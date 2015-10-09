@@ -15,8 +15,8 @@ class JoinCascador {
 public:
     JoinCascador();
     ~JoinCascador();
-    JoinCascador(const JoinCascador& other);
-    JoinCascador& operator=(const JoinCascador& other);
+    //JoinCascador(const JoinCascador& other);
+    //JoinCascador& operator=(const JoinCascador& other);
     void Initialize(int T);
 
 public:
@@ -26,6 +26,10 @@ public:
      * See Full Algorithm on paper `Algorithm 3`
      */
     void Train(DataSet& pos, DataSet& neg);
+    /**
+     * Snapshot current model
+     */
+    void Snapshot();
     /**
      * Write parameters to a binary file
      */
@@ -48,7 +52,7 @@ public:
      * a face score for this region. The training status is based on `current_stage_idx`
      * and `current_cart_idx`.
      */
-    bool Validate(cv::Mat& region, double& score, cv::Mat_<double>& shape);
+    bool Validate(const cv::Mat& region, double& score, cv::Mat_<double>& shape) const;
 
 public:
     int T; // number of stages

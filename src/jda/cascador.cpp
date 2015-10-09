@@ -1,3 +1,4 @@
+#include <cstdio>
 #include "jda/jda.hpp"
 
 using namespace cv;
@@ -9,11 +10,11 @@ namespace jda {
 
 JoinCascador::JoinCascador() {}
 JoinCascador::~JoinCascador() {}
-JoinCascador::JoinCascador(const JoinCascador& other) {}
-JoinCascador& JoinCascador::operator=(const JoinCascador& other) {
-    if (this == &other) return *this;
-    return *this;
-}
+//JoinCascador::JoinCascador(const JoinCascador& other) {}
+//JoinCascador& JoinCascador::operator=(const JoinCascador& other) {
+//    if (this == &other) return *this;
+//    return *this;
+//}
 void JoinCascador::Initialize(int T) {
     this->T = T;
     btcarts.resize(T);
@@ -25,12 +26,18 @@ void JoinCascador::Initialize(int T) {
 
 void JoinCascador::Train(DataSet& pos, DataSet& neg) {
     for (int t = 0; t < T; t++) {
-        LOG("Train %dth stages", t + 1);
+        current_stage_idx = t;
+        current_cart_idx = -1;
+        LOG("Train %d th stages", t + 1);
         TIMER_BEGIN
             btcarts[t].Train(pos, neg);
-            LOG("End of train %dth stages, costs %.4lf s", t + 1, TIMER_NOW);
+            LOG("End of train %d th stages, costs %.4lf s", t + 1, TIMER_NOW);
         TIMER_END
     }
+}
+
+void JoinCascador::Snapshot() {
+    // **TODO** Snapshot
 }
 
 void JoinCascador::SerializeTo(FILE* fd) {
@@ -75,20 +82,18 @@ void JoinCascador::SerializeTo(FILE* fd) {
     fwrite(&YO, sizeof(YO), 1, fd);
 }
 
-#define HALT LOG("Wrong Model Paratemers!"); exit(-1)
-
 void JoinCascador::SerializeFrom(FILE* fd) {
     const Config& c = Config::GetInstance();
     int tmp;
     fread(&YO, sizeof(YO), 1, fd);
     fread(&tmp, sizeof(int), 1, fd);
-    if (tmp != c.T) HALT;
+    if (tmp != c.T) dieWithMsg("Wrong Model Paratemers!");
     fread(&tmp, sizeof(int), 1, fd);
-    if (tmp != c.K) HALT;
+    if (tmp != c.K) dieWithMsg("Wrong Model Paratemers!");
     fread(&tmp, sizeof(int), 1, fd);
-    if (tmp != c.landmark_n) HALT;
+    if (tmp != c.landmark_n) dieWithMsg("Wrong Model Paratemers!");
     fread(&tmp, sizeof(int), 1, fd);
-    if (tmp != c.tree_depth) HALT;
+    if (tmp != c.tree_depth) dieWithMsg("Wrong Model Paratemers!");
 
     current_stage_idx = c.T - 1;
     current_cart_idx = c.K - 1;
@@ -131,20 +136,20 @@ void JoinCascador::SerializeFrom(FILE* fd) {
     fread(&YO, sizeof(YO), 1, fd);
 }
 
-bool JoinCascador::Validate(Mat& region, double& score, Mat_<double>& shape) {
+bool JoinCascador::Validate(const Mat& region, double& score, Mat_<double>& shape) const {
     const Config& c = Config::GetInstance();
-    shape = mean_shape.clone();
+    DataSet::RandomShape(mean_shape, shape);
     score = 0;
-    Mat_<int> lbf;
+    Mat_<int> lbf(1, c.K);
     int* lbf_ptr = lbf.ptr<int>(0);
     const int base = 1 << (c.tree_depth - 1);
     int offset = 0;
     // stage [0, current_stage_idx)
     for (int t = 0; t < current_stage_idx; t++) {
-        BoostCart& btcart = btcarts[t];
+        const BoostCart& btcart = btcarts[t];
         offset = 0;
         for (int k = 0; k < c.K; k++) {
-            Cart& cart = btcart.carts[k];
+            const Cart& cart = btcart.carts[k];
             int idx = cart.Forward(region, shape);
             score += cart.scores[idx];
             if (score < cart.th) {
@@ -159,7 +164,7 @@ bool JoinCascador::Validate(Mat& region, double& score, Mat_<double>& shape) {
     }
     // current stage
     for (int k = 0; k <= current_cart_idx; k++) {
-        Cart& cart = btcarts[current_stage_idx].carts[k];
+        const Cart& cart = btcarts[current_stage_idx].carts[k];
         int idx = cart.Forward(region, shape);
         score += cart.scores[idx];
         if (score < cart.th) {

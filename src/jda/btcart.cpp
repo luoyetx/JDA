@@ -1,6 +1,8 @@
 #include <liblinear/linear.h>
 #include "jda/jda.hpp"
 
+#include <iostream>
+
 using namespace cv;
 using namespace std;
 
@@ -8,17 +10,15 @@ namespace jda {
 
 BoostCart::BoostCart() {}
 BoostCart::~BoostCart() {}
-BoostCart::BoostCart(const BoostCart& other) {}
-BoostCart& BoostCart::operator=(const BoostCart& other) {
-    if (this == &other) return *this;
-    return *this;
-}
+//BoostCart::BoostCart(const BoostCart& other) {}
+//BoostCart& BoostCart::operator=(const BoostCart& other) {
+//    if (this == &other) return *this;
+//    return *this;
+//}
 void BoostCart::Initialize(int stage) {
     const Config& c = Config::GetInstance();
     this->stage = stage;
     K = c.K;
-    tp_rate = c.tp_rate;
-    fn_rate = c.fn_rate;
     carts.resize(K);
     const int landmark_n = c.landmark_n;
     const int m = K*(1 << c.tree_depth);
@@ -34,6 +34,8 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     // Real Boost
     for (int k = 0; k < K; k++) {
         Cart& cart = carts[k];
+        // more neg if needed
+        neg.MoreNegSamples(pos.size);
         // update weights
         pos.UpdateWeights();
         neg.UpdateWeights();
@@ -41,35 +43,40 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
         cart.Initialize(stage, landmark_id);
         // train cart
         TIMER_BEGIN
-            LOG("Train %th Cart", k);
+            LOG("Train %d th Cart", k);
             cart.Train(pos, neg);
-            LOG("Done with %th Cart, costs %.4lf s", k, TIMER_NOW);
+            LOG("Done with %d th Cart, costs %.4lf s", k, TIMER_NOW);
         TIMER_END
+        joincascador->current_cart_idx = k;
         // update score
         pos.UpdateScores(cart);
         neg.UpdateScores(cart);
         // select th for tp_rate and nf_rate
-        double th1 = pos.CalcThresholdByRate(tp_rate);
-        double th2 = neg.CalcThresholdByRate(fn_rate);
+        double th1 = pos.CalcThresholdByRate(1 - c.accept_rate);
+        double th2 = neg.CalcThresholdByRate(c.reject_rate);
         // expect th2 < th < th1
         cart.th = (th2 < th1) ? rng.uniform(th2, th1) : th1;
+        int pos_n = pos.size;
+        int neg_n = neg.size;
         pos.Remove(cart.th);
         neg.Remove(cart.th);
-        // more neg if needed
-        neg.MoreNegSamples(pos.size);
+        double pos_drop_rate = double(pos_n - pos.size) / double(pos_n) * 100.;
+        double neg_drop_rate = double(neg_n - neg.size) / double(neg_n) * 100.;
+        LOG("Pos drop rate = %.2lf%%, Neg drop rate = %.2lf%%", pos_drop_rate, neg_drop_rate);
+        LOG("Current Positive DataSet Size is %d", pos.size);
     }
     // Global Regression with LBF
     // generate lbf
     const int pos_n = pos.size;
     const int neg_n = neg.size;
     const int m = K;
-    Mat_<int> pos_lbf(pos_n, m);
-    Mat_<int> neg_lbf(pos_n, m);
+    vector<Mat_<int> > pos_lbf(pos_n);
+    vector<Mat_<int> > neg_lbf(neg_n);
     for (int i = 0; i < pos_n; i++) {
-        pos_lbf.row(i) = GenLBF(pos.imgs[i], pos.current_shapes[i]);
+        pos_lbf[i] = GenLBF(pos.imgs[i], pos.current_shapes[i]);
     }
     for (int i = 0; i < neg_n; i++) {
-        neg_lbf.row(i) = GenLBF(neg.imgs[i], neg.current_shapes[i]);
+        neg_lbf[i] = GenLBF(neg.imgs[i], neg.current_shapes[i]);
     }
     // regression
     vector<int> pos_idx(pos.size);
@@ -78,11 +85,14 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     GlobalRegression(pos_lbf, shape_residual);
     // update shapes
     for (int i = 0; i < pos_n; i++) {
-        pos.current_shapes[i] += GenDeltaShape(pos_lbf.row(i));
+        pos.current_shapes[i] += GenDeltaShape(pos_lbf[i]);
     }
     for (int i = 0; i < neg_n; i++) {
-        neg.current_shapes[i] += GenDeltaShape(neg_lbf.row(i));
+        neg.current_shapes[i] += GenDeltaShape(neg_lbf[i]);
     }
+    // regression error
+    double e = calcMeanError(pos.gt_shapes, pos.current_shapes);
+    LOG("Regression Mean Error = %.4lf", e);
     // Done
 }
 
@@ -95,10 +105,10 @@ static inline void freeModel(struct model* model) {
     free(model);
 }
 
-void BoostCart::GlobalRegression(const Mat_<int>& lbf, const Mat_<double>& shape_residual) {
+void BoostCart::GlobalRegression(const vector<Mat_<int> >& lbf, const Mat_<double>& shape_residual) {
     Config& c = Config::GetInstance();
     const int landmark_n = c.landmark_n;
-    const int n = lbf.rows;
+    const int n = lbf.size();
     const int m = K; // true size of local binary feature
     const int f = m*carts[0].leafNum; // full size of local binary feature
     vector<int> idx;
@@ -108,7 +118,7 @@ void BoostCart::GlobalRegression(const Mat_<int>& lbf, const Mat_<double>& shape
     for (int i = 0; i < n; i++) {
         X[i] = (struct feature_node *)malloc((m + 1)*sizeof(struct feature_node));
         for (int j = 0; j < m; j++) {
-            X[i][j].index = lbf(i, j) + 1; // index starts from 1
+            X[i][j].index = lbf[i](0, j) + 1; // index starts from 1
             X[i][j].value = 1;
         }
         X[i][m].index = X[i][m].value = -1;
@@ -155,7 +165,7 @@ void BoostCart::GlobalRegression(const Mat_<int>& lbf, const Mat_<double>& shape
     free(Y);
 }
 
-Mat_<int> BoostCart::GenLBF(const Mat& img, const Mat_<double>& shape) {
+Mat_<int> BoostCart::GenLBF(const Mat& img, const Mat_<double>& shape) const {
     Mat_<int> lbf(1, K);
     int* ptr = lbf.ptr<int>(0);
     const int base = carts[0].leafNum;
@@ -167,12 +177,12 @@ Mat_<int> BoostCart::GenLBF(const Mat& img, const Mat_<double>& shape) {
     return lbf;
 }
 
-Mat_<double> BoostCart::GenDeltaShape(const Mat_<int>& lbf) {
+Mat_<double> BoostCart::GenDeltaShape(const Mat_<int>& lbf) const {
     const int landmark_n = w.rows / 2;
     const int m = lbf.cols;
     Mat_<double> delta_shape(1, 2 * landmark_n);
-    double* w_ptr;
-    double* ds_ptr;
+    const double* w_ptr;
+    const double* ds_ptr;
     const int* lbf_ptr = lbf.ptr<int>(0);
     for (int i = 0; i < landmark_n; i++) {
         w_ptr = w.ptr<double>(2 * i);

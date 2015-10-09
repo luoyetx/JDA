@@ -1,6 +1,8 @@
 #include <cmath>
+#include <cstdio>
 #include <cassert>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include "jda/jda.hpp"
 
 using namespace cv;
@@ -10,59 +12,39 @@ namespace jda {
 
 DataSet::DataSet() {}
 DataSet::~DataSet() {}
-DataSet::DataSet(const DataSet& other) {}
-DataSet& DataSet::operator=(const DataSet& other) {
-    if (this == &other) return *this;
-    return *this;
-}
+//DataSet::DataSet(const DataSet& other) {}
+//DataSet& DataSet::operator=(const DataSet& other) {
+//    if (this == &other) return *this;
+//    return *this;
+//}
 
-Mat_<int> DataSet::CalcFeatureValues(vector<Feature>& feature_pool, vector<int>& idx) {
+Mat_<int> DataSet::CalcFeatureValues(const vector<Feature>& feature_pool, \
+                                     const vector<int>& idx) const {
     const int n = feature_pool.size();
     const int m = idx.size();
-    Mat_<int> features(n, m);
 
+    if (m == 0) {
+        return Mat_<int>();
+    }
+
+    Mat_<int> features(n, m);
     for (int i = 0; i < n; i++) {
         const Feature& feature = feature_pool[i];
         int* ptr = features.ptr<int>(i);
         for (int j = 0; j < m; j++) {
             const Mat& img = imgs[idx[j]];
+            const Mat& img_half = imgs_half[idx[j]];
+            const Mat& img_quarter = imgs_quarter[idx[j]];
             const Mat_<double>& shape = current_shapes[idx[j]];
-            const int width = img.cols - 1;
-            const int height = img.rows - 1;
-
-            double x1, y1, x2, y2, scale;
-            switch (feature.scale) {
-            case Feature::ORIGIN:
-                scale = 1.0; break;
-            case Feature::HALF:
-                scale = 0.5; break;
-            case Feature::QUARTER:
-                scale = 0.25; break;
-            default:
-                scale = 1.0; break;
-            }
-            x1 = shape(0, 2 * feature.landmark_id1) + scale*feature.offset1_x;
-            y1 = shape(0, 2 * feature.landmark_id1 + 1) + scale*feature.offset1_y;
-            x2 = shape(0, 2 * feature.landmark_id2) + scale*feature.offset2_x;
-            y2 = shape(0, 2 * feature.landmark_id2 + 1) + scale*feature.offset2_y;
-
-            checkBoundaryOfImage(width, height, x1, y1);
-            checkBoundaryOfImage(width, height, x2, y2);
-
-            const int x1_ = int(round(x1));
-            const int y1_ = int(round(y1));
-            const int x2_ = int(round(x2));
-            const int y2_ = int(round(y2));
-
-            ptr[j] = img.at<uchar>(x1_, y1_) - img.at<uchar>(x2_, y2_);
+            ptr[j] = feature.CalcFeatureValue(img, img_half, img_quarter, shape);
         }
     }
 
     return features;
 }
 
-Mat_<double> DataSet::CalcShapeResidual(vector<int>& idx) {
-    assert(is_pos == true);
+Mat_<double> DataSet::CalcShapeResidual(const vector<int>& idx) const {
+    JDA_Assert(is_pos == true, "Negative Dataset can not use `CalcShapeResidual`");
     Mat_<double> shape_residual;
     const int n = idx.size();
     // all landmark
@@ -73,8 +55,8 @@ Mat_<double> DataSet::CalcShapeResidual(vector<int>& idx) {
     }
     return shape_residual;
 }
-Mat_<double> DataSet::CalcShapeResidual(vector<int>& idx, int landmark_id) {
-    assert(is_pos == true);
+Mat_<double> DataSet::CalcShapeResidual(const vector<int>& idx, int landmark_id) const {
+    JDA_Assert(is_pos == true, "Negative Dataset can not use `CalcShapeResidual`");
     Mat_<double> shape_residual;
     const int n = idx.size();
     // specific landmark
@@ -88,7 +70,7 @@ Mat_<double> DataSet::CalcShapeResidual(vector<int>& idx, int landmark_id) {
     return shape_residual;
 }
 
-Mat_<double> DataSet::CalcMeanShape() {
+Mat_<double> DataSet::CalcMeanShape() const {
     Mat_<double> mean_shape = gt_shapes[0].clone();
     const int n = gt_shapes.size();
     for (int i = 1; i < n; i++) {
@@ -98,7 +80,16 @@ Mat_<double> DataSet::CalcMeanShape() {
     return mean_shape;
 }
 
-void DataSet::RandomShapes(Mat_<double>& mean_shape, vector<Mat_<double> >& shapes) {
+void DataSet::RandomShape(const Mat_<double>& mean_shape, Mat_<double>& shape) {
+    const Config& c = Config::GetInstance();
+    const int shift_size = c.shift_size;
+    RNG rng = RNG(getTickCount());
+    Mat_<double> shift(shape.rows, shape.cols);
+    // we use a uniform distribution over [0, shift_size]
+    rng.fill(shift, RNG::UNIFORM, 0, shift_size);
+    shape = mean_shape + shift;
+}
+void DataSet::RandomShapes(const Mat_<double>& mean_shape, vector<Mat_<double> >& shapes) {
     const Config& c = Config::GetInstance();
     const int shift_size = c.shift_size;
     const int n = shapes.size();
@@ -107,7 +98,7 @@ void DataSet::RandomShapes(Mat_<double>& mean_shape, vector<Mat_<double> >& shap
     for (int i = 0; i < n; i++) {
         // we use a uniform distribution over [0, shift_size]
         rng.fill(shift, RNG::UNIFORM, 0, shift_size);
-        shapes[i] += shift;
+        shapes[i] = mean_shape + shift;
     }
 }
 
@@ -124,7 +115,7 @@ void DataSet::UpdateWeights() {
     }
 }
 
-void DataSet::UpdateScores(Cart& cart) {
+void DataSet::UpdateScores(const Cart& cart) {
     for (int i = 0; i < size; i++) {
         Mat& img = imgs[i];
         Mat_<double>& shape = current_shapes[i];
@@ -136,22 +127,25 @@ void DataSet::UpdateScores(Cart& cart) {
 
 double DataSet::CalcThresholdByRate(double rate) {
     if (!is_sorted) QSort();
-    int offset = int(rate*size);
+    int offset = size - int(rate*size);
     return scores[offset];
 }
 
 void DataSet::Remove(double th) {
     if (!is_sorted) QSort();
-    int offset = 0;
+    int offset = size - 1;
     const int upper = scores.size();
     // get offset
-    while (offset < upper && scores[offset] < th) offset++;
+    while (offset >=0 && scores[offset] < th) offset--;
+    offset++;
     imgs.resize(offset);
+    imgs_half.resize(offset);
+    imgs_quarter.resize(offset);
     gt_shapes.resize(offset);
     current_shapes.resize(offset);
     scores.resize(offset);
     weights.resize(offset);
-    // renew size
+    // new size
     size = offset;
 }
 
@@ -165,12 +159,14 @@ void DataSet::_QSort_(int left, int right) {
     int j = right;
     double t = scores[(left + right) / 2];
     do {
-        while (scores[i] < t) i++;
-        while (scores[j] > t) j--;
+        while (scores[i] > t) i++;
+        while (scores[j] < t) j--;
         if (i <= j) {
             // swap data point
             std::swap(imgs[i], imgs[j]);
-            std::swap(gt_shapes[i], gt_shapes[j]);
+            std::swap(imgs_half[i], imgs_half[j]);
+            std::swap(imgs_quarter[i], imgs_quarter[j]);
+            if (is_pos) std::swap(gt_shapes[i], gt_shapes[j]);
             std::swap(current_shapes[i], current_shapes[j]);
             std::swap(scores[i], scores[j]);
             std::swap(weights[i], weights[j]);
@@ -182,7 +178,7 @@ void DataSet::_QSort_(int left, int right) {
 }
 
 void DataSet::MoreNegSamples(int pos_size) {
-    assert(is_pos == false);
+    JDA_Assert(is_pos == false, "Positive Dataset can not use `MoreNegSamples`");
     const Config& c = Config::GetInstance();
     // get the size of negative to generate
     const int size_ = c.np_ratio*pos_size - this->size;
@@ -190,32 +186,45 @@ void DataSet::MoreNegSamples(int pos_size) {
         // generation is not needed
         return;
     }
+    LOG("Negative Samples are insufficient");
+    LOG("Use hard negative mining for size = %d", size_);
     vector<Mat> imgs_;
     vector<double> scores_;
     vector<Mat_<double> > shapes_;
     const int extra_size = neg_generator.Generate(*joincascador, size_, \
                                                   imgs_, scores_, shapes_);
-    const int expanded = extra_size+ imgs_.size();
+    const int expanded = imgs.size() + imgs_.size();
     imgs.reserve(expanded);
+    imgs_half.reserve(expanded);
+    imgs_quarter.reserve(expanded);
+    //gt_shapes.reserve(expanded);
     current_shapes.reserve(expanded);
     scores.reserve(expanded);
     weights.reserve(expanded);
     for (int i = 0; i < extra_size; i++) {
+        Mat half, quarter;
+        cv::resize(imgs_[i], half, Size(c.img_h_height, c.img_h_width));
+        cv::resize(imgs_[i], quarter, Size(c.img_q_height, c.img_q_width));
         imgs.push_back(imgs_[i]);
+        imgs_half.push_back(half);
+        imgs_quarter.push_back(quarter);
         current_shapes.push_back(shapes_[i]);
         scores.push_back(scores_[i]);
         weights.push_back(0); // all weights will be updated by calling `UpdateWeights`
     }
+    size = expanded;
 }
 
 void DataSet::LoadPositiveDataSet(const string& positive) {
     const Config& c = Config::GetInstance();
     const int landmark_n = c.landmark_n;
     FILE* file = fopen(positive.c_str(), "r");
-    assert(file);
+    JDA_Assert(file, "Can not open positive dataset file");
 
     char buff[300];
     imgs.clear();
+    imgs_half.clear();
+    imgs_quarter.clear();
     gt_shapes.clear();
     while (fscanf(file, "%s", buff) > 0) {
         Mat_<double> shape(1, 2 * landmark_n);
@@ -223,18 +232,27 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
         for (int i = 0; i < 2 * landmark_n; i++) {
             fscanf(file, "%lf", ptr + i);
         }
+        // images are preprocessed via `script/gen.py`, size = 80x80
         Mat img = imread(buff, CV_LOAD_IMAGE_GRAYSCALE);
+        Mat half, quarter; // these two variables should be defined here
+        cv::resize(img, half, Size(c.img_h_height, c.img_h_width));
+        cv::resize(img, quarter, Size(c.img_q_height, c.img_q_width));
         imgs.push_back(img);
+        imgs_half.push_back(half);
+        imgs_quarter.push_back(quarter);
         gt_shapes.push_back(shape);
     }
     size = imgs.size();
     is_pos = true;
     current_shapes.resize(size);
+    scores.resize(size);
+    weights.resize(size);
+    std::fill(scores.begin(), scores.end(), 0);
 
     fclose(file);
 }
 void DataSet::LoadNegativeDataSet(const string& negative) {
-    neg_generator.SetImageList(negative);
+    neg_generator.Load(negative);
     imgs.clear();
     gt_shapes.clear();
     current_shapes.clear();
@@ -250,50 +268,107 @@ void DataSet::LoadDataSet(DataSet& pos, DataSet& neg) {
     DataSet::RandomShapes(mean_shape, pos.current_shapes);
     // for negative generator
     neg.neg_generator.mean_shape = mean_shape;
-    neg.MoreNegSamples(pos.size);
 }
 
 
 NegGenerator::NegGenerator() {}
 NegGenerator::~NegGenerator() {}
-NegGenerator::NegGenerator(const NegGenerator& other) {}
-NegGenerator& NegGenerator::operator=(const NegGenerator& other) {
-    if (this == &other) return *this;
-    return *this;
-}
+//NegGenerator::NegGenerator(const NegGenerator& other) {}
+//NegGenerator& NegGenerator::operator=(const NegGenerator& other) {
+//    if (this == &other) return *this;
+//    return *this;
+//}
 
 int NegGenerator::Generate(JoinCascador& joincascador, int size, \
                            vector<Mat>& imgs, vector<double>& scores, \
                            vector<Mat_<double> >& shapes) {
-    // **TODO** generate negative samples with a strategy
+    imgs.clear();
+    scores.clear();
+    shapes.clear();
     imgs.reserve(size);
     scores.reserve(size);
     shapes.reserve(size);
-    const int list_size = list.size();
     double score = 0;
     Mat_<double> shape;
-    for (int i = current_idx; i < list_size; i++) {
-        // **TODO** get the region
-        Mat region;
+    while (size > 0) {
+        // We generate one by one to validate whether it is hard enough
+        // **TODO** mt for speed up
+        Mat region = Next();
         bool is_face = joincascador.Validate(region, score, shape);
         if (is_face) {
             imgs.push_back(region);
             scores.push_back(score);
             shapes.push_back(shape);
+            size--;
         }
     }
     return imgs.size();
 }
 
-void NegGenerator::SetImageList(const string& path) {
+Mat NegGenerator::Next() {
+    const Config& c = Config::GetInstance();
+    const double scale_factor = c.scale_factor;
+    const int x_step = c.x_step;
+    const int y_step = c.y_step;
+    const int w = c.img_o_width;
+    const int h = c.img_o_height;
+    const double scale = c.scale_factor;
+
+    const int width = img.cols;
+    const int height = img.rows;
+
+    x += x_step; // move x
+    if (x + w >= width) {
+        x = 0;
+        y += y_step; // move y
+        if (y + h >= height) {
+            x = y = 0;
+            int width_ = int(img.cols * scale_factor);
+            int height_ = int(img.rows * scale_factor);
+            cv::resize(img, img, Size(width_, height_)); // scale image
+            if (img.cols < w || img.rows < h) {
+                current_idx++; // next image
+                if (current_idx >= list.size()) {
+                    // **TODO** Add negative list on fly
+                    dieWithMsg("Run out of Negative Samples! :-(");
+                }
+                LOG("Use %d th Nega Image %s", current_idx + 1, list[current_idx].c_str());
+                img = cv::imread(list[current_idx], CV_LOAD_IMAGE_GRAYSCALE);
+                while (!img.data || img.cols <= w || img.rows <= h) {
+                    if (!img.data) {
+                        LOG("Can not open image %s, Skip it", list[current_idx].c_str());
+                    }
+                    else {
+                        LOG("Image %s is too small, Skip it", list[current_idx].c_str());
+                    }
+                    current_idx++;
+                    img = cv::imread(list[current_idx], CV_LOAD_IMAGE_GRAYSCALE);
+                }
+            }
+        }
+    }
+
+    Mat region;
+    Rect roi(x, y, w, h);
+    region = img(roi).clone();
+    return region;
+}
+
+void NegGenerator::Load(const string& path) {
     FILE* file = fopen(path.c_str(), "r");
-    assert(file);
+    JDA_Assert(file, "Can not open negative dataset file list");
 
     char buff[300];
     list.clear();
     while (fscanf(file, "%s", buff) > 0) {
         list.push_back(buff);
     }
+
+    // initialize
+    x = y = 0;
+    current_idx = 0;
+    img = cv::imread(list[current_idx], CV_LOAD_IMAGE_GRAYSCALE);
+    if (!img.data) dieWithMsg("Can not open image, the path is %s", list[current_idx].c_str());
 }
 
 } // namespace jda
