@@ -52,7 +52,7 @@ public:
      * Calculate feature value
      * :input o:        original image
      * :input h:        half of original image
-     * :input q:        quanter of original image
+     * :input q:        quarter of original image
      * :input s:        shape of origin image
      * :return:         feature value
      *

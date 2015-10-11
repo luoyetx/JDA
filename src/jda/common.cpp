@@ -121,7 +121,7 @@ Config::Config() {
     K = 1080;
     landmark_n = 5;
     tree_depth = 4;
-    accept_rate = 0.999;
+    accept_rate = 0.9999;
     reject_rate = 0.3;
     shift_size = 10;
     np_ratio = 1;

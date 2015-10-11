@@ -10,11 +10,6 @@ namespace jda {
 
 Cart::Cart() {}
 Cart::~Cart() {}
-//Cart::Cart(const Cart& other) {}
-//Cart& Cart::operator=(const Cart& other) {
-//    if (this == &other) return *this;
-//    return *this;
-//}
 void Cart::Initialize(int stage, int landmark_id) {
     const Config& c = Config::GetInstance();
     this->stage = stage;
@@ -162,8 +157,6 @@ void Cart::SplitNodeWithClassification(const Mat_<int>& pos_feature, \
     const int neg_n = neg_feature.cols;
     // total entropy
     double entropy_all = calcBinaryEntropy(pos_n, neg_n)*(pos_n + neg_n);
-    int left_pos, left_neg;
-    int right_pos, right_neg;
     RNG rng(getTickCount());
     feature_idx = 0;
     threshold = 0;
@@ -171,9 +164,15 @@ void Cart::SplitNodeWithClassification(const Mat_<int>& pos_feature, \
     if (pos_n == 0 || neg_n == 0) {
         return;
     }
+
     double entropy_reduce_max = 0;
     // select a feature reduce maximum entropy
+    vector<double> es_(feature_n);
+    vector<int> ths_(feature_n);
+    
+    #pragma omp parallel for
     for (int i = 0; i < feature_n; i++) {
+        int left_pos, left_neg, right_pos, right_neg;
         left_pos = left_neg = 0;
         right_pos = right_neg = 0;
         int max_ = std::min(max<int>(pos_feature.row(i)), max<int>(neg_feature.row(i)));
@@ -198,13 +197,19 @@ void Cart::SplitNodeWithClassification(const Mat_<int>& pos_feature, \
         double e_ = calcBinaryEntropy(left_pos, left_neg)*(left_pos + left_neg) + \
                     calcBinaryEntropy(right_pos, right_neg)*(right_pos + right_neg);
         double entropy_reduce = entropy_all - e_;
-        //LOG("(left_pos, left_neg) = (%d, %d)", left_pos, left_neg);
-        //LOG("(right_pos, right_neg) = (%d, %d)", right_pos, right_neg);
-        //LOG("entropy = %lf", e_);
-        if (entropy_reduce > entropy_reduce_max) {
-            entropy_reduce_max = entropy_reduce;
-            feature_idx = i;
-            threshold = threshold_;
+        //if (entropy_reduce > entropy_reduce_max) {
+        //    entropy_reduce_max = entropy_reduce;
+        //    feature_idx = i;
+        //    threshold = threshold_;
+        //}
+        es_[i] = entropy_reduce;
+        ths_[i] = threshold_;
+    }
+
+    for (int i = 0; i < feature_n; i++) {
+        if (es_[i] > entropy_reduce_max) {
+            entropy_reduce_max = es_[i];
+            threshold = ths_[i];
         }
     }
     // Done
@@ -230,8 +235,13 @@ void Cart::SplitNodeWithRegression(const Mat_<int>& pos_feature, \
     if (pos_n == 0) {
         return;
     }
+
     double variance_reduce_max = 0;
     // select a feature reduce maximum variance
+    vector<double> vs_(feature_n);
+    vector<int> ths_(feature_n);
+
+    #pragma omp parallel for private(left_x, left_y, right_x, right_y)
     for (int i = 0; i < feature_n; i++) {
         left_x.clear(); left_y.clear();
         right_x.clear(); right_y.clear();
@@ -249,10 +259,19 @@ void Cart::SplitNodeWithRegression(const Mat_<int>& pos_feature, \
         double variance_ = (calcVariance(left_x) + calcVariance(left_y))*left_x.size() + \
                            (calcVariance(right_x) + calcVariance(right_y))*right_x.size();
         double variance_reduce = variance_all - variance_;
-        if (variance_reduce > variance_reduce_max) {
-            variance_reduce_max = variance_reduce;
-            feature_idx = i;
-            threshold = threshold_;
+        //if (variance_reduce > variance_reduce_max) {
+        //    variance_reduce_max = variance_reduce;
+        //    feature_idx = i;
+        //    threshold = threshold_;
+        //}
+        vs_[i] = variance_reduce;
+        ths_[i] = threshold_;
+    }
+
+    for (int i = 0; i < feature_n; i++) {
+        if (vs_[i] > variance_reduce_max) {
+            variance_reduce_max = vs_[i];
+            threshold = ths_[i];
         }
     }
     // Done
@@ -292,16 +311,14 @@ void Cart::GenFeaturePool(vector<Feature>& feature_pool) {
     }
 }
 
-int Cart::Forward(const Mat& img, const Mat_<double>& shape) const {
+int Cart::Forward(const Mat& img, const Mat& img_h, const Mat& img_q, \
+                  const Mat_<double>& shape) const {
     const Config& c = Config::GetInstance();
     int node_idx = 1;
     int len = depth - 1;
-    Mat img_half, img_quarter;
-    cv::resize(img, img_half, Size(c.img_h_width, c.img_h_height));
-    cv::resize(img, img_quarter, Size(c.img_q_width, c.img_q_height));
     while (len--) {
         const Feature& feature = features[node_idx];
-        int val = feature.CalcFeatureValue(img, img_half, img_quarter, shape);
+        int val = feature.CalcFeatureValue(img, img_h, img_q, shape);
         if (val < thresholds[node_idx]) node_idx = 2 * node_idx;
         else node_idx = 2 * node_idx + 1;
     }

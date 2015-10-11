@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <opencv2/core/core.hpp>
 #include "jda/jda.hpp"
 
@@ -19,4 +20,10 @@ void train() {
     LOG("Start training JoinCascador");
     joincascador.Train(pos, neg);
     LOG("End of JoinCascador Training");
+
+    LOG("Saving Model");
+    FILE* fd = fopen("../data/jda.model", "wb");
+    JDA_Assert(fd, "Can not open the file to save the model");
+    joincascador.SerializeTo(fd);
+    fclose(fd);
 }

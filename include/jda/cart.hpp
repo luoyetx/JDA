@@ -26,12 +26,12 @@ class Cart {
 public:
     Cart();
     ~Cart();
-    //Cart(const Cart& other);
-    //Cart& operator=(const Cart& other);
     /**
      * Initialize Cart
      * :input stage:            which stage this cart lie in
      * :input landmark_id:      which landmark this cart training for regression
+     *
+     * Malloc all memory needed and initialize the tree structure
      */
     void Initialize(int stage, int landmark_id);
 
@@ -86,11 +86,14 @@ public:
 public:
     /**
      * Forward a data point to leaf node
-     * :input img:      region
+     * :input img:      original region
+     * :input img_h:    half of original region
+     * :input img_q:    quarter of original region
      * :input shape:    shape
      * :return:         leaf node index in this tree, start from 0
      */
-    int Forward(const cv::Mat& img, const cv::Mat_<double>& shape) const;
+    int Forward(const cv::Mat& img, const cv::Mat& img_h, \
+                const cv::Mat& img_q, const cv::Mat_<double>& shape) const;
 
 public:
     int stage; // cascade stage
@@ -118,8 +121,12 @@ class BoostCart {
 public:
     BoostCart();
     ~BoostCart();
-    //BoostCart(const BoostCart& other);
-    //BoostCart& operator=(const BoostCart& other);
+    /**
+     * Initialize the BoostCart
+     * :input stage:        which stage this boost cart lie in
+     *
+     * Malloc all memory needed and initialize the structure
+     */
     void Initialize(int stage);
 
 public:

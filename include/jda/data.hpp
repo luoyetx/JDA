@@ -20,8 +20,6 @@ class NegGenerator {
 public:
     NegGenerator();
     ~NegGenerator();
-    //NegGenerator(const NegGenerator& other);
-    //NegGenerator& operator=(const NegGenerator& other);
 
 public:
     /**
@@ -72,8 +70,6 @@ class DataSet {
 public:
     DataSet();
     ~DataSet();
-    //DataSet(const DataSet& other);
-    //DataSet& operator=(const DataSet& other);
 
 public:
     /**

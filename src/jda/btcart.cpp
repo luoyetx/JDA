@@ -1,7 +1,6 @@
 #include <liblinear/linear.h>
+#include <opencv2/imgproc/imgproc.hpp>
 #include "jda/jda.hpp"
-
-#include <iostream>
 
 using namespace cv;
 using namespace std;
@@ -10,11 +9,6 @@ namespace jda {
 
 BoostCart::BoostCart() {}
 BoostCart::~BoostCart() {}
-//BoostCart::BoostCart(const BoostCart& other) {}
-//BoostCart& BoostCart::operator=(const BoostCart& other) {
-//    if (this == &other) return *this;
-//    return *this;
-//}
 void BoostCart::Initialize(int stage) {
     const Config& c = Config::GetInstance();
     this->stage = stage;
@@ -29,6 +23,12 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     assert(carts.size() == K);
 
     const Config& c = Config::GetInstance();
+
+    // statistic parameters
+    const int pos_original_size = pos.size;
+    const int neg_original_size = pos_original_size * c.np_ratio;
+    int neg_rejected = 0;
+
     const int landmark_n = c.landmark_n;
     RNG rng(getTickCount());
     // Real Boost
@@ -43,9 +43,9 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
         cart.Initialize(stage, landmark_id);
         // train cart
         TIMER_BEGIN
-            LOG("Train %d th Cart", k);
+            LOG("Train %d th Cart", k + 1);
             cart.Train(pos, neg);
-            LOG("Done with %d th Cart, costs %.4lf s", k, TIMER_NOW);
+            LOG("Done with %d th Cart, costs %.4lf s", k + 1, TIMER_NOW);
         TIMER_END
         joincascador->current_cart_idx = k;
         // update score
@@ -64,24 +64,32 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
         double neg_drop_rate = double(neg_n - neg.size) / double(neg_n) * 100.;
         LOG("Pos drop rate = %.2lf%%, Neg drop rate = %.2lf%%", pos_drop_rate, neg_drop_rate);
         LOG("Current Positive DataSet Size is %d", pos.size);
+        neg_rejected += neg_n - neg.size;
+        LOG("Current Negative DataSet Reject Size is %d", neg_rejected);
     }
     // Global Regression with LBF
     // generate lbf
     const int pos_n = pos.size;
     const int neg_n = neg.size;
     const int m = K;
+    LOG("Generate LBF of DataSet");
     vector<Mat_<int> > pos_lbf(pos_n);
     vector<Mat_<int> > neg_lbf(neg_n);
+
+    #pragma omp parallel for
     for (int i = 0; i < pos_n; i++) {
         pos_lbf[i] = GenLBF(pos.imgs[i], pos.current_shapes[i]);
     }
+    #pragma omp parallel for
     for (int i = 0; i < neg_n; i++) {
         neg_lbf[i] = GenLBF(neg.imgs[i], neg.current_shapes[i]);
     }
+
     // regression
     vector<int> pos_idx(pos.size);
     for (int i = 0; i < pos.size; i++) pos_idx[i] = i;
     Mat_<double> shape_residual = pos.CalcShapeResidual(pos_idx);
+    LOG("Start Global Regression");
     GlobalRegression(pos_lbf, shape_residual);
     // update shapes
     for (int i = 0; i < pos_n; i++) {
@@ -90,9 +98,21 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     for (int i = 0; i < neg_n; i++) {
         neg.current_shapes[i] += GenDeltaShape(neg_lbf[i]);
     }
+
+    // summary
+    LOG("====================");
+    LOG("|      Summary     |");
+    LOG("====================");
     // regression error
     double e = calcMeanError(pos.gt_shapes, pos.current_shapes);
     LOG("Regression Mean Error = %.4lf", e);
+
+    // accept and reject rate
+    double accept_rate = 0.;
+    double reject_rate = 0.;
+    accept_rate = double(pos_n) / double(pos_original_size) * 100;
+    reject_rate = double(neg_rejected) / double(neg_rejected + neg_original_size) * 100;
+    LOG("Accept Rate = %.2lf%%, Reject Rate = %.2lf%%", accept_rate, reject_rate);
     // Done
 }
 
@@ -143,7 +163,7 @@ void BoostCart::GlobalRegression(const vector<Mat_<int> >& lbf, const Mat_<doubl
     param.p = 0;
     param.eps = 0.0001;
 
-    //#pragma omp parallel for
+    #pragma omp parallel for
     for (int i = 0; i < landmark_n; i++) {
         struct problem prob_ = prob;
         prob_.y = Y[2 * i];
@@ -166,12 +186,16 @@ void BoostCart::GlobalRegression(const vector<Mat_<int> >& lbf, const Mat_<doubl
 }
 
 Mat_<int> BoostCart::GenLBF(const Mat& img, const Mat_<double>& shape) const {
+    const Config& c = Config::GetInstance();
     Mat_<int> lbf(1, K);
     int* ptr = lbf.ptr<int>(0);
     const int base = carts[0].leafNum;
     int offset = 0;
+    Mat img_h, img_q;
+    cv::resize(img, img_h, Size(c.img_h_width, c.img_h_height));
+    cv::resize(img, img_q, Size(c.img_q_width, c.img_q_height));
     for (int k = 0; k < K; k++) {
-        ptr[k] = offset + carts[k].Forward(img, shape);
+        ptr[k] = offset + carts[k].Forward(img, img_h, img_q, shape);
         offset += base;
     }
     return lbf;

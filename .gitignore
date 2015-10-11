@@ -1,7 +1,3 @@
 build/
-
-*.txt
-*.zip
-*.jpg
-*.png
-*.JPEG
+data/
+model/

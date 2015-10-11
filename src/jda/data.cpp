@@ -12,11 +12,6 @@ namespace jda {
 
 DataSet::DataSet() {}
 DataSet::~DataSet() {}
-//DataSet::DataSet(const DataSet& other) {}
-//DataSet& DataSet::operator=(const DataSet& other) {
-//    if (this == &other) return *this;
-//    return *this;
-//}
 
 Mat_<int> DataSet::CalcFeatureValues(const vector<Feature>& feature_pool, \
                                      const vector<int>& idx) const {
@@ -28,6 +23,8 @@ Mat_<int> DataSet::CalcFeatureValues(const vector<Feature>& feature_pool, \
     }
 
     Mat_<int> features(n, m);
+
+    #pragma omp parallel for
     for (int i = 0; i < n; i++) {
         const Feature& feature = feature_pool[i];
         int* ptr = features.ptr<int>(i);
@@ -116,10 +113,13 @@ void DataSet::UpdateWeights() {
 }
 
 void DataSet::UpdateScores(const Cart& cart) {
+    #pragma omp parallel for
     for (int i = 0; i < size; i++) {
-        Mat& img = imgs[i];
+        const Mat& img = imgs[i];
+        const Mat& img_h = imgs_half[i];
+        const Mat& img_q = imgs_quarter[i];
         Mat_<double>& shape = current_shapes[i];
-        int leaf_node_idx = cart.Forward(img, shape);
+        int leaf_node_idx = cart.Forward(img, img_h, img_q, shape);
         scores[i] += cart.scores[leaf_node_idx];
     }
     is_sorted = false;
@@ -221,7 +221,7 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
     FILE* file = fopen(positive.c_str(), "r");
     JDA_Assert(file, "Can not open positive dataset file");
 
-    char buff[300];
+    char buff[256];
     imgs.clear();
     imgs_half.clear();
     imgs_quarter.clear();
@@ -273,11 +273,6 @@ void DataSet::LoadDataSet(DataSet& pos, DataSet& neg) {
 
 NegGenerator::NegGenerator() {}
 NegGenerator::~NegGenerator() {}
-//NegGenerator::NegGenerator(const NegGenerator& other) {}
-//NegGenerator& NegGenerator::operator=(const NegGenerator& other) {
-//    if (this == &other) return *this;
-//    return *this;
-//}
 
 int NegGenerator::Generate(JoinCascador& joincascador, int size, \
                            vector<Mat>& imgs, vector<double>& scores, \
@@ -292,7 +287,6 @@ int NegGenerator::Generate(JoinCascador& joincascador, int size, \
     Mat_<double> shape;
     while (size > 0) {
         // We generate one by one to validate whether it is hard enough
-        // **TODO** mt for speed up
         Mat region = Next();
         bool is_face = joincascador.Validate(region, score, shape);
         if (is_face) {
@@ -363,6 +357,7 @@ void NegGenerator::Load(const string& path) {
     while (fscanf(file, "%s", buff) > 0) {
         list.push_back(buff);
     }
+    std::random_shuffle(list.begin(), list.end());
 
     // initialize
     x = y = 0;
