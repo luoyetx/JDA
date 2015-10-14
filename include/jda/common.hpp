@@ -93,22 +93,23 @@ public:
     int K; // number of boost carts in each stage
     int landmark_n; // number of landmarks
     int tree_depth; // depth of cart
-    double accept_rate, reject_rate;
     int img_o_width, img_o_height; // size of all training data
     int img_h_width, img_h_height;
     int img_q_width, img_q_height;
     int shift_size; // maximum random shift size on mean shape range [0, shift_size]
-    double np_ratio; // N(negative) / N(postive)
+    std::vector<double> nps; // N(negative) / N(postive)
     std::vector<double> radius; // sample radius of feature points in each stages
     std::vector<int> feats; // feature numbers used by carts in each stages
     std::vector<double> probs; // probability of classification in each stages
+    std::vector<double> accept_rates;
 
     double scale_factor; // hard negative mining parameters
     int x_step, y_step;
 
-    std::string train_txt; // a text file for train dataset
-    std::string nega_txt; // a text file for negative dataset
-    std::string test_txt; // a text file for test dataset
+    std::string train_pos_txt; // a text file for train positive dataset
+    std::string train_neg_txt; // a text file for train negative dataset
+    std::string test_pos_txt; // a text file for test positive dataset
+    std::string test_neg_txt; // a text file for test negative dataset
 
 private:
     Config();

@@ -1,7 +1,10 @@
 #include <cmath>
 #include <climits>
 #include <opencv2/imgproc/imgproc.hpp>
-#include "jda/jda.hpp"
+#include "jda/data.hpp"
+#include "jda/cart.hpp"
+#include "jda/common.hpp"
+#include "jda/cascador.hpp"
 
 using namespace cv;
 using namespace std;

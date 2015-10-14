@@ -1,6 +1,9 @@
 #include <liblinear/linear.h>
 #include <opencv2/imgproc/imgproc.hpp>
-#include "jda/jda.hpp"
+#include "jda/data.hpp"
+#include "jda/cart.hpp"
+#include "jda/common.hpp"
+#include "jda/cascador.hpp"
 
 using namespace cv;
 using namespace std;
@@ -15,7 +18,7 @@ void BoostCart::Initialize(int stage) {
     K = c.K;
     carts.resize(K);
     const int landmark_n = c.landmark_n;
-    const int m = K*(1 << c.tree_depth);
+    const int m = K*(1 << (c.tree_depth - 1)); // K * leafNume
     w = Mat_<double>(2 * landmark_n, m);
 }
 
@@ -26,7 +29,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
 
     // statistic parameters
     const int pos_original_size = pos.size;
-    const int neg_original_size = pos_original_size * c.np_ratio;
+    const int neg_original_size = pos_original_size * c.nps[stage];
     int neg_rejected = 0;
 
     const int landmark_n = c.landmark_n;
@@ -35,7 +38,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     for (int k = 0; k < K; k++) {
         Cart& cart = carts[k];
         // more neg if needed
-        neg.MoreNegSamples(pos.size);
+        neg.MoreNegSamples(pos.size, c.nps[stage]);
         // update weights
         pos.UpdateWeights();
         neg.UpdateWeights();
@@ -52,10 +55,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
         pos.UpdateScores(cart);
         neg.UpdateScores(cart);
         // select th for tp_rate and nf_rate
-        double th1 = pos.CalcThresholdByRate(1 - c.accept_rate);
-        double th2 = neg.CalcThresholdByRate(c.reject_rate);
-        // expect th2 < th < th1
-        cart.th = (th2 < th1) ? rng.uniform(th2, th1) : th1;
+        cart.th = pos.CalcThresholdByRate(1 - c.accept_rates[stage]);
         int pos_n = pos.size;
         int neg_n = neg.size;
         pos.Remove(cart.th);
@@ -143,12 +143,14 @@ void BoostCart::GlobalRegression(const vector<Mat_<int> >& lbf, const Mat_<doubl
         }
         X[i][m].index = X[i][m].value = -1;
     }
+    // relatively scaled in [-1, 1]
+    Mat_<double> shape_residual_ = shape_residual / double(c.img_o_width);
     for (int i = 0; i < landmark_n; i++) {
         Y[2 * i] = (double*)malloc(n*sizeof(double));
         Y[2 * i + 1] = (double*)malloc(n*sizeof(double));
         for (int j = 0; j < n; j++) {
-            Y[2 * i][j] = shape_residual(j, 2 * i);
-            Y[2 * i + 1][j] = shape_residual(j, 2 * i + 1);
+            Y[2 * i][j] = shape_residual_(j, 2 * i);
+            Y[2 * i + 1][j] = shape_residual_(j, 2 * i + 1);
         }
     }
     // train every landmark
@@ -178,6 +180,9 @@ void BoostCart::GlobalRegression(const vector<Mat_<int> >& lbf, const Mat_<doubl
         for (int j = 0; j < f; j++) w(2 * i + 1, j) = get_decfun_coef(model, j + 1, 0);
         freeModel(model);
     }
+
+    // give back absolute scale in [-img_width, img_width]
+    w = w * double(c.img_o_width);
     // free
     for (int i = 0; i < n; i++) free(X[i]);
     for (int i = 0; i < 2 * landmark_n; i++) free(Y[i]);

@@ -1,6 +1,8 @@
 #include <cstdio>
 #include <opencv2/core/core.hpp>
-#include "jda/jda.hpp"
+#include "jda/data.hpp"
+#include "jda/common.hpp"
+#include "jda/cascador.hpp"
 
 using namespace cv;
 using namespace std;
@@ -22,8 +24,12 @@ void train() {
     LOG("End of JoinCascador Training");
 
     LOG("Saving Model");
-    FILE* fd = fopen("../data/jda.model", "wb");
+    FILE* fd = fopen("../model/jda.model", "wb");
     JDA_Assert(fd, "Can not open the file to save the model");
     joincascador.SerializeTo(fd);
     fclose(fd);
+}
+
+void resume() {
+
 }

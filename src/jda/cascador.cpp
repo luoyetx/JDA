@@ -1,7 +1,10 @@
 #include <ctime>
 #include <cstdio>
 #include <opencv2/imgproc/imgproc.hpp>
-#include "jda/jda.hpp"
+#include "jda/data.hpp"
+#include "jda/cart.hpp"
+#include "jda/common.hpp"
+#include "jda/cascador.hpp"
 
 using namespace cv;
 using namespace std;
@@ -36,7 +39,7 @@ void JoinCascador::Train(DataSet& pos, DataSet& neg) {
 }
 
 void JoinCascador::Snapshot() {
-    int stage = current_stage_idx + 1;
+    int stage = current_stage_idx;
     char buff1[256];
     char buff2[256];
     time_t t = time(NULL);
@@ -48,28 +51,31 @@ void JoinCascador::Snapshot() {
     SerializeTo(fd, stage);
     fclose(fd);
 }
-void JoinCascador::Resume(int stage, FILE* fd) {
+void JoinCascador::ResumeFrom(int stage, FILE* fd) {
     // **TODO** Resume
+    const Config& c = Config::GetInstance();
     current_stage_idx = stage - 1;
-    current_cart_idx = -1;
+    current_cart_idx = c.K - 1;
 }
 
 void JoinCascador::SerializeTo(FILE* fd, int stage) {
     const Config& c = Config::GetInstance();
-    if (stage <= 0 || stage > c.T) stage = c.T;
+    if (stage < 0 || stage >= c.T) stage = c.T - 1;
 
     fwrite(&YO, sizeof(YO), 1, fd);
     fwrite(&stage, sizeof(int), 1, fd);
     fwrite(&c.K, sizeof(int), 1, fd);
     fwrite(&c.landmark_n, sizeof(int), 1, fd);
     fwrite(&c.tree_depth, sizeof(int), 1, fd);
+    // mean shape
+    fwrite(mean_shape.ptr<double>(0), sizeof(double), mean_shape.cols, fd);
     // btcarts
-    for (int t = 0; t < stage; t++) {
+    for (int t = 0; t <= stage; t++) {
         const BoostCart& btcart = btcarts[t];
         for (int k = 0; k < c.K; k++) {
             const Cart& cart = btcart.carts[k];
             // only non leaf node need to save parameters
-            for (int i = 0; i < cart.nodes_n / 2; i++) {
+            for (int i = 1; i < cart.nodes_n / 2; i++) {
                 const Feature& feature = cart.features[i];
                 fwrite(&feature.scale, sizeof(int), 1, fd);
                 fwrite(&feature.landmark_id1, sizeof(int), 1, fd);
@@ -100,7 +106,7 @@ void JoinCascador::SerializeTo(FILE* fd, int stage) {
 
 void JoinCascador::SerializeFrom(FILE* fd, int stage) {
     const Config& c = Config::GetInstance();
-    if (stage <= 0 || stage > c.T) stage = c.T;
+    if (stage < 0 || stage >= c.T) stage = c.T - 1;
 
     int tmp;
     fread(&YO, sizeof(YO), 1, fd);
@@ -113,18 +119,22 @@ void JoinCascador::SerializeFrom(FILE* fd, int stage) {
     fread(&tmp, sizeof(int), 1, fd);
     if (tmp != c.tree_depth) dieWithMsg("Wrong Model Paratemers!");
 
-    current_stage_idx = c.T - 1;
+    current_stage_idx = stage;
     current_cart_idx = c.K - 1;
 
+    // mean shape
+    mean_shape.create(1, 2 * c.landmark_n);
+    fread(mean_shape.ptr<double>(0), sizeof(double), mean_shape.cols, fd);
+
     btcarts.resize(c.T); // still need to malloc full memory
-    for (int t = 0; t < stage; t++) {
+    for (int t = 0; t <= stage; t++) {
         BoostCart& btcart = btcarts[t];
         btcart.Initialize(t);
         for (int k = 0; k < c.K; k++) {
             Cart& cart = btcart.carts[k];
             cart.Initialize(t, k%c.landmark_n);
             // only non leaf node need to save parameters
-            for (int i = 0; i < cart.nodes_n / 2; i++) {
+            for (int i = 1; i < cart.nodes_n / 2; i++) {
                 Feature& feature = cart.features[i];
                 fread(&feature.scale, sizeof(int), 1, fd);
                 fread(&feature.landmark_id1, sizeof(int), 1, fd);
@@ -183,7 +193,7 @@ bool JoinCascador::Validate(const Mat& img, double& score, Mat_<double>& shape) 
         // global regression
         shape += btcart.GenDeltaShape(lbf);
     }
-    // current stage
+    // current stage, cart [0, current_cart_idx]
     for (int k = 0; k <= current_cart_idx; k++) {
         const Cart& cart = btcarts[current_stage_idx].carts[k];
         int idx = cart.Forward(img, img_h, img_q, shape);

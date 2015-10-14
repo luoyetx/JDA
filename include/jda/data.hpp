@@ -42,26 +42,43 @@ public:
                  std::vector<cv::Mat_<double> >& shapes);
 
     /**
-     * Generate negative samples online for hard negative mining
-     * :return:     negative sample
-     */
-    cv::Mat Next();
-
-    /**
      * Load nagetive image file list from path
+     * :input path:     background image file list
      */
     void Load(const std::string& path);
 
+private:
+    /**
+     * Generate negative samples online for hard negative mining
+     * :return:     negative sample
+     */
+    cv::Mat NextImage();
+    /**
+     * Next State, update parameters for next image
+     */
+    void NextState();
+
 public:
-    std::vector<std::string> list; // negative file list
     cv::Mat_<double> mean_shape; // mean shape of pos dataset for init_shape
 
 private:
-    int current_idx; // which image index we are
+    typedef enum {
+        ORIGIN = 0,
+        ORIGIN_R,
+        ORIGIN_RR,
+        ORIGIN_RRR,
+        ORIGIN_FLIP,
+        ORIGIN_FLIP_R,
+        ORIGIN_FLIP_RR,
+        ORIGIN_FLIP_RRR,
+    } TransformType;
+
+    int current_idx;
+    std::vector<std::string> list; // negative file list
     int x, y;
     cv::Mat img;
+    TransformType transform_type;
 };
-
 
 /**
  * DataSet Wrapper
@@ -112,6 +129,8 @@ public:
      * :input idx:          index of positive dataset
      * :input landmark_id:  landmark id to calculate shape residual
      * :return:             every data point in each row
+     *
+     * If a landmark id is given, we only generate the shape residual of that landmark
      */
     cv::Mat_<double> CalcShapeResidual(const std::vector<int>& idx) const;
     cv::Mat_<double> CalcShapeResidual(const std::vector<int>& idx, int landmark_id) const;
@@ -152,9 +171,10 @@ public:
     void Remove(double th);
     /**
      * More Negative Samples if needed (only neg dataset needs)
-     * :input pos_size: positive dataset size, reference for generating
+     * :input pos_size:     positive dataset size, reference for generating
+     * :input rate:         N(negative) / N(positive)
      */
-    void MoreNegSamples(int pos_size);
+    void MoreNegSamples(int pos_size, double rate);
     /**
      * Set Join Cascador (only neg dataset needs)
      */

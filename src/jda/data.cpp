@@ -3,7 +3,10 @@
 #include <cassert>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-#include "jda/jda.hpp"
+#include "jda/data.hpp"
+#include "jda/cart.hpp"
+#include "jda/common.hpp"
+#include "jda/cascador.hpp"
 
 using namespace cv;
 using namespace std;
@@ -177,11 +180,11 @@ void DataSet::_QSort_(int left, int right) {
     if (i < right) _QSort_(i, right);
 }
 
-void DataSet::MoreNegSamples(int pos_size) {
+void DataSet::MoreNegSamples(int pos_size, double rate) {
     JDA_Assert(is_pos == false, "Positive Dataset can not use `MoreNegSamples`");
     const Config& c = Config::GetInstance();
     // get the size of negative to generate
-    const int size_ = c.np_ratio*pos_size - this->size;
+    const int size_ = rate*pos_size - this->size;
     if (size_ <= 0) {
         // generation is not needed
         return;
@@ -261,8 +264,8 @@ void DataSet::LoadNegativeDataSet(const string& negative) {
 }
 void DataSet::LoadDataSet(DataSet& pos, DataSet& neg) {
     const Config& c = Config::GetInstance();
-    pos.LoadPositiveDataSet(c.train_txt);
-    neg.LoadNegativeDataSet(c.nega_txt);
+    pos.LoadPositiveDataSet(c.train_pos_txt);
+    neg.LoadNegativeDataSet(c.train_neg_txt);
     Mat_<double> mean_shape = pos.CalcMeanShape();
     // for current_shapes
     DataSet::RandomShapes(mean_shape, pos.current_shapes);
@@ -287,7 +290,7 @@ int NegGenerator::Generate(JoinCascador& joincascador, int size, \
     Mat_<double> shape;
     while (size > 0) {
         // We generate one by one to validate whether it is hard enough
-        Mat region = Next();
+        Mat region = NextImage();
         bool is_face = joincascador.Validate(region, score, shape);
         if (is_face) {
             imgs.push_back(region);
@@ -299,7 +302,56 @@ int NegGenerator::Generate(JoinCascador& joincascador, int size, \
     return imgs.size();
 }
 
-Mat NegGenerator::Next() {
+Mat NegGenerator::NextImage() {
+    const Config& c = Config::GetInstance();
+    const int w = c.img_o_width;
+    const int h = c.img_o_height;
+
+    NextState();
+
+    Mat region;
+    Rect roi(x, y, w, h);
+    region = img(roi).clone();
+
+    switch (transform_type) {
+    case ORIGIN:
+        break;
+    case ORIGIN_R:
+        flip(region, region, 0);
+        transpose(region, region);
+        break;
+    case ORIGIN_RR:
+        flip(region, region, -1);
+        break;
+    case ORIGIN_RRR:
+        flip(region, region, 1);
+        transpose(region, region);
+        break;
+    case ORIGIN_FLIP:
+        flip(region, region, 1);
+        break;
+    case ORIGIN_FLIP_R:
+        flip(region, region, -1);
+        transpose(region, region);
+        break;
+    case ORIGIN_FLIP_RR:
+        flip(region, region, -1);
+        flip(region, region, 1);
+        break;
+    case ORIGIN_FLIP_RRR:
+        flip(region, region, 0);
+        transpose(region, region);
+        flip(region, region, 1);
+        break;
+    default:
+        dieWithMsg("Unsupported Transform of Negatie Sample");
+        break;
+    }
+
+    return region;
+}
+
+void NegGenerator::NextState() {
     const Config& c = Config::GetInstance();
     const double scale_factor = c.scale_factor;
     const int x_step = c.x_step;
@@ -310,6 +362,36 @@ Mat NegGenerator::Next() {
 
     const int width = img.cols;
     const int height = img.rows;
+
+    switch (transform_type) {
+    case ORIGIN:
+        transform_type = ORIGIN_R;
+        return;
+    case ORIGIN_R:
+        transform_type = ORIGIN_RR;
+        return;
+    case ORIGIN_RR:
+        transform_type = ORIGIN_RRR;
+        return;
+    case ORIGIN_RRR:
+        transform_type = ORIGIN_FLIP;
+        return;
+    case ORIGIN_FLIP:
+        transform_type = ORIGIN_FLIP_R;
+        return;
+    case ORIGIN_FLIP_R:
+        transform_type = ORIGIN_FLIP_RR;
+        return;
+    case ORIGIN_FLIP_RR:
+        transform_type = ORIGIN_FLIP_RRR;
+        return;
+    case ORIGIN_FLIP_RRR:
+        transform_type = ORIGIN;
+        break;
+    default:
+        dieWithMsg("Unsupported Transform of Negatie Sample");
+        break;
+    }
 
     x += x_step; // move x
     if (x + w >= width) {
@@ -341,18 +423,13 @@ Mat NegGenerator::Next() {
             }
         }
     }
-
-    Mat region;
-    Rect roi(x, y, w, h);
-    region = img(roi).clone();
-    return region;
 }
 
 void NegGenerator::Load(const string& path) {
     FILE* file = fopen(path.c_str(), "r");
     JDA_Assert(file, "Can not open negative dataset file list");
 
-    char buff[300];
+    char buff[256];
     list.clear();
     while (fscanf(file, "%s", buff) > 0) {
         list.push_back(buff);
@@ -362,6 +439,7 @@ void NegGenerator::Load(const string& path) {
     // initialize
     x = y = 0;
     current_idx = 0;
+    transform_type = ORIGIN;
     img = cv::imread(list[current_idx], CV_LOAD_IMAGE_GRAYSCALE);
     if (!img.data) dieWithMsg("Can not open image, the path is %s", list[current_idx].c_str());
 }

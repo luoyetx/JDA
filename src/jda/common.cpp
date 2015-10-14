@@ -121,29 +121,31 @@ Config::Config() {
     K = 1080;
     landmark_n = 5;
     tree_depth = 4;
-    accept_rate = 0.9999;
-    reject_rate = 0.3;
     shift_size = 10;
-    np_ratio = 1;
     img_o_height = img_o_width = 80;
     img_h_height = img_h_width = 56;
     img_q_height = img_q_width = 40;
     x_step = y_step = 20;
     scale_factor = 0.8;
     int feats[5] = { 500, 500, 500, 300, 300 };
+    double nps[5] = { 1, 1, 1, 1, 1 };
     double radius[5] = { 0.4, 0.3, 0.2, 0.15, 0.1 };
     double probs[5] = { 0.9, 0.8, 0.7, 0.6, 0.5 };
+    double accept_rates[] = { 0.9999, 0.9999, 0.9999, 0.9999, 0.9999 };
     this->feats.clear();
     this->radius.clear();
     this->probs.clear();
     for (int i = 0; i < T; i++) {
         this->feats.push_back(feats[i]);
+        this->nps.push_back(nps[i]);
         this->radius.push_back(radius[i]);
         this->probs.push_back(probs[i]);
+        this->accept_rates.push_back(accept_rates[i]);
     }
-    train_txt = "../data/train.txt";
-    test_txt = "../data/test.txt";
-    nega_txt = "../data/nega.txt";
+    train_pos_txt = "../data/train.txt";
+    test_pos_txt = "../data/test.txt";
+    train_neg_txt = "../data/nega.txt";
+    test_neg_txt = "../data/test_nega.txt";
 }
 
 } // namespace jda

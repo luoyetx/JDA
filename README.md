@@ -3,6 +3,22 @@ JDA
 
 C++ implementation of Joint Cascade Face Detection and Alignment.
 
+### Build
+
+```
+$ git clone https://github.com/luoyetx/JDA.git
+$ cd JDA
+$ mkdir build && cd build
+$ cmake ..
+$ make
+```
+
+If you are on Windows, make sure you have set environment variable `OpenCV_DIR` to OpenCV's build directory like `D:/3rdparty/opencv2.4.11/build`. If you are on Linux or Unix, install the development packages of OpenCV via your system's Package Manager like `apt-get` on Ubuntu or `yum` on CentOS. However, Compile the source code of OpenCV will be the best choice of all.
+
+### Attention
+
+This project is not completed yet, welcome any question or idea through the [issues](https://github.com/luoyetx/JDA/issues).
+
 ### References
 
 - [Joint Cascade Face Detection and Alignment](http://home.ustc.edu.cn/~chendong/JointCascade/ECCV14_JointCascade.pdf)
