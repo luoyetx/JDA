@@ -29,7 +29,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
 
     // statistic parameters
     const int pos_original_size = pos.size;
-    const int neg_original_size = pos_original_size * c.nps[stage];
+    const int neg_original_size = static_cast<int>(pos_original_size * c.nps[stage]);
     int neg_rejected = 0;
 
     const int landmark_n = c.landmark_n;
@@ -54,14 +54,16 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
         // update score
         pos.UpdateScores(cart);
         neg.UpdateScores(cart);
-        // select th for tp_rate and nf_rate
+        // select th for pre-defined recall
         cart.th = pos.CalcThresholdByRate(1 - c.accept_rates[stage]);
         int pos_n = pos.size;
         int neg_n = neg.size;
         pos.Remove(cart.th);
         neg.Remove(cart.th);
-        double pos_drop_rate = double(pos_n - pos.size) / double(pos_n) * 100.;
-        double neg_drop_rate = double(neg_n - neg.size) / double(neg_n) * 100.;
+        double pos_drop_rate = static_cast<double>(pos_n - pos.size) / \
+                               static_cast<double>(pos_n) * 100.;
+        double neg_drop_rate = static_cast<double>(neg_n - neg.size) / \
+                               static_cast<double>(neg_n) * 100.;
         LOG("Pos drop rate = %.2lf%%, Neg drop rate = %.2lf%%", pos_drop_rate, neg_drop_rate);
         LOG("Current Positive DataSet Size is %d", pos.size);
         neg_rejected += neg_n - neg.size;
@@ -110,8 +112,10 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     // accept and reject rate
     double accept_rate = 0.;
     double reject_rate = 0.;
-    accept_rate = double(pos_n) / double(pos_original_size) * 100;
-    reject_rate = double(neg_rejected) / double(neg_rejected + neg_original_size) * 100;
+    accept_rate = static_cast<double>(pos_n) / \
+                  static_cast<double>(pos_original_size) * 100.;
+    reject_rate = static_cast<double>(neg_rejected) / \
+                  static_cast<double>(neg_rejected + neg_original_size) * 100.;
     LOG("Accept Rate = %.2lf%%, Reject Rate = %.2lf%%", accept_rate, reject_rate);
     // Done
 }
@@ -133,18 +137,19 @@ void BoostCart::GlobalRegression(const vector<Mat_<int> >& lbf, const Mat_<doubl
     const int f = m*carts[0].leafNum; // full size of local binary feature
     vector<int> idx;
     // prepare linear regression X, Y
-    struct feature_node** X = (struct feature_node**)malloc(n*sizeof(struct feature_node *));
-    double** Y = (double**)malloc(2 * landmark_n*sizeof(double *));
+    struct feature_node** X = (struct feature_node**)malloc(n*sizeof(struct feature_node*));
+    double** Y = (double**)malloc(2 * landmark_n*sizeof(double*));
     for (int i = 0; i < n; i++) {
-        X[i] = (struct feature_node *)malloc((m + 1)*sizeof(struct feature_node));
+        X[i] = (struct feature_node*)malloc((m + 1)*sizeof(struct feature_node));
         for (int j = 0; j < m; j++) {
             X[i][j].index = lbf[i](0, j) + 1; // index starts from 1
-            X[i][j].value = 1;
+            X[i][j].value = 1.;
         }
-        X[i][m].index = X[i][m].value = -1;
+        X[i][m].index = -1;
+        X[i][m].value = -1.;
     }
-    // relatively scaled in [-1, 1]
-    Mat_<double> shape_residual_ = shape_residual / double(c.img_o_width);
+    // relatively scaled range in [-1, 1]
+    Mat_<double> shape_residual_ = shape_residual / static_cast<double>(c.img_o_width);
     for (int i = 0; i < landmark_n; i++) {
         Y[2 * i] = (double*)malloc(n*sizeof(double));
         Y[2 * i + 1] = (double*)malloc(n*sizeof(double));
@@ -181,7 +186,7 @@ void BoostCart::GlobalRegression(const vector<Mat_<int> >& lbf, const Mat_<doubl
         freeModel(model);
     }
 
-    // give back absolute scale in [-img_width, img_width]
+    // give back absolute scale range in [-img_width, img_width]
     w = w * double(c.img_o_width);
     // free
     for (int i = 0; i < n; i++) free(X[i]);
@@ -210,19 +215,21 @@ Mat_<double> BoostCart::GenDeltaShape(const Mat_<int>& lbf) const {
     const int landmark_n = w.rows / 2;
     const int m = lbf.cols;
     Mat_<double> delta_shape(1, 2 * landmark_n);
+
     const double* w_ptr;
-    const double* ds_ptr;
     const int* lbf_ptr = lbf.ptr<int>(0);
+    double* ds_ptr = delta_shape.ptr<double>(0);
+
     for (int i = 0; i < landmark_n; i++) {
         w_ptr = w.ptr<double>(2 * i);
         double y = 0;
         for (int j = 0; j < m; j++) y += w_ptr[lbf_ptr[j]];
-        delta_shape(0, 2 * i) = y;
+        ds_ptr[2 * i] = y;
 
         w_ptr = w.ptr<double>(2 * i + 1);
         y = 0;
         for (int j = 0; j < m; j++) y += w_ptr[lbf_ptr[j]];
-        delta_shape(0, 2 * i + 1) = y;
+        ds_ptr[2 * i + 1] = y;
     }
     return delta_shape;
 }

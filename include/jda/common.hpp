@@ -29,7 +29,7 @@
  *      TIMER_END # End of TIMER-1
  */
 #define TIMER_BEGIN { double __time__ = cv::getTickCount();
-#define TIMER_NOW   ((cv::getTickCount() - __time__) / cv::getTickFrequency())
+#define TIMER_NOW   ((static_cast<double>(cv::getTickCount()) - __time__) / cv::getTickFrequency())
 #define TIMER_END   }
 
 #define JDA_Assert(expr, msg) assert((expr) && (msg))

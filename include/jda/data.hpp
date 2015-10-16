@@ -73,7 +73,7 @@ private:
         ORIGIN_FLIP_RRR,
     } TransformType;
 
-    int current_idx;
+    int current_idx; // index of image current used
     std::vector<std::string> list; // negative file list
     int x, y;
     cv::Mat img;

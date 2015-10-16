@@ -35,7 +35,7 @@ void test() {
             accept++;
         }
     }
-    double tp = double(accept) / double(pos.size) * 100;
+    double tp = static_cast<double>(accept) / static_cast<double>(pos.size) * 100.;
     LOG("True Positive Rate = %.2lf%%", tp);
     double e = calcMeanError(pos.gt_shapes, pos.current_shapes);
     LOG("Shape Mean Error = %.4lf", e);
@@ -47,7 +47,7 @@ void test() {
             reject++;
         }
     }
-    double fp = (1 - double(reject) / double(neg.size)) * 100;
+    double fp = (1 - static_cast<double>(reject) / static_cast<double>(neg.size)) * 100.;
     LOG("False Positive Rate = %.2lf%%", fp);
     LOG("Done");
 }

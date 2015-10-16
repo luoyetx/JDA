@@ -34,12 +34,12 @@ public:
      * Save all model parameters currently trained, this will be used for `Resume`.
      * A model file will be save at `../model/jda_tmp_{%time%}_{stage}.model`,
      * `%time%` is the saving time point format `%Y%m%D-%H%M%S` like `20151011-103625`
-     * `stage` is current stage range in [1..T]
+     * `stage` is current stage range in [1..c.T]
      */
     void Snapshot();
     /**
      * Resume the Training Status
-     * :input stage:        which stage to start from, range in [1, c.T)
+     * :input stage:        which stage to start from, range in [2, c.T]
      * :input fd:           file discriptor of the model file
      *
      * Resume the Training Status from a Snapshot model file. We will load the model
@@ -81,7 +81,7 @@ public:
      * a face score for this region. The training status is based on `current_stage_idx`
      * and `current_cart_idx`.
      */
-    bool Validate(const cv::Mat& image, double& score, cv::Mat_<double>& shape) const;
+    bool Validate(const cv::Mat& img, double& score, cv::Mat_<double>& shape) const;
     /**
      * Detect faces in a gray image
      * :input img:          gray image

@@ -24,13 +24,13 @@ int Feature::CalcFeatureValue(const Mat& o, const Mat& h, const Mat& q, \
         img = o; // ref
         break;
     case HALF:
-        ratio = double(h.rows) / double(o.rows);
+        ratio = static_cast<double>(h.rows) / static_cast<double>(o.rows);
         height = h.rows;
         width = h.cols;
         img = h; // ref
         break;
     case QUARTER:
-        ratio = double(q.rows) / double(o.rows);
+        ratio = static_cast<double>(q.rows) / static_cast<double>(o.rows);
         height = q.rows;
         width = q.cols;
         img = q; // ref
@@ -47,10 +47,10 @@ int Feature::CalcFeatureValue(const Mat& o, const Mat& h, const Mat& q, \
     y2 = s(0, 2 * landmark_id2 + 1) + o.rows*offset2_y;
     x1 *= ratio; y1 *= ratio;
     x2 *= ratio; y2 *= ratio;
-    int x1_ = int(round(x1));
-    int y1_ = int(round(y1));
-    int x2_ = int(round(x2));
-    int y2_ = int(round(y2));
+    int x1_ = static_cast<int>(round(x1));
+    int y1_ = static_cast<int>(round(y1));
+    int x2_ = static_cast<int>(round(x2));
+    int y2_ = static_cast<int>(round(y2));
 
     checkBoundaryOfImage(width, height, x1_, y1_);
     checkBoundaryOfImage(width, height, x2_, y2_);

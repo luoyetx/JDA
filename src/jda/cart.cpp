@@ -119,7 +119,7 @@ void Cart::SplitNode(DataSet& pos, vector<int>& pos_idx, \
  */
 static inline double calcBinaryEntropy(int x, int y) {
     if (x == 0 || y == 0) return 0;
-    double p = double(x) / (double(x) + double(y));
+    double p = static_cast<double>(x) / (static_cast<double>(x) + static_cast<double>(y));
     double h = -p*log(p) - (1 - p)*log(1 - p);
     return h;
 }
@@ -248,7 +248,7 @@ void Cart::SplitNodeWithRegression(const Mat_<int>& pos_feature, \
     for (int i = 0; i < feature_n; i++) {
         left_x.clear(); left_y.clear();
         right_x.clear(); right_y.clear();
-        int threshold_ = pos_feature_sorted(i, (int)(pos_n*rng.uniform(0.05, 0.95)));
+        int threshold_ = pos_feature_sorted(i, static_cast<int>(pos_n*rng.uniform(0.05, 0.95)));
         for (int j = 0; j < pos_n; j++) {
             if (pos_feature(i, j) < threshold_) {
                 left_x.push_back(shape_residual(j, 0));

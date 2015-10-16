@@ -49,7 +49,7 @@ void JoinCascador::Snapshot() {
     char buff2[256];
     time_t t = time(NULL);
     strftime(buff1, sizeof(buff1), "%Y%m%d-%H%M%S", localtime(&t));
-    sprintf(buff2, "../model/jda_tmp_%s_stage%d.model", buff1, stage);
+    sprintf(buff2, "../model/jda_tmp_%s_stage%d.model", buff1, stage + 1);
 
     FILE* fd = fopen(buff2, "wb");
     JDA_Assert(fd, "Can not open a temp file to save the model");
@@ -58,11 +58,10 @@ void JoinCascador::Snapshot() {
 }
 void JoinCascador::ResumeFrom(int stage, FILE* fd) {
     const Config& c = Config::GetInstance();
-    JDA_Assert(stage >= 1 && stage <= c.T, "Resume stage is Wrong");
+    JDA_Assert(stage >= 2 && stage <= c.T, "Resume stage is Wrong");
+    SerializeFrom(fd, stage - 2);
     current_stage_idx = stage - 1;
-    current_cart_idx = c.K - 1;
-
-    SerializeFrom(fd, stage - 1);
+    current_cart_idx = -1;
 }
 
 void JoinCascador::SerializeTo(FILE* fd, int stage) {
@@ -135,10 +134,11 @@ void JoinCascador::SerializeFrom(FILE* fd, int stage) {
     mean_shape.create(1, 2 * c.landmark_n);
     fread(mean_shape.ptr<double>(0), sizeof(double), mean_shape.cols, fd);
 
-    btcarts.resize(c.T); // still need to malloc full memory
+    // still need to malloc full memory
+    Initialize(T);
+
     for (int t = 0; t <= stage; t++) {
         BoostCart& btcart = btcarts[t];
-        btcart.Initialize(t);
         for (int k = 0; k < c.K; k++) {
             Cart& cart = btcart.carts[k];
             cart.Initialize(t, k%c.landmark_n);
@@ -163,12 +163,11 @@ void JoinCascador::SerializeFrom(FILE* fd, int stage) {
         }
         // global regression parameters
         double* w_ptr;
-        const int rows = c.landmark_n * 2;
-        const int cols = c.K * (1 << (c.tree_depth - 1));
-        btcart.w.create(rows, cols);
-        for (int i = 0; i < rows; i++) {
+        const int w_rows = c.landmark_n * 2;
+        const int w_cols = c.K * (1 << (c.tree_depth - 1));
+        for (int i = 0; i < w_rows; i++) {
             w_ptr = btcart.w.ptr<double>(i);
-            fread(w_ptr, sizeof(double), cols, fd);
+            fread(w_ptr, sizeof(double), w_cols, fd);
         }
     }
     fread(&YO, sizeof(YO), 1, fd);
