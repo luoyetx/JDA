@@ -82,6 +82,16 @@ public:
      * and `current_cart_idx`.
      */
     bool Validate(const cv::Mat& image, double& score, cv::Mat_<double>& shape) const;
+    /**
+     * Detect faces in a gray image
+     * :input img:          gray image
+     * :output rects:       face locations
+     * :output scores:      score of faces
+     * :output shapes:      shape of faces
+     * :return:             number of faces
+     */
+    int Detect(const cv::Mat& img, std::vector<cv::Rect>& rects, std::vector<double>& scores, \
+               std::vector<cv::Mat_<double> >& shapes);
 
 public:
     int T; // number of stages

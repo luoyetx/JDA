@@ -31,5 +31,5 @@ void train() {
 }
 
 void resume() {
-
+    // **TODO** resume
 }

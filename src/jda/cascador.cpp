@@ -16,7 +16,11 @@ static int YO = 0;
 JoinCascador::JoinCascador() {}
 JoinCascador::~JoinCascador() {}
 void JoinCascador::Initialize(int T) {
+    const Config& c = Config::GetInstance();
+    JDA_Assert(T == c.T, "Stages does not match with Config");
     this->T = T;
+    current_stage_idx = 0;
+    current_cart_idx = -1;
     btcarts.resize(T);
     for (int t = 0; t < T; t++) {
         btcarts[t].Initialize(t);
@@ -25,7 +29,8 @@ void JoinCascador::Initialize(int T) {
 }
 
 void JoinCascador::Train(DataSet& pos, DataSet& neg) {
-    for (int t = 0; t < T; t++) {
+    const int start = current_stage_idx;
+    for (int t = start; t < T; t++) {
         current_stage_idx = t;
         current_cart_idx = -1;
         LOG("Train %d th stages", t + 1);
@@ -52,10 +57,12 @@ void JoinCascador::Snapshot() {
     fclose(fd);
 }
 void JoinCascador::ResumeFrom(int stage, FILE* fd) {
-    // **TODO** Resume
     const Config& c = Config::GetInstance();
+    JDA_Assert(stage >= 1 && stage <= c.T, "Resume stage is Wrong");
     current_stage_idx = stage - 1;
     current_cart_idx = c.K - 1;
+
+    SerializeFrom(fd, stage - 1);
 }
 
 void JoinCascador::SerializeTo(FILE* fd, int stage) {
@@ -84,6 +91,7 @@ void JoinCascador::SerializeTo(FILE* fd, int stage) {
                 fwrite(&feature.offset1_y, sizeof(double), 1, fd);
                 fwrite(&feature.offset2_x, sizeof(double), 1, fd);
                 fwrite(&feature.offset2_y, sizeof(double), 1, fd);
+                fwrite(&cart.thresholds[i], sizeof(int), 1, fd);
             }
             // leaf node has scores
             for (int i = 0; i < cart.nodes_n / 2; i++) {
@@ -121,6 +129,7 @@ void JoinCascador::SerializeFrom(FILE* fd, int stage) {
 
     current_stage_idx = stage;
     current_cart_idx = c.K - 1;
+    T = c.T;
 
     // mean shape
     mean_shape.create(1, 2 * c.landmark_n);
@@ -143,6 +152,7 @@ void JoinCascador::SerializeFrom(FILE* fd, int stage) {
                 fread(&feature.offset1_y, sizeof(double), 1, fd);
                 fread(&feature.offset2_x, sizeof(double), 1, fd);
                 fread(&feature.offset2_y, sizeof(double), 1, fd);
+                fread(&cart.thresholds[i], sizeof(int), 1, fd);
             }
             // leaf node has scores
             for (int i = 0; i < cart.nodes_n / 2; i++) {
@@ -204,6 +214,12 @@ bool JoinCascador::Validate(const Mat& img, double& score, Mat_<double>& shape) 
         }
     }
     return true;
+}
+
+int JoinCascador::Detect(const Mat& img, vector<Rect>& rects, vector<double>& scores, \
+                         vector<Mat_<double> >& shapes) {
+    // **TODO** detect
+    return 0;
 }
 
 } // namespace jda

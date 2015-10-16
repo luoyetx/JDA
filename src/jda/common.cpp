@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdarg>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include "jda/common.hpp"
 
 using namespace cv;
@@ -114,6 +115,29 @@ double calcMeanError(const vector<Mat_<double> >& gt_shapes, \
     e /= landmark_n * N;
     e /= c.img_o_width;
     return e;
+}
+
+Mat drawShape(const Mat& img, const Mat_<double>& shape) {
+    Mat img_ = img.clone();
+    const int landmark_n = shape.cols / 2;
+    for (int i = 0; i < landmark_n; i++) {
+        circle(img_, Point(shape(0, 2 * i), shape(0, 2 * i + 1)), 2, Scalar(0, 255, 0), -1);
+    }
+    return img_;
+}
+Mat drawShape(const Mat& img, const Mat_<double>& shape, Rect& bbox) {
+    Mat img_ = img.clone();
+    const int landmark_n = shape.cols / 2;
+    rectangle(img_, bbox, Scalar(0, 0, 255), 2);
+    for (int i = 0; i < landmark_n; i++) {
+        circle(img_, Point(shape(0, 2 * i), shape(0, 2 * i + 1)), 2, Scalar(0, 255, 0), -1);
+    }
+    return img_;
+}
+
+void showImage(const Mat& img) {
+    cv::imshow("img", img);
+    cv::waitKey(0);
 }
 
 Config::Config() {

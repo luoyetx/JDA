@@ -6,12 +6,14 @@ using namespace std;
 void train();
 void test();
 void resume();
+void detect();
 
 static const char help[] = "Joint Cascade Face Detection and Alignment\n\n"
                            "train:  train JDA classifier and regressor for face detection\n"
                            "        and face alignemnt\n"
                            "test:   test the model trained by command `train`\n"
-                           "resume: resume a previous training status\n";
+                           "resume: resume a previous training status\n"
+                           "run:    detect faces over test dataset\n\n";
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -25,6 +27,9 @@ int main(int argc, char* argv[]) {
     }
     else if (strcmp(argv[1], "resume") == 0) {
         resume();
+    }
+    else if (strcmp(argv[1], "run") == 0) {
+        detect();
     }
     else {
         printf(help);

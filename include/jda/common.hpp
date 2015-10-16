@@ -155,6 +155,21 @@ inline void checkBoundaryOfImage(int w, int h, int& x, int& y) {
     if (y >= h) y = w - 1;
 }
 
+/**
+ * Draw shape in the image with optional bounding box
+ * :input img:      image
+ * :input shape:    absolute shape binding to the image
+ * :input bbox:     bounding box of a face binding to the image
+ * :return:         image with landmarks
+ */
+cv::Mat drawShape(const cv::Mat& img, const cv::Mat_<double>& shape);
+cv::Mat drawShape(const cv::Mat& img, const cv::Mat_<double>& shape, const cv::Rect& bbox);
+/**
+ * Show image with shape
+ * :input img:      image to show
+ */
+void showImage(const cv::Mat& img);
+
 } // namespace jda
 
 #endif // COMMON_HPP_
