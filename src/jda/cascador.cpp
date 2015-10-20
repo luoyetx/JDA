@@ -126,16 +126,14 @@ void JoinCascador::SerializeFrom(FILE* fd, int stage) {
     fread(&tmp, sizeof(int), 1, fd);
     if (tmp != c.tree_depth) dieWithMsg("Wrong Model Paratemers!");
 
-    current_stage_idx = stage;
-    current_cart_idx = c.K - 1;
-    T = c.T;
-
     // mean shape
     mean_shape.create(1, 2 * c.landmark_n);
     fread(mean_shape.ptr<double>(0), sizeof(double), mean_shape.cols, fd);
 
     // still need to malloc full memory
-    Initialize(T);
+    Initialize(c.T);
+    current_stage_idx = stage; // set training state
+    current_cart_idx = c.K - 1;
 
     for (int t = 0; t <= stage; t++) {
         BoostCart& btcart = btcarts[t];
@@ -215,10 +213,96 @@ bool JoinCascador::Validate(const Mat& img, double& score, Mat_<double>& shape) 
     return true;
 }
 
+static void detectSingleScale(const JoinCascador& joincascador, const Mat& img, \
+                              vector<Rect>& rects, vector<double> scores, \
+                              vector<Mat_<double> >& shapes) {
+    const Config& c = Config::GetInstance();
+    const int win_w = c.img_o_width;
+    const int win_h = c.img_o_height;
+    const int x_max = img.cols - win_w;
+    const int y_max = img.rows - win_h;
+    const int x_step = 20;
+    const int y_step = 20;
+    int x = 0;
+    int y = 0;
+
+    rects.clear();
+    scores.clear();
+    shapes.clear();
+
+    while (y <= y_max) {
+        while (x <= x_max) {
+            Rect roi(x, y, win_w, win_h);
+            double score;
+            Mat_<double> shape;
+            bool is_face = joincascador.Validate(img(roi), score, shape);
+            if (is_face) {
+                rects.push_back(roi);
+                scores.push_back(score);
+                shapes.push_back(shape);
+            }
+            x += x_step;
+        }
+        x = 0;
+        y += y + y_step;
+    }
+}
+static void detectMultiScale(const JoinCascador& joincascador, const Mat& img, \
+                             vector<Rect>& rects, vector<double> scores, \
+                             vector<Mat_<double> >& shapes) {
+    const Config& c = Config::GetInstance();
+    const int win_w = c.img_o_width;
+    const int win_h = c.img_o_height;
+    int width = img.cols;
+    int height = img.rows;
+    const double factor = 1.3;
+    double scale = 1.;
+    Mat img_ = img.clone();
+
+    rects.clear();
+    scores.clear();
+    shapes.clear();
+
+    while ((width >= win_w) && (height >= win_h)) {
+        vector<Rect> rects_;
+        vector<double> scores_;
+        vector<Mat_<double> > shapes_;
+        detectSingleScale(joincascador, img_, rects_, scores_, shapes_);
+        const int n = rects_.size();
+        for (int i = 0; i < n; i++) {
+            Rect& r = rects_[i];
+            r.x *= scale; r.y *= scale;
+            r.width *= scale; r.height *= scale;
+            shapes_[i] *= scale;
+        }
+        rects.insert(rects.end(), rects_.begin(), rects_.end());
+        scores.insert(scores.end(), scores_.begin(), scores_.end());
+        shapes.insert(shapes.end(), shapes_.begin(), shapes_.end());
+
+        scale *= factor;
+        width = static_cast<int>(width / factor + 0.5);
+        height = static_cast<int>(height / factor + 0.5);
+        cv::resize(img_, img_, Size(width, height));
+    }
+}
+
 int JoinCascador::Detect(const Mat& img, vector<Rect>& rects, vector<double>& scores, \
                          vector<Mat_<double> >& shapes) {
-    // **TODO** detect
-    return 0;
+    detectMultiScale(*this, img, rects, scores, shapes);
+    // **TODO** NMS
+
+    // relocate the shape points
+    const int n = rects.size();
+    for (int i = 0; i < n; i++) {
+        Rect& rect = rects[i];
+        Mat_<double>& shape = shapes[i];
+        const int landmark_n = shape.cols / 2;
+        for (int j = 0; j < landmark_n; j++) {
+            shape(0, 2 * j) += rect.x;
+            shape(0, 2 * j + 1) += rect.y;
+        }
+    }
+    return n;
 }
 
 } // namespace jda

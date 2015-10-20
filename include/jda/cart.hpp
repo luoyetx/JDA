@@ -6,8 +6,8 @@
 namespace jda {
 
 // pre-define
-class Feature;
 class DataSet;
+class Feature;
 class JoinCascador;
 
 /**

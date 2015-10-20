@@ -8,6 +8,9 @@ using namespace cv;
 using namespace std;
 using namespace jda;
 
+/**
+ * Train JoinCascador
+ */
 void train() {
     const Config& c = Config::GetInstance();
 
@@ -30,12 +33,16 @@ void train() {
     fclose(fd);
 }
 
+/**
+ * Resume Training Status of JoinCascador
+ */
 void resume() {
     printf("Attention! The stage you resume from should range in [2, c.T]\n");
     printf("Please input the stage you want to resume from: ");
     int stage;
     char buff[256];
     scanf("%d", &stage);
+    printf("The model file should be ../model/jda_tmp_{time}_stage%d.model", stage - 1);
     printf("Please input the model file path: ");
     scanf("%s", buff);
     printf("\n");

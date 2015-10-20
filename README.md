@@ -19,6 +19,10 @@ If you are on Windows, make sure you have set environment variable `OpenCV_DIR` 
 
 This project is not completed yet, welcome any question or idea through the [issues](https://github.com/luoyetx/JDA/issues).
 
+### License
+
+BSD 3-Clause
+
 ### References
 
 - [Joint Cascade Face Detection and Alignment](http://home.ustc.edu.cn/~chendong/JointCascade/ECCV14_JointCascade.pdf)

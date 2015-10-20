@@ -187,7 +187,7 @@ void BoostCart::GlobalRegression(const vector<Mat_<int> >& lbf, const Mat_<doubl
     }
 
     // give back absolute scale range in [-img_width, img_width]
-    w = w * double(c.img_o_width);
+    w = w * static_cast<double>(c.img_o_width);
     // free
     for (int i = 0; i < n; i++) free(X[i]);
     for (int i = 0; i < 2 * landmark_n; i++) free(Y[i]);

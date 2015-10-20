@@ -8,13 +8,16 @@ using namespace cv;
 using namespace std;
 using namespace jda;
 
+/**
+ * Test JoinCascador Model over Test DataSet
+ */
 void test() {
     const Config& c = Config::GetInstance();
-    JoinCascador join_cascador;
+    JoinCascador joincascador;
     JoinCascador faker;
     FILE* fd = fopen("../model/jda.model", "rb");
     JDA_Assert(fd, "Can not open `../model/jda.model`");
-    join_cascador.SerializeFrom(fd);
+    joincascador.SerializeFrom(fd);
     fclose(fd);
 
     DataSet pos, neg;
@@ -30,7 +33,7 @@ void test() {
 
     int accept = 0;
     for (int i = 0; i < pos.size; i++) {
-        bool is_face = join_cascador.Validate(pos.imgs[i], pos.scores[i], pos.current_shapes[i]);
+        bool is_face = joincascador.Validate(pos.imgs[i], pos.scores[i], pos.current_shapes[i]);
         if (is_face) {
             accept++;
         }
@@ -42,7 +45,7 @@ void test() {
 
     int reject = 0;
     for (int i = 0; i < neg.size; i++) {
-        bool is_face = join_cascador.Validate(neg.imgs[i], neg.scores[i], neg.current_shapes[i]);
+        bool is_face = joincascador.Validate(neg.imgs[i], neg.scores[i], neg.current_shapes[i]);
         if (!is_face) {
             reject++;
         }
@@ -50,4 +53,12 @@ void test() {
     double fp = (1 - static_cast<double>(reject) / static_cast<double>(neg.size)) * 100.;
     LOG("False Positive Rate = %.2lf%%", fp);
     LOG("Done");
+}
+
+/**
+ * Test JoinCascador Face Detection over FDDB
+ */
+void fddb() {
+    // **TODO** Run FDDB
+    dieWithMsg("Not completed Yet!");
 }

@@ -7,8 +7,8 @@
 namespace jda {
 
 // pre-define
-class Feature;
 class Cart;
+class Feature;
 class JoinCascador;
 
 /**

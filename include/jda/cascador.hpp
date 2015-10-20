@@ -6,6 +6,7 @@
 namespace jda {
 
 // pre-define
+class DataSet;
 class BoostCart;
 
 /**
@@ -89,6 +90,12 @@ public:
      * :output scores:      score of faces
      * :output shapes:      shape of faces
      * :return:             number of faces
+     *
+     * Currently using Sliding Window to search face regions and Non-Maximum Suppression
+     * to group the regions, represented by cv::Rect. All shapes will be relocated in the
+     * original image.
+     *
+     * **NOTICE** the interface may change later
      */
     int Detect(const cv::Mat& img, std::vector<cv::Rect>& rects, std::vector<double>& scores, \
                std::vector<cv::Mat_<double> >& shapes);
@@ -96,7 +103,6 @@ public:
 public:
     int T; // number of stages
     cv::Mat_<double> mean_shape; // mean shape of positive training data
-
     std::vector<BoostCart> btcarts;
 
     // training status

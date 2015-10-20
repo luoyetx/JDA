@@ -125,7 +125,7 @@ Mat drawShape(const Mat& img, const Mat_<double>& shape) {
     }
     return img_;
 }
-Mat drawShape(const Mat& img, const Mat_<double>& shape, Rect& bbox) {
+Mat drawShape(const Mat& img, const Mat_<double>& shape, const Rect& bbox) {
     Mat img_ = img.clone();
     const int landmark_n = shape.cols / 2;
     rectangle(img_, bbox, Scalar(0, 0, 255), 2);
@@ -170,6 +170,7 @@ Config::Config() {
     test_pos_txt = "../data/test.txt";
     train_neg_txt = "../data/nega.txt";
     test_neg_txt = "../data/test_nega.txt";
+    detection_txt = "../data/detection.txt";
 }
 
 } // namespace jda

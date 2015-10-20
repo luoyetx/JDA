@@ -110,6 +110,7 @@ public:
     std::string train_neg_txt; // a text file for train negative dataset
     std::string test_pos_txt; // a text file for test positive dataset
     std::string test_neg_txt; // a text file for test negative dataset
+    std::string detection_txt; // a text file for detection
 
 private:
     Config();
