@@ -244,7 +244,7 @@ static void detectSingleScale(const JoinCascador& joincascador, const Mat& img, 
             x += x_step;
         }
         x = 0;
-        y += y + y_step;
+        y += y_step;
     }
 }
 static void detectMultiScale(const JoinCascador& joincascador, const Mat& img, \
