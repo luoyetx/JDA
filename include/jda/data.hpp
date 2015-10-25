@@ -153,6 +153,7 @@ public:
      * `w_i = e^{-y_i*f_i}`, see more on paper in section 4.2
      */
     void UpdateWeights();
+    static void UpdateWeights(DataSet& pos, DataSet& neg);
     /**
      * Update scores by cart
      *

@@ -58,19 +58,29 @@ public:
                    int node_idx);
     /**
      * Classification
+     * :input pos:          positive dataset
+     * :input neg:          negative dataset
+     * :input pos_idx:      index of used positive dataset
+     * :input neg_idx:      index of used negative dataset
      * :input pos_feature:  pos feature
      * :input neg_feature:  neg feature
      * :output feature_id:  which feature we should use
      * :output threshold:   split threshold
      *
-     * split node with classification, minimize binary entropy of pos and neg
+     * split node with classification, minimum Gini
      * `f = argmax_{f \in F} H_{root} - (H_{left} + H_{right})`
      */
-    static void SplitNodeWithClassification(const cv::Mat_<int>& pos_feature, \
+    static void SplitNodeWithClassification(DataSet& pos, const std::vector<int>& pos_idx, \
+                                            DataSet& neg, const std::vector<int>& neg_idx, \
+                                            const cv::Mat_<int>& pos_feature, \
                                             const cv::Mat_<int>& neg_feature, \
                                             int& feature_id, int& threshold);
     /**
      * Regression
+     * :input pos:          positive dataset
+     * :input neg:          negative dataset
+     * :input pos_idx:      index of used positive dataset
+     * :input neg_idx:      index of used negative dataset
      * :input pos_feature:  pos feature
      * :input neg_feature:  neg feature
      * :output feature_id:  which feature we should use
@@ -79,7 +89,9 @@ public:
      * split node with regression, minimize variance of shape_residual
      * `f = argmax_{f \in F} S_{root} - (S_{left} + S_{right})`
      */
-    static void SplitNodeWithRegression(const cv::Mat_<int>& pos_feature, \
+    static void SplitNodeWithRegression(DataSet& pos, const std::vector<int>& pos_idx, \
+                                        DataSet& neg, const std::vector<int>& neg_idx, \
+                                        const cv::Mat_<int>& pos_feature, \
                                         const cv::Mat_<double>& shape_residual, \
                                         int& feature_id, int& threshold);
 
@@ -108,7 +120,6 @@ public:
     double th; // threshold, see more on paper about `\theta_k^t`
     std::vector<Feature> features; // features used by this cart, in sequence
     std::vector<int> thresholds; // thresholds associated with features
-    std::vector<bool> is_classifications; // classification of internel node
     std::vector<double> scores; // scores to pos/neg, see more on paper in `Algorithm 3`
 };
 

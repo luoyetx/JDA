@@ -112,6 +112,8 @@ public:
     std::string test_neg_txt; // a text file for test negative dataset
     std::string detection_txt; // a text file for detection
 
+    double esp;
+
 private:
     Config();
     ~Config() {}
@@ -129,12 +131,6 @@ void LOG(const char* fmt, ...);
  * **NOTICE** the message shouldn't be too long
  */
 void dieWithMsg(const char* fmt, ...);
-
-/**
- * Calculate Variance of vector
- */
-double calcVariance(const cv::Mat_<double>& vec);
-double calcVariance(const std::vector<double>& vec);
 
 /**
  * Calculate Mean Error between gt_shapes and current_shapes

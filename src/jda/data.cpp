@@ -104,14 +104,28 @@ void DataSet::RandomShapes(const Mat_<double>& mean_shape, vector<Mat_<double> >
 
 void DataSet::UpdateWeights() {
     const double flag = -(is_pos ? 1 : -1);
-    double sum_w = 0;
     for (int i = 0; i < size; i++) {
         weights[i] = exp(flag*scores[i]);
-        sum_w += weights[i];
     }
+}
+void DataSet::UpdateWeights(DataSet& pos, DataSet& neg) {
+    pos.UpdateWeights();
+    neg.UpdateWeights();
     // normalize to 1
-    for (int i = 0; i < size; i++) {
-        weights[i] /= sum_w;
+    double sum_w = 0;
+    const int pos_n = pos.size;
+    const int neg_n = neg.size;
+    for (int i = 0; i < pos_n; i++) {
+        sum_w += pos.weights[i];
+    }
+    for (int i = 0; i < neg_n; i++) {
+        sum_w += neg.weights[i];
+    }
+    for (int i = 0; i < pos_n; i++) {
+        pos.weights[i] /= sum_w;
+    }
+    for (int i = 0; i < neg_n; i++) {
+        neg.weights[i] /= sum_w;
     }
 }
 
@@ -130,7 +144,7 @@ void DataSet::UpdateScores(const Cart& cart) {
 
 double DataSet::CalcThresholdByRate(double rate) {
     if (!is_sorted) QSort();
-    int offset = size - int(rate*size);
+    int offset = size - 1 - static_cast<int>(rate*size);
     return scores[offset];
 }
 
@@ -237,6 +251,10 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
         }
         // images are preprocessed via `script/gen.py`, size = 80x80
         Mat img = imread(buff, CV_LOAD_IMAGE_GRAYSCALE);
+        if (!img.data) {
+            LOG("Can not open image %s, Skip it", buff);
+            continue;
+        }
         Mat half, quarter; // these two variables should be defined here
         cv::resize(img, half, Size(c.img_h_height, c.img_h_width));
         cv::resize(img, quarter, Size(c.img_q_height, c.img_q_width));
@@ -344,7 +362,7 @@ Mat NegGenerator::NextImage() {
         flip(region, region, 1);
         break;
     default:
-        dieWithMsg("Unsupported Transform of Negatie Sample");
+        dieWithMsg("Unsupported Transform of Negative Sample");
         break;
     }
 
@@ -389,7 +407,7 @@ void NegGenerator::NextState() {
         transform_type = ORIGIN;
         break;
     default:
-        dieWithMsg("Unsupported Transform of Negatie Sample");
+        dieWithMsg("Unsupported Transform of Negative Sample");
         break;
     }
 
@@ -399,8 +417,8 @@ void NegGenerator::NextState() {
         y += y_step; // move y
         if (y + h >= height) {
             x = y = 0;
-            int width_ = int(img.cols * scale_factor);
-            int height_ = int(img.rows * scale_factor);
+            int width_ = static_cast<int>(img.cols * scale_factor);
+            int height_ = static_cast<int>(img.rows * scale_factor);
             cv::resize(img, img, Size(width_, height_)); // scale image
             if (img.cols < w || img.rows < h) {
                 current_idx++; // next image
@@ -418,6 +436,7 @@ void NegGenerator::NextState() {
                         LOG("Image %s is too small, Skip it", list[current_idx].c_str());
                     }
                     current_idx++;
+                    LOG("Use %d th Nega Image %s", current_idx + 1, list[current_idx].c_str());
                     img = cv::imread(list[current_idx], CV_LOAD_IMAGE_GRAYSCALE);
                 }
             }

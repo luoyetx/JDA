@@ -54,7 +54,7 @@ If you are using Visual Studio, make sure you know how to pass command line argu
 
 ### Attention
 
-This project is not completed yet, welcome any question or idea through the [issues](https://github.com/luoyetx/JDA/issues).
+This project is not completed yet and may has some hidden bugs. Welcome any question or idea through the [issues](https://github.com/luoyetx/JDA/issues).
 
 ### License
 

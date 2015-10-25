@@ -83,21 +83,6 @@ void dieWithMsg(const char* fmt, ...) {
     exit(-1);
 }
 
-double calcVariance(const Mat_<double>& vec) {
-    double m1 = cv::mean(vec)[0];
-    double m2 = cv::mean(vec.mul(vec))[0];
-    double variance = m2 - m1*m1;
-    return variance;
-}
-double calcVariance(const vector<double>& vec) {
-    if (vec.size() == 0) return 0.;
-    Mat_<double> vec_(vec);
-    double m1 = cv::mean(vec_)[0];
-    double m2 = cv::mean(vec_.mul(vec_))[0];
-    double variance = m2 - m1*m1;
-    return variance;
-}
-
 double calcMeanError(const vector<Mat_<double> >& gt_shapes, \
                      const vector<Mat_<double> >& current_shapes) {
     const Config& c = Config::GetInstance();
@@ -151,11 +136,13 @@ Config::Config() {
     img_q_height = img_q_width = 40;
     x_step = y_step = 20;
     scale_factor = 0.8;
-    int feats[5] = { 500, 500, 500, 300, 300 };
+    esp = 2.2e-16;
+    int feats[5] = { 1000, 1000, 1000, 1000, 1000 };
     double nps[5] = { 1, 1, 1, 1, 1 };
     double radius[5] = { 0.4, 0.3, 0.2, 0.15, 0.1 };
     double probs[5] = { 0.9, 0.8, 0.7, 0.6, 0.5 };
-    double accept_rates[] = { 0.9999, 0.9999, 0.9999, 0.9999, 0.9999 };
+    double accept_rates[5] = { 0.9999, 0.9999, 0.9999, 0.9999, 0.9999 };
+
     this->feats.clear();
     this->radius.clear();
     this->probs.clear();

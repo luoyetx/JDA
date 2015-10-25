@@ -40,8 +40,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
         // more neg if needed
         neg.MoreNegSamples(pos.size, c.nps[stage]);
         // update weights
-        pos.UpdateWeights();
-        neg.UpdateWeights();
+        DataSet::UpdateWeights(pos, neg);
         int landmark_id = k % landmark_n;
         cart.Initialize(stage, landmark_id);
         // train cart
@@ -94,9 +93,11 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     LOG("Start Global Regression");
     GlobalRegression(pos_lbf, shape_residual);
     // update shapes
+    #pragma omp parallel for
     for (int i = 0; i < pos_n; i++) {
         pos.current_shapes[i] += GenDeltaShape(pos_lbf[i]);
     }
+    #pragma omp parallel for
     for (int i = 0; i < neg_n; i++) {
         neg.current_shapes[i] += GenDeltaShape(neg_lbf[i]);
     }
