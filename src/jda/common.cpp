@@ -136,6 +136,7 @@ Config::Config() {
     img_q_height = img_q_width = 40;
     x_step = y_step = 20;
     scale_factor = 0.8;
+    mining_pool_size = 5000;
     esp = 2.2e-16;
     int feats[5] = { 1000, 1000, 1000, 1000, 1000 };
     double nps[5] = { 1, 1, 1, 1, 1 };

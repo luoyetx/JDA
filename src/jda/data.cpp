@@ -210,6 +210,7 @@ void DataSet::MoreNegSamples(int pos_size, double rate) {
     vector<Mat_<double> > shapes_;
     const int extra_size = neg_generator.Generate(*joincascador, size_, \
                                                   imgs_, scores_, shapes_);
+    LOG("We have mined %d hard negative samples", extra_size);
     const int expanded = imgs.size() + imgs_.size();
     imgs.reserve(expanded);
     imgs_half.reserve(expanded);
@@ -295,26 +296,41 @@ void DataSet::LoadDataSet(DataSet& pos, DataSet& neg) {
 NegGenerator::NegGenerator() {}
 NegGenerator::~NegGenerator() {}
 
-int NegGenerator::Generate(JoinCascador& joincascador, int size, \
+int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
                            vector<Mat>& imgs, vector<double>& scores, \
                            vector<Mat_<double> >& shapes) {
     imgs.clear();
     scores.clear();
     shapes.clear();
-    imgs.reserve(size);
-    scores.reserve(size);
-    shapes.reserve(size);
-    double score = 0;
-    Mat_<double> shape;
+    imgs.reserve(size * 2); // enough memory to overflow
+    scores.reserve(size * 2);
+    shapes.reserve(size * 2);
+
+    int pool_size = Config::GetInstance().mining_pool_size;
+    vector<Mat> region_pool(pool_size);
+    vector<double> score_pool(pool_size);
+    vector<Mat_<double> > shape_pool(pool_size);
+    vector<bool> used(pool_size, false);
     while (size > 0) {
-        // We generate one by one to validate whether it is hard enough
-        Mat region = NextImage();
-        bool is_face = joincascador.Validate(region, score, shape);
-        if (is_face) {
-            imgs.push_back(region);
-            scores.push_back(score);
-            shapes.push_back(shape);
-            size--;
+        // We generate a negative sample pool for validation
+        for (int i = 0; i < pool_size; i++) {
+            region_pool[i] = NextImage();
+        }
+
+        #pragma omp parallel for
+        for (int i = 0; i < pool_size; i++) {
+            bool is_face = joincascador.Validate(region_pool[i], score_pool[i], shape_pool[i]);
+            if (is_face) used[i] = true;
+        }
+
+        // collect
+        for (int i = 0; i < pool_size; i++) {
+            if (used[i]) {
+                imgs.push_back(region_pool[i]);
+                scores.push_back(score_pool[i]);
+                shapes.push_back(shape_pool[i]);
+                size--;
+            }
         }
     }
     return imgs.size();

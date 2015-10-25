@@ -43,6 +43,8 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
         DataSet::UpdateWeights(pos, neg);
         int landmark_id = k % landmark_n;
         cart.Initialize(stage, landmark_id);
+        LOG("Current Positive DataSet Size is %d", pos.size);
+        LOG("Current Negative DataSet Size is %d", neg.size);
         // train cart
         TIMER_BEGIN
             LOG("Train %d th Cart", k + 1);
@@ -64,7 +66,6 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
         double neg_drop_rate = static_cast<double>(neg_n - neg.size) / \
                                static_cast<double>(neg_n) * 100.;
         LOG("Pos drop rate = %.2lf%%, Neg drop rate = %.2lf%%", pos_drop_rate, neg_drop_rate);
-        LOG("Current Positive DataSet Size is %d", pos.size);
         neg_rejected += neg_n - neg.size;
         LOG("Current Negative DataSet Reject Size is %d", neg_rejected);
     }

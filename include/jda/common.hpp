@@ -105,6 +105,7 @@ public:
 
     double scale_factor; // hard negative mining parameters
     int x_step, y_step;
+    int mining_pool_size;
 
     std::string train_pos_txt; // a text file for train positive dataset
     std::string train_neg_txt; // a text file for train negative dataset

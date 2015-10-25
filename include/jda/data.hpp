@@ -36,8 +36,10 @@ public:
      * state, it may be very hard to generate enough hard negative samples, we may fail with
      * real size smaller than `int size`. We will give back all negative training samples with
      * their scores and current shapes for further training.
+     *
+     * :Update: OpenMP supported hard negative mining, we may have `real size` > `size`
      */
-    int Generate(JoinCascador& joincascador, int size, \
+    int Generate(const JoinCascador& joincascador, int size, \
                  std::vector<cv::Mat>& imgs, std::vector<double>& scores, \
                  std::vector<cv::Mat_<double> >& shapes);
 
