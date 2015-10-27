@@ -1,3 +1,4 @@
+#include <omp.h>
 #include <ctime>
 #include <cmath>
 #include <cstdio>
@@ -136,7 +137,7 @@ Config::Config() {
     img_q_height = img_q_width = 40;
     x_step = y_step = 20;
     scale_factor = 0.8;
-    mining_pool_size = 5000;
+    mining_pool_size = omp_get_max_threads();
     esp = 2.2e-16;
     int feats[5] = { 1000, 1000, 1000, 1000, 1000 };
     double nps[5] = { 1, 1, 1, 1, 1 };

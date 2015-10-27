@@ -220,9 +220,6 @@ void Cart::SplitNodeWithRegression(DataSet& pos, const std::vector<int>& pos_idx
     // total variance
     double variance_all = (calcVariance(shape_residual.col(0)) + \
                            calcVariance(shape_residual.col(1))) * pos_n;
-    vector<double> left_x, left_y, right_x, right_y;
-    left_x.reserve(pos_n); left_y.reserve(pos_n);
-    right_x.reserve(pos_n); right_y.reserve(pos_n);
     RNG rng(getTickCount());
     feature_idx = 0;
     threshold = -256; // all data will go to right child tree
@@ -236,10 +233,11 @@ void Cart::SplitNodeWithRegression(DataSet& pos, const std::vector<int>& pos_idx
     vector<double> vs_(feature_n);
     vector<int> ths_(feature_n);
 
-    #pragma omp parallel for private(left_x, left_y, right_x, right_y)
+    #pragma omp parallel for
     for (int i = 0; i < feature_n; i++) {
-        left_x.clear(); left_y.clear();
-        right_x.clear(); right_y.clear();
+        vector<double> left_x, left_y, right_x, right_y;
+        left_x.reserve(pos_n); left_y.reserve(pos_n);
+        right_x.reserve(pos_n); right_y.reserve(pos_n);
         int threshold_ = pos_feature_sorted(i, static_cast<int>(pos_n*rng.uniform(0.05, 0.95)));
         for (int j = 0; j < pos_n; j++) {
             if (pos_feature(i, j) <= threshold_) {
