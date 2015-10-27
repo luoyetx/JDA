@@ -1,4 +1,17 @@
+#ifdef WIN32
+#include <io.h>
+#include <direct.h>
+#define EXISTS(path) (access(path, 0)!=-1)
+#define MKDIR(path) mkdir(path)
+#else
+#include <unistd.h>
+#include <sys/stat.h>
+#define EXISTS(path) (access(path, 0)!=-1)
+#define MKDIR(path) mkdir(path, 0775)
+#endif
+
 #include <cmath>
+#include <ctime>
 #include <cstdio>
 #include <cassert>
 #include <opencv2/highgui/highgui.hpp>
@@ -275,6 +288,7 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
 }
 void DataSet::LoadNegativeDataSet(const string& negative) {
     neg_generator.Load(negative);
+    neg_generator.set_nega(this);
     imgs.clear();
     gt_shapes.clear();
     current_shapes.clear();
@@ -437,23 +451,29 @@ void NegGenerator::NextState() {
             int height_ = static_cast<int>(img.rows * scale_factor);
             cv::resize(img, img, Size(width_, height_)); // scale image
             if (img.cols < w || img.rows < h) {
-                current_idx++; // next image
-                if (current_idx >= list.size()) {
-                    // **TODO** Add negative list on fly
-                    dieWithMsg("Run out of Negative Samples! :-(");
-                }
-                LOG("Use %d th Nega Image %s", current_idx + 1, list[current_idx].c_str());
-                img = cv::imread(list[current_idx], CV_LOAD_IMAGE_GRAYSCALE);
-                while (!img.data || img.cols <= w || img.rows <= h) {
-                    if (!img.data) {
-                        LOG("Can not open image %s, Skip it", list[current_idx].c_str());
+                // next image
+                while (true) {
+                    current_idx++; // next image
+                    if (current_idx >= list.size()) {
+                        // Add background image list online
+                        LOG("Run out of Negative Samples! :-(");
+                        SaveTheWorld();
+                        continue;
                     }
-                    else {
-                        LOG("Image %s is too small, Skip it", list[current_idx].c_str());
-                    }
-                    current_idx++;
                     LOG("Use %d th Nega Image %s", current_idx + 1, list[current_idx].c_str());
                     img = cv::imread(list[current_idx], CV_LOAD_IMAGE_GRAYSCALE);
+                    if (!img.data || img.cols <= w || img.rows <= h) {
+                        if (!img.data) {
+                            LOG("Can not open image %s, Skip it", list[current_idx].c_str());
+                        }
+                        else {
+                            LOG("Image %s is too small, Skip it", list[current_idx].c_str());
+                        }
+                    }
+                    else {
+                        // successfully get another background image
+                        break;
+                    }
                 }
             }
         }
@@ -477,6 +497,50 @@ void NegGenerator::Load(const string& path) {
     transform_type = ORIGIN;
     img = cv::imread(list[current_idx], CV_LOAD_IMAGE_GRAYSCALE);
     if (!img.data) dieWithMsg("Can not open image, the path is %s", list[current_idx].c_str());
+}
+
+void NegGenerator::SaveTheWorld() {
+    char buff1[256];
+    char buff2[256];
+    time_t t = time(NULL);
+    strftime(buff1, sizeof(buff1), "We now save all hard negative samples under"
+                                   "../data/hd/%Y%m%d-%H%M%S", localtime(&t));
+    LOG(buff1);
+    if (!EXISTS("../data/hd")) {
+        MKDIR("../data/hd");
+    }
+    strftime(buff1, sizeof(buff1), "../data/hd/%Y%m%d-%H%M%S", localtime(&t));
+    if (!EXISTS(buff1)) {
+        MKDIR(buff1);
+    }
+
+    const int size = neg->size;
+    LOG("We have %d images to save", size);
+    for (int i = 0; i < size; i++) {
+        sprintf(buff2, "%s/%05d.jpg", buff1, i + 1);
+        imwrite(buff2, neg->imgs[i]);
+    }
+
+    char path[256];
+    LOG("We need more background images, "
+        "Please input a text file which contains background image list: ");
+    scanf("%s", path);
+
+    FILE* file = fopen(path, "r");
+    while (!file) {
+        LOG("Can not open %s, Please Check it!", path);
+        LOG("Please input a text file below:");
+        scanf("%s", path);
+        file = fopen(path, "r");
+    }
+
+    list.clear();
+    while (fscanf(file, "%s", path) > 0) {
+        list.push_back(path);
+    }
+    std::random_shuffle(list.begin(), list.end());
+    // reset current_idx
+    current_idx = -1;
 }
 
 } // namespace jda

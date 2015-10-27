@@ -8,6 +8,7 @@ namespace jda {
 
 // pre-define
 class Cart;
+class DataSet;
 class Feature;
 class JoinCascador;
 
@@ -48,6 +49,11 @@ public:
      * :input path:     background image file list
      */
     void Load(const std::string& path);
+    /**
+     * Add Nega DataSet
+     * :input neg:  Nega DataSet
+     */
+    inline void set_nega(DataSet* neg) { this->neg = neg; }
 
 private:
     /**
@@ -59,6 +65,10 @@ private:
      * Next State, update parameters for next image
      */
     void NextState();
+    /**
+     * We will use this function to load more background images online
+     */
+    void SaveTheWorld();
 
 public:
     cv::Mat_<double> mean_shape; // mean shape of pos dataset for init_shape
@@ -80,6 +90,8 @@ private:
     int x, y;
     cv::Mat img;
     TransformType transform_type;
+
+    DataSet* neg; // dump hard negative samples if needed
 };
 
 /**
