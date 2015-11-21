@@ -36,7 +36,7 @@ public:
              std::vector<cv::Mat_<double> >& shapes) const;
 
 private:
-  // pre-define
+  // forward declaration
   struct jdaCart;
   /*! \breif mean shape */
   cv::Mat_<double> mean_shape;

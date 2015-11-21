@@ -36,7 +36,7 @@
 
 namespace jda {
 
-// pre-define
+// forward declaration
 class JoinCascador;
 
 /*!

@@ -6,7 +6,7 @@
 
 namespace jda {
 
-// pre-define
+// forward declaration
 class Cart;
 class DataSet;
 class Feature;

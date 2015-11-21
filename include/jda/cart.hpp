@@ -5,7 +5,7 @@
 
 namespace jda {
 
-// pre-define
+// forward declaration
 class DataSet;
 class Feature;
 class JoinCascador;
@@ -91,6 +91,16 @@ public:
                                       const cv::Mat_<int>& pos_feature, \
                                       const cv::Mat_<double>& shape_residual, \
                                       int& feature_id, int& threshold);
+  /*!
+   * \breif Write parameters to a binary file
+   * \param   file discriptor of the model file
+   */
+  void SerializeTo(FILE* fd) const;
+  /*!
+   * \breif Read parameters from a binary file
+   * \param fd    file discriptor of the model file
+   */
+  void SerializeFrom(FILE* fd);
 
 public:
   /*!

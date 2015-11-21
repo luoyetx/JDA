@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstdio>
 #include <climits>
 #include <opencv2/imgproc/imgproc.hpp>
 #include "jda/data.hpp"
@@ -313,6 +314,48 @@ int Cart::Forward(const Mat& img, const Mat& img_h, const Mat& img_q, \
   }
   const int bias = 1 << (depth - 1);
   return node_idx - bias;
+}
+
+void Cart::SerializeFrom(FILE* fd) {
+  // only non leaf node need to save parameters
+  for (int i = 1; i < nodes_n / 2; i++) {
+    Feature& feature = features[i];
+    fread(&feature.scale, sizeof(int), 1, fd);
+    fread(&feature.landmark_id1, sizeof(int), 1, fd);
+    fread(&feature.landmark_id2, sizeof(int), 1, fd);
+    fread(&feature.offset1_x, sizeof(double), 1, fd);
+    fread(&feature.offset1_y, sizeof(double), 1, fd);
+    fread(&feature.offset2_x, sizeof(double), 1, fd);
+    fread(&feature.offset2_y, sizeof(double), 1, fd);
+    fread(&thresholds[i], sizeof(int), 1, fd);
+  }
+  // leaf node has scores
+  for (int i = 0; i < nodes_n / 2; i++) {
+    fread(&scores[i], sizeof(double), 1, fd);
+  }
+  // threshold
+  fread(&th, sizeof(double), 1, fd);
+}
+
+void Cart::SerializeTo(FILE* fd) const {
+  // only non leaf node need to save parameters
+  for (int i = 1; i < nodes_n / 2; i++) {
+    const Feature& feature = features[i];
+    fwrite(&feature.scale, sizeof(int), 1, fd);
+    fwrite(&feature.landmark_id1, sizeof(int), 1, fd);
+    fwrite(&feature.landmark_id2, sizeof(int), 1, fd);
+    fwrite(&feature.offset1_x, sizeof(double), 1, fd);
+    fwrite(&feature.offset1_y, sizeof(double), 1, fd);
+    fwrite(&feature.offset2_x, sizeof(double), 1, fd);
+    fwrite(&feature.offset2_y, sizeof(double), 1, fd);
+    fwrite(&thresholds[i], sizeof(int), 1, fd);
+  }
+  // leaf node has scores
+  for (int i = 0; i < nodes_n / 2; i++) {
+    fwrite(&scores[i], sizeof(double), 1, fd);
+  }
+  // threshold
+  fwrite(&th, sizeof(double), 1, fd);
 }
 
 } // namespace jda

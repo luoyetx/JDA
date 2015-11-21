@@ -58,16 +58,15 @@ void JoinCascador::Snapshot(const JoinCascador& joincascador) {
   // **TODO** snapshot training status
   fclose(fd);
 }
-void JoinCascador::Resume(JoinCascador& joincascador, int stage, FILE* fd) {
+void JoinCascador::Resume(JoinCascador& joincascador, FILE* fd) {
   const Config& c = Config::GetInstance();
-  JDA_Assert(stage >= 2 && stage <= c.T, "Resume stage is Wrong");
   //SerializeFrom(fd, stage - 2);
   //current_stage_idx = stage - 1;
   //current_cart_idx = -1;
   // **TODO**
 }
 
-void JoinCascador::SerializeTo(FILE* fd) {
+void JoinCascador::SerializeTo(FILE* fd) const {
   const Config& c = Config::GetInstance();
 
   fwrite(&YO, sizeof(YO), 1, fd);
@@ -82,24 +81,7 @@ void JoinCascador::SerializeTo(FILE* fd) {
     const BoostCart& btcart = btcarts[t];
     for (int k = 0; k < c.K; k++) {
       const Cart& cart = btcart.carts[k];
-      // only non leaf node need to save parameters
-      for (int i = 1; i < cart.nodes_n / 2; i++) {
-        const Feature& feature = cart.features[i];
-        fwrite(&feature.scale, sizeof(int), 1, fd);
-        fwrite(&feature.landmark_id1, sizeof(int), 1, fd);
-        fwrite(&feature.landmark_id2, sizeof(int), 1, fd);
-        fwrite(&feature.offset1_x, sizeof(double), 1, fd);
-        fwrite(&feature.offset1_y, sizeof(double), 1, fd);
-        fwrite(&feature.offset2_x, sizeof(double), 1, fd);
-        fwrite(&feature.offset2_y, sizeof(double), 1, fd);
-        fwrite(&cart.thresholds[i], sizeof(int), 1, fd);
-      }
-      // leaf node has scores
-      for (int i = 0; i < cart.nodes_n / 2; i++) {
-        fwrite(&cart.scores[i], sizeof(double), 1, fd);
-      }
-      // threshold
-      fwrite(&cart.th, sizeof(double), 1, fd);
+      cart.SerializeTo(fd);
     }
     // global regression parameters
     const double* w_ptr;
@@ -139,24 +121,7 @@ void JoinCascador::SerializeFrom(FILE* fd) {
     for (int k = 0; k < c.K; k++) {
       Cart& cart = btcart.carts[k];
       cart.Initialize(t, k%c.landmark_n);
-      // only non leaf node need to save parameters
-      for (int i = 1; i < cart.nodes_n / 2; i++) {
-        Feature& feature = cart.features[i];
-        fread(&feature.scale, sizeof(int), 1, fd);
-        fread(&feature.landmark_id1, sizeof(int), 1, fd);
-        fread(&feature.landmark_id2, sizeof(int), 1, fd);
-        fread(&feature.offset1_x, sizeof(double), 1, fd);
-        fread(&feature.offset1_y, sizeof(double), 1, fd);
-        fread(&feature.offset2_x, sizeof(double), 1, fd);
-        fread(&feature.offset2_y, sizeof(double), 1, fd);
-        fread(&cart.thresholds[i], sizeof(int), 1, fd);
-      }
-      // leaf node has scores
-      for (int i = 0; i < cart.nodes_n / 2; i++) {
-        fread(&cart.scores[i], sizeof(double), 1, fd);
-      }
-      // threshold
-      fread(&cart.th, sizeof(double), 1, fd);
+      cart.SerializeFrom(fd);
     }
     // global regression parameters
     double* w_ptr;

@@ -54,7 +54,7 @@ void resume() {
   JoinCascador joincascador;
   c.joincascador = &joincascador; // set global joincascador
   LOG("Loading Model Parameters from model file");
-  JoinCascador::Resume(joincascador, stage, fd);
+  JoinCascador::Resume(joincascador, fd);
   fclose(fd);
 
   DataSet pos, neg;
