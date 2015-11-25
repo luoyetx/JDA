@@ -114,7 +114,7 @@ public:
   int Forward(const cv::Mat& img, const cv::Mat& img_h, \
               const cv::Mat& img_q, const cv::Mat_<double>& shape) const;
 
- public:
+public:
   /*! \breif cascade stage */
   int stage;
   /*! \breif depth of cart */

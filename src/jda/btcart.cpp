@@ -17,6 +17,9 @@ void BoostCart::Initialize(int stage) {
   this->stage = stage;
   K = c.K;
   carts.resize(K);
+  for (int i = 0; i < K; i++) {
+    carts[i].Initialize(stage, i%c.landmark_n);
+  }
   const int landmark_n = c.landmark_n;
   const int m = K*(1 << (c.tree_depth - 1)); // K * leafNume
   w = Mat_<double>(2 * landmark_n, m);
@@ -29,7 +32,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
 
   // statistic parameters
   const int pos_original_size = pos.size;
-  const int neg_original_size = static_cast<int>(pos_original_size * c.nps[stage]);
+  const int neg_original_size = int(pos_original_size * c.nps[stage]);
   int neg_rejected = 0;
 
   const int landmark_n = c.landmark_n;
@@ -57,17 +60,17 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     neg.UpdateScores(cart);
     // select th for pre-defined recall
     cart.th = pos.CalcThresholdByRate(1 - c.accept_rates[stage]);
-    int pos_n = pos.size;
-    int neg_n = neg.size;
-    pos.Remove(cart.th);
-    neg.Remove(cart.th);
-    double pos_drop_rate = static_cast<double>(pos_n - pos.size) / \
-                           static_cast<double>(pos_n) * 100.;
-    double neg_drop_rate = static_cast<double>(neg_n - neg.size) / \
-                           static_cast<double>(neg_n) * 100.;
-    LOG("Pos drop rate = %.2lf%%, Neg drop rate = %.2lf%%", pos_drop_rate, neg_drop_rate);
-    neg_rejected += neg_n - neg.size;
-    LOG("Current Negative DataSet Reject Size is %d", neg_rejected);
+    //if (k == K - 1) {
+      int pos_n = pos.size;
+      int neg_n = neg.size;
+      pos.Remove(cart.th);
+      neg.Remove(cart.th);
+      double pos_drop_rate = double(pos_n - pos.size) / double(pos_n)* 100.;
+      double neg_drop_rate = double(neg_n - neg.size) / double(neg_n)* 100.;
+      LOG("Pos drop rate = %.2lf%%, Neg drop rate = %.2lf%%", pos_drop_rate, neg_drop_rate);
+      neg_rejected += neg_n - neg.size;
+      LOG("Current Negative DataSet Reject Size is %d", neg_rejected);
+    //}
   }
   // Global Regression with LBF
   // generate lbf
@@ -114,10 +117,8 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
   // accept and reject rate
   double accept_rate = 0.;
   double reject_rate = 0.;
-  accept_rate = static_cast<double>(pos_n) / \
-                static_cast<double>(pos_original_size) * 100.;
-  reject_rate = static_cast<double>(neg_rejected) / \
-                static_cast<double>(neg_rejected + neg_original_size) * 100.;
+  accept_rate = double(pos_n) / double(pos_original_size) * 100.;
+  reject_rate = double(neg_rejected) / double(neg_rejected + neg_original_size) * 100.;
   LOG("Accept Rate = %.2lf%%, Reject Rate = %.2lf%%", accept_rate, reject_rate);
   // Done
 }
@@ -151,7 +152,7 @@ void BoostCart::GlobalRegression(const vector<Mat_<int> >& lbf, const Mat_<doubl
     X[i][m].value = -1.;
   }
   // relatively scaled range in [-1, 1]
-  Mat_<double> shape_residual_ = shape_residual / static_cast<double>(c.img_o_width);
+  Mat_<double> shape_residual_ = shape_residual / double(c.img_o_width);
   for (int i = 0; i < landmark_n; i++) {
     Y[2 * i] = (double*)malloc(n*sizeof(double));
     Y[2 * i + 1] = (double*)malloc(n*sizeof(double));
@@ -189,7 +190,7 @@ void BoostCart::GlobalRegression(const vector<Mat_<int> >& lbf, const Mat_<doubl
   }
 
   // give back absolute scale range in [-img_width, img_width]
-  w = w * static_cast<double>(c.img_o_width);
+  w = w * double(c.img_o_width);
   // free
   for (int i = 0; i < n; i++) free(X[i]);
   for (int i = 0; i < 2 * landmark_n; i++) free(Y[i]);

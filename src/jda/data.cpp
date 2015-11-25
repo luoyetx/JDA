@@ -157,7 +157,7 @@ void DataSet::UpdateScores(const Cart& cart) {
 
 double DataSet::CalcThresholdByRate(double rate) {
   if (!is_sorted) QSort();
-  int offset = size - 1 - static_cast<int>(rate*size);
+  int offset = size - 1 - int(rate*size);
   return scores[offset];
 }
 
@@ -446,8 +446,8 @@ void NegGenerator::NextState() {
     y += y_step; // move y
     if (y + h >= height) {
       x = y = 0;
-      int width_ = static_cast<int>(img.cols * scale_factor);
-      int height_ = static_cast<int>(img.rows * scale_factor);
+      int width_ = int(img.cols * scale_factor);
+      int height_ = int(img.rows * scale_factor);
       cv::resize(img, img, Size(width_, height_)); // scale image
       if (img.cols < w || img.rows < h) {
         // next image

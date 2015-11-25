@@ -92,6 +92,12 @@ public:
 public:
   /*! \breif number of stages */
   int T;
+  /*! \breif number of carts */
+  int K;
+  /*! \breif number of landmarks */
+  int landmark_n;
+  /*! \breif depth of a cart tree */
+  int tree_depth;
   /*! \breif mean shape of positive training data */
   cv::Mat_<double> mean_shape;
   /*! \breif carts */

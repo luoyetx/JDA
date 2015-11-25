@@ -143,7 +143,7 @@ void Cart::SplitNodeWithClassification(DataSet& pos, const vector<int>& pos_idx,
   // select a feature that has minimum gini
   vector<double> gs_(feature_n);
   vector<int> ths_(feature_n);
-    
+
   #pragma omp parallel for
   for (int i = 0; i < feature_n; i++) {
     double wp_l, wp_r, wn_l, wn_r, w;
@@ -239,7 +239,7 @@ void Cart::SplitNodeWithRegression(DataSet& pos, const std::vector<int>& pos_idx
     vector<double> left_x, left_y, right_x, right_y;
     left_x.reserve(pos_n); left_y.reserve(pos_n);
     right_x.reserve(pos_n); right_y.reserve(pos_n);
-    int threshold_ = pos_feature_sorted(i, static_cast<int>(pos_n*rng.uniform(0.05, 0.95)));
+    int threshold_ = pos_feature_sorted(i, int(pos_n*rng.uniform(0.05, 0.95)));
     for (int j = 0; j < pos_n; j++) {
       if (pos_feature(i, j) <= threshold_) {
         left_x.push_back(shape_residual(j, 0));

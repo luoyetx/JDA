@@ -19,6 +19,9 @@ void JoinCascador::Initialize(int T) {
   const Config& c = Config::GetInstance();
   JDA_Assert(T == c.T, "Stages does not match with Config");
   this->T = T;
+  K = c.K;
+  landmark_n = c.landmark_n;
+  tree_depth = c.tree_depth;
   current_stage_idx = 0;
   current_cart_idx = -1;
   btcarts.resize(T);
@@ -45,25 +48,121 @@ void JoinCascador::Train(DataSet& pos, DataSet& neg) {
 }
 
 void JoinCascador::Snapshot(const JoinCascador& joincascador) {
-  int stage = joincascador.current_stage_idx;
+  int stage_idx = joincascador.current_stage_idx;
+  int cart_idx = joincascador.current_cart_idx;
   char buff1[256];
   char buff2[256];
   time_t t = time(NULL);
   strftime(buff1, sizeof(buff1), "%Y%m%d-%H%M%S", localtime(&t));
-  sprintf(buff2, "../model/jda_tmp_%s_stage%d.model", buff1, stage + 1);
+  sprintf(buff2, "../model/jda_tmp_%s_stage_%d_cart_%d.model", buff1, stage_idx + 1, cart_idx);
 
   FILE* fd = fopen(buff2, "wb");
   JDA_Assert(fd, "Can not open a temp file to save the model");
-  //SerializeTo(fd, stage);
-  // **TODO** snapshot training status
+  
+  int YO = 1;
+  fwrite(&YO, sizeof(YO), 1, fd);
+  fwrite(&joincascador.T, sizeof(int), 1, fd);
+  fwrite(&joincascador.K, sizeof(int), 1, fd);
+  fwrite(&joincascador.landmark_n, sizeof(int), 1, fd);
+  fwrite(&joincascador.tree_depth, sizeof(int), 1, fd);
+  fwrite(&stage_idx, sizeof(int), 1, fd);
+  fwrite(&cart_idx, sizeof(int), 1, fd);
+  // mean shape
+  fwrite(joincascador.mean_shape.ptr<double>(0), sizeof(double), joincascador.mean_shape.cols, fd);
+  for (int t = 0; t < stage_idx; t++) {
+    const BoostCart& btcart = joincascador.btcarts[t];
+    for (int k = 0; k < joincascador.K; k++) {
+      const Cart& cart = btcart.carts[k];
+      cart.SerializeTo(fd);
+    }
+    // global regression parameters
+    const double* w_ptr;
+    const int rows = btcart.w.rows;
+    const int cols = btcart.w.cols;
+    for (int i = 0; i < rows; i++) {
+      w_ptr = btcart.w.ptr<double>(i);
+      fwrite(w_ptr, sizeof(double), cols, fd);
+    }
+  }
+  const BoostCart& btcart = joincascador.btcarts[stage_idx];
+  for (int k = 0; k <= cart_idx; k++) {
+    const Cart& cart = btcart.carts[k];
+    cart.SerializeTo(fd);
+  }
+  // if this stage is done
+  if (cart_idx == joincascador.K) {
+    // global regression parameters
+    const double* w_ptr;
+    const int rows = btcart.w.rows;
+    const int cols = btcart.w.cols;
+    for (int i = 0; i < rows; i++) {
+      w_ptr = btcart.w.ptr<double>(i);
+      fwrite(w_ptr, sizeof(double), cols, fd);
+    }
+  }
+  fwrite(&YO, sizeof(YO), 1, fd);
+
   fclose(fd);
 }
+
 void JoinCascador::Resume(JoinCascador& joincascador, FILE* fd) {
   const Config& c = Config::GetInstance();
-  //SerializeFrom(fd, stage - 2);
-  //current_stage_idx = stage - 1;
-  //current_cart_idx = -1;
-  // **TODO**
+  int YO, tmp;
+  fread(&YO, sizeof(YO), 1, fd);
+  JDA_Assert(YO == 1, "This model is not a snapshot!");
+  fread(&tmp, sizeof(int), 1, fd);
+  JDA_Assert(tmp == c.T, "T is wrong!");
+  fread(&tmp, sizeof(int), 1, fd);
+  JDA_Assert(tmp == c.K, "K is wrong!");
+  fread(&tmp, sizeof(int), 1, fd);
+  JDA_Assert(tmp == c.landmark_n, "landmark_n is wrong!");
+  fread(&tmp, sizeof(int), 1, fd);
+  JDA_Assert(tmp == c.tree_depth, "tree_depth is wrong!");
+  fread(&tmp, sizeof(int), 1, fd);
+  joincascador.current_stage_idx = tmp;
+  fread(&tmp, sizeof(int), 1, fd);
+  joincascador.current_cart_idx = tmp;
+
+  // mean shape
+  joincascador.mean_shape.create(1, 2 * c.landmark_n);
+  fread(joincascador.mean_shape.ptr<double>(0), sizeof(double), joincascador.mean_shape.cols, fd);
+
+  // still need to malloc full memory
+  joincascador.Initialize(c.T);
+
+  for (int t = 0; t < joincascador.current_stage_idx; t++) {
+    BoostCart& btcart = joincascador.btcarts[t];
+    for (int k = 0; k < c.K; k++) {
+      Cart& cart = btcart.carts[k];
+      cart.SerializeFrom(fd);
+    }
+    // global regression parameters
+    double* w_ptr;
+    const int w_rows = c.landmark_n * 2;
+    const int w_cols = c.K * (1 << (c.tree_depth - 1));
+    for (int i = 0; i < w_rows; i++) {
+      w_ptr = btcart.w.ptr<double>(i);
+      fread(w_ptr, sizeof(double), w_cols, fd);
+    }
+  }
+  BoostCart& btcart = joincascador.btcarts[joincascador.current_stage_idx];
+  for (int k = 0; k < joincascador.current_cart_idx; k++) {
+    Cart& cart = btcart.carts[k];
+    cart.SerializeFrom(fd);
+  }
+  // if this stage is done
+  if (joincascador.current_cart_idx == joincascador.K) {
+    // global regression parameters
+    double* w_ptr;
+    const int w_rows = c.landmark_n * 2;
+    const int w_cols = c.K * (1 << (c.tree_depth - 1));
+    for (int i = 0; i < w_rows; i++) {
+      w_ptr = btcart.w.ptr<double>(i);
+      fread(w_ptr, sizeof(double), w_cols, fd);
+    }
+  }
+
+  fread(&YO, sizeof(YO), 1, fd);
 }
 
 void JoinCascador::SerializeTo(FILE* fd) const {
@@ -77,7 +176,7 @@ void JoinCascador::SerializeTo(FILE* fd) const {
   // mean shape
   fwrite(mean_shape.ptr<double>(0), sizeof(double), mean_shape.cols, fd);
   // btcarts
-  for (int t = 0; t <= c.T; t++) {
+  for (int t = 0; t < c.T; t++) {
     const BoostCart& btcart = btcarts[t];
     for (int k = 0; k < c.K; k++) {
       const Cart& cart = btcart.carts[k];
@@ -115,12 +214,13 @@ void JoinCascador::SerializeFrom(FILE* fd) {
 
   // still need to malloc full memory
   Initialize(c.T);
+  current_stage_idx = c.T - 1;
+  current_cart_idx = c.K - 1;
 
-  for (int t = 0; t <= c.T; t++) {
+  for (int t = 0; t < c.T; t++) {
     BoostCart& btcart = btcarts[t];
     for (int k = 0; k < c.K; k++) {
       Cart& cart = btcart.carts[k];
-      cart.Initialize(t, k%c.landmark_n);
       cart.SerializeFrom(fd);
     }
     // global regression parameters
@@ -177,8 +277,11 @@ bool JoinCascador::Validate(const Mat& img, double& score, Mat_<double>& shape) 
   return true;
 }
 
+/*!
+ * \breif detect single scale
+ */
 static void detectSingleScale(const JoinCascador& joincascador, const Mat& img, \
-                              vector<Rect>& rects, vector<double> scores, \
+                              vector<Rect>& rects, vector<double>& scores, \
                               vector<Mat_<double> >& shapes) {
   const Config& c = Config::GetInstance();
   const int win_w = c.img_o_width;
@@ -211,8 +314,12 @@ static void detectSingleScale(const JoinCascador& joincascador, const Mat& img, 
     y += y_step;
   }
 }
+
+/*!
+ * \breif detect multi scale
+ */
 static void detectMultiScale(const JoinCascador& joincascador, const Mat& img, \
-                             vector<Rect>& rects, vector<double> scores, \
+                             vector<Rect>& rects, vector<double>& scores, \
                              vector<Mat_<double> >& shapes) {
   const Config& c = Config::GetInstance();
   const int win_w = c.img_o_width;
@@ -244,28 +351,94 @@ static void detectMultiScale(const JoinCascador& joincascador, const Mat& img, \
     shapes.insert(shapes.end(), shapes_.begin(), shapes_.end());
 
     scale *= factor;
-    width = static_cast<int>(width / factor + 0.5);
-    height = static_cast<int>(height / factor + 0.5);
+    width = int(width / factor + 0.5);
+    height = int(height / factor + 0.5);
     cv::resize(img_, img_, Size(width, height));
   }
 }
 
+/*!
+ * \breif nms Non-maximum suppression
+ * the algorithm is from https://github.com/ShaoqingRen/SPP_net/blob/master/nms%2Fnms_mex.cpp
+ *
+ * \param rects     area of faces
+ * \param scores    score of faces
+ * \param overlap   overlap threshold
+ * \return          picked index
+ */
+static vector<int> nms(const vector<Rect>& rects, const vector<double>& scores, \
+                       double overlap) {
+  const int n = rects.size();
+  vector<double> areas(n);
+
+  typedef std::multimap<double, int> ScoreMapper;
+  ScoreMapper map;
+  for (int i = 0; i < n; i++) {
+    map.insert(ScoreMapper::value_type(scores[i], i));
+    areas[i] = rects[i].width*rects[i].height;
+  }
+
+  int picked_n = 0;
+  vector<int> picked(n);
+  while (map.size() != 0) {
+    int last = map.rbegin()->second; // get the index of maximum score value
+    picked[picked_n] = last;
+    picked_n++;
+
+    for (ScoreMapper::iterator it = map.begin(); it != map.end();) {
+      int idx = it->second;
+      double x1 = std::max(rects[idx].x, rects[last].x);
+      double y1 = std::max(rects[idx].y, rects[last].y);
+      double x2 = std::min(rects[idx].x + rects[idx].width, rects[last].x + rects[last].width);
+      double y2 = std::min(rects[idx].y + rects[idx].height, rects[last].y + rects[last].height);
+      double w = std::max(0., x2 - x1);
+      double h = std::max(0., y2 - y1);
+      double ov = w*h / (areas[idx] + areas[last] - w*h);
+      if (ov > overlap) {
+        ScoreMapper::iterator tmp = it;
+        tmp++;
+        map.erase(it);
+        it = tmp;
+      }
+      else{
+        it++;
+      }
+    }
+  }
+
+  picked.resize(picked_n);
+  return picked;
+}
+
 int JoinCascador::Detect(const Mat& img, vector<Rect>& rects, vector<double>& scores, \
                          vector<Mat_<double> >& shapes) {
-  detectMultiScale(*this, img, rects, scores, shapes);
-  // **TODO** NMS
+  vector<Rect> rects_;
+  vector<double> scores_;
+  vector<Mat_<double> > shapes_;
+  detectMultiScale(*this, img, rects_, scores_, shapes_);
+  
+  const double overlap = 0.3;
+  vector<int> picked = nms(rects_, scores_, overlap);
+  const int n = picked.size();
+  rects.resize(n);
+  scores.resize(n);
+  shapes.resize(n);
 
   // relocate the shape points
-  const int n = rects.size();
   for (int i = 0; i < n; i++) {
-    Rect& rect = rects[i];
-    Mat_<double>& shape = shapes[i];
+    const int index = picked[i];
+    Rect& rect = rects_[index];
+    Mat_<double>& shape = shapes_[index];
     const int landmark_n = shape.cols / 2;
     for (int j = 0; j < landmark_n; j++) {
       shape(0, 2 * j) += rect.x;
       shape(0, 2 * j + 1) += rect.y;
     }
+    rects[i] = rect;
+    shapes[i] = shape;
+    scores[i] = scores_[index];
   }
+
   return n;
 }
 
