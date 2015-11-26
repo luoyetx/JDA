@@ -169,7 +169,7 @@ inline void checkBoundaryOfImage(int w, int h, int& x, int& y) {
   if (x < 0) x = 0;
   if (y < 0) y = 0;
   if (x >= w) x = w - 1;
-  if (y >= h) y = w - 1;
+  if (y >= h) y = h - 1;
 }
 /*!
  * \breif Draw shape in the image with optional bounding box

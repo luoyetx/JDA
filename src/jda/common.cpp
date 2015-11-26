@@ -56,7 +56,7 @@ int Feature::CalcFeatureValue(const Mat& o, const Mat& h, const Mat& q, \
   checkBoundaryOfImage(width, height, x1_, y1_);
   checkBoundaryOfImage(width, height, x2_, y2_);
 
-  int val = img.at<uchar>(x1_, y1_) - img.at<uchar>(x2_, y2_);
+  int val = img.at<uchar>(y1_, x1_) - img.at<uchar>(y2_, x2_);
   return val;
 }
 
