@@ -58,11 +58,12 @@ Mat_<int> DataSet::CalcFeatureValues(const vector<Feature>& feature_pool, \
 
 Mat_<double> DataSet::CalcShapeResidual(const vector<int>& idx) const {
   JDA_Assert(is_pos == true, "Negative Dataset can not use `CalcShapeResidual`");
-  Mat_<double> shape_residual;
   const int n = idx.size();
   // all landmark
   const int landmark_n = gt_shapes[0].cols / 2;
-  shape_residual.create(n, landmark_n * 2);
+  Mat_<double> shape_residual(n, landmark_n * 2);
+
+  #pragma omp parallel for
   for (int i = 0; i < n; i++) {
     shape_residual.row(i) = gt_shapes[idx[i]] - current_shapes[idx[i]];
   }
@@ -70,10 +71,11 @@ Mat_<double> DataSet::CalcShapeResidual(const vector<int>& idx) const {
 }
 Mat_<double> DataSet::CalcShapeResidual(const vector<int>& idx, int landmark_id) const {
   JDA_Assert(is_pos == true, "Negative Dataset can not use `CalcShapeResidual`");
-  Mat_<double> shape_residual;
   const int n = idx.size();
   // specific landmark
-  shape_residual.create(n, 2);
+  Mat_<double> shape_residual(n, 2);
+
+  #pragma omp parallel for
   for (int i = 0; i < n; i++) {
     shape_residual(i, 0) = gt_shapes[idx[i]](0, 2 * landmark_id) - \
                            current_shapes[idx[i]](0, 2 * landmark_id);
@@ -125,9 +127,9 @@ void DataSet::UpdateWeights(DataSet& pos, DataSet& neg) {
   pos.UpdateWeights();
   neg.UpdateWeights();
   // normalize to 1
-  double sum_w = 0;
   const int pos_n = pos.size;
   const int neg_n = neg.size;
+  double sum_w = 0.;
   for (int i = 0; i < pos_n; i++) {
     sum_w += pos.weights[i];
   }

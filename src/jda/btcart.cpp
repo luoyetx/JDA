@@ -10,24 +10,23 @@ using namespace std;
 
 namespace jda {
 
-BoostCart::BoostCart() {}
-BoostCart::~BoostCart() {}
-void BoostCart::Initialize(int stage) {
+BoostCart::BoostCart(int stage) {
   const Config& c = Config::GetInstance();
   this->stage = stage;
   K = c.K;
-  carts.resize(K);
+  carts.reserve(K);
   for (int i = 0; i < K; i++) {
-    carts[i].Initialize(stage, i%c.landmark_n);
+    // distribute the landmarks
+    carts.push_back(Cart(stage, i%c.landmark_n));
   }
   const int landmark_n = c.landmark_n;
   const int m = K*(1 << (c.tree_depth - 1)); // K * leafNume
-  w = Mat_<double>(2 * landmark_n, m);
+  w = Mat_<double>::zeros(2 * landmark_n, m);
+}
+BoostCart::~BoostCart() {
 }
 
 void BoostCart::Train(DataSet& pos, DataSet& neg) {
-  assert(carts.size() == K);
-
   const Config& c = Config::GetInstance();
 
   // statistic parameters
@@ -44,8 +43,6 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     neg.MoreNegSamples(pos.size, c.nps[stage]);
     // update weights
     DataSet::UpdateWeights(pos, neg);
-    int landmark_id = k % landmark_n;
-    cart.Initialize(stage, landmark_id);
     LOG("Current Positive DataSet Size is %d", pos.size);
     LOG("Current Negative DataSet Size is %d", neg.size);
     // train cart
@@ -59,7 +56,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     pos.UpdateScores(cart);
     neg.UpdateScores(cart);
     // select th for pre-defined recall
-    cart.th = pos.CalcThresholdByRate(1 - c.accept_rates[stage]);
+    cart.th = pos.CalcThresholdByRate(1 - c.recall[stage]);
     //if (k == K - 1) {
       int pos_n = pos.size;
       int neg_n = neg.size;
@@ -76,7 +73,6 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
   // generate lbf
   const int pos_n = pos.size;
   const int neg_n = neg.size;
-  const int m = K;
   LOG("Generate LBF of DataSet");
   vector<Mat_<int> > pos_lbf(pos_n);
   vector<Mat_<int> > neg_lbf(neg_n);

@@ -21,16 +21,13 @@ class JoinCascador;
  */
 class Cart {
 public:
-  Cart();
-  ~Cart();
   /*!
-   * \breif Initialize Cart
-   *  Malloc all memory needed and initialize the tree structure
-   *
+   * \breif default constructor, with parameters from config
    * \param stage         which stage this cart lie in
    * \param landmark_id   which landmark this cart training for regression
    */
-  void Initialize(int stage, int landmark_id);
+  Cart(int stage, int landmark_id);
+  ~Cart();
 
 public:
   /*!
@@ -147,15 +144,12 @@ public:
  */
 class BoostCart {
 public:
-  BoostCart();
-  ~BoostCart();
   /*!
-   * \breif Initialize the BoostCart
-   *  Malloc all memory needed and initialize the structure
-   *
+   * \breif default constructor, with parameters from config
    * \param stage   which stage this boost cart lie in
    */
-  void Initialize(int stage);
+  BoostCart(int stage);
+  ~BoostCart();
 
 public:
   /*!

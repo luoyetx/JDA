@@ -13,21 +13,20 @@ namespace jda {
 
 static int YO = 0;
 
-JoinCascador::JoinCascador() {}
-JoinCascador::~JoinCascador() {}
-void JoinCascador::Initialize(int T) {
+JoinCascador::JoinCascador() {
   const Config& c = Config::GetInstance();
-  JDA_Assert(T == c.T, "Stages does not match with Config");
-  this->T = T;
+  T = c.T;
   K = c.K;
   landmark_n = c.landmark_n;
   tree_depth = c.tree_depth;
   current_stage_idx = 0;
   current_cart_idx = -1;
-  btcarts.resize(T);
+  btcarts.reserve(T);
   for (int t = 0; t < T; t++) {
-    btcarts[t].Initialize(t);
+    btcarts.push_back(BoostCart(t));
   }
+}
+JoinCascador::~JoinCascador() {
 }
 
 void JoinCascador::Train(DataSet& pos, DataSet& neg) {
@@ -43,142 +42,44 @@ void JoinCascador::Train(DataSet& pos, DataSet& neg) {
       LOG("End of train %d th stages, costs %.4lf s", t + 1, TIMER_NOW);
     TIMER_END
     LOG("Snapshot current Training Status");
-    Snapshot(*this);
+    Snapshot();
   }
 }
 
-void JoinCascador::Snapshot(const JoinCascador& joincascador) {
-  int stage_idx = joincascador.current_stage_idx;
-  int cart_idx = joincascador.current_cart_idx;
+void JoinCascador::Snapshot() {
+  int stage_idx = current_stage_idx;
+  int cart_idx = current_cart_idx;
   char buff1[256];
   char buff2[256];
   time_t t = time(NULL);
   strftime(buff1, sizeof(buff1), "%Y%m%d-%H%M%S", localtime(&t));
-  sprintf(buff2, "../model/jda_tmp_%s_stage_%d_cart_%d.model", buff1, stage_idx + 1, cart_idx);
+  sprintf(buff2, "../model/jda_tmp_%s_stage_%d_cart_%d.model", \
+          buff1, stage_idx + 1, cart_idx + 1);
 
   FILE* fd = fopen(buff2, "wb");
   JDA_Assert(fd, "Can not open a temp file to save the model");
-  
-  int YO = 1;
-  fwrite(&YO, sizeof(YO), 1, fd);
-  fwrite(&joincascador.T, sizeof(int), 1, fd);
-  fwrite(&joincascador.K, sizeof(int), 1, fd);
-  fwrite(&joincascador.landmark_n, sizeof(int), 1, fd);
-  fwrite(&joincascador.tree_depth, sizeof(int), 1, fd);
-  fwrite(&stage_idx, sizeof(int), 1, fd);
-  fwrite(&cart_idx, sizeof(int), 1, fd);
-  // mean shape
-  fwrite(joincascador.mean_shape.ptr<double>(0), sizeof(double), joincascador.mean_shape.cols, fd);
-  for (int t = 0; t < stage_idx; t++) {
-    const BoostCart& btcart = joincascador.btcarts[t];
-    for (int k = 0; k < joincascador.K; k++) {
-      const Cart& cart = btcart.carts[k];
-      cart.SerializeTo(fd);
-    }
-    // global regression parameters
-    const double* w_ptr;
-    const int rows = btcart.w.rows;
-    const int cols = btcart.w.cols;
-    for (int i = 0; i < rows; i++) {
-      w_ptr = btcart.w.ptr<double>(i);
-      fwrite(w_ptr, sizeof(double), cols, fd);
-    }
-  }
-  const BoostCart& btcart = joincascador.btcarts[stage_idx];
-  for (int k = 0; k <= cart_idx; k++) {
-    const Cart& cart = btcart.carts[k];
-    cart.SerializeTo(fd);
-  }
-  // if this stage is done
-  if (cart_idx == joincascador.K) {
-    // global regression parameters
-    const double* w_ptr;
-    const int rows = btcart.w.rows;
-    const int cols = btcart.w.cols;
-    for (int i = 0; i < rows; i++) {
-      w_ptr = btcart.w.ptr<double>(i);
-      fwrite(w_ptr, sizeof(double), cols, fd);
-    }
-  }
-  fwrite(&YO, sizeof(YO), 1, fd);
+
+  SerializeTo(fd);
 
   fclose(fd);
 }
 
-void JoinCascador::Resume(JoinCascador& joincascador, FILE* fd) {
-  const Config& c = Config::GetInstance();
-  int YO, tmp;
-  fread(&YO, sizeof(YO), 1, fd);
-  JDA_Assert(YO == 1, "This model is not a snapshot!");
-  fread(&tmp, sizeof(int), 1, fd);
-  JDA_Assert(tmp == c.T, "T is wrong!");
-  fread(&tmp, sizeof(int), 1, fd);
-  JDA_Assert(tmp == c.K, "K is wrong!");
-  fread(&tmp, sizeof(int), 1, fd);
-  JDA_Assert(tmp == c.landmark_n, "landmark_n is wrong!");
-  fread(&tmp, sizeof(int), 1, fd);
-  JDA_Assert(tmp == c.tree_depth, "tree_depth is wrong!");
-  fread(&tmp, sizeof(int), 1, fd);
-  joincascador.current_stage_idx = tmp;
-  fread(&tmp, sizeof(int), 1, fd);
-  joincascador.current_cart_idx = tmp;
-
-  // mean shape
-  joincascador.mean_shape.create(1, 2 * c.landmark_n);
-  fread(joincascador.mean_shape.ptr<double>(0), sizeof(double), joincascador.mean_shape.cols, fd);
-
-  // still need to malloc full memory
-  joincascador.Initialize(c.T);
-
-  for (int t = 0; t < joincascador.current_stage_idx; t++) {
-    BoostCart& btcart = joincascador.btcarts[t];
-    for (int k = 0; k < c.K; k++) {
-      Cart& cart = btcart.carts[k];
-      cart.SerializeFrom(fd);
-    }
-    // global regression parameters
-    double* w_ptr;
-    const int w_rows = c.landmark_n * 2;
-    const int w_cols = c.K * (1 << (c.tree_depth - 1));
-    for (int i = 0; i < w_rows; i++) {
-      w_ptr = btcart.w.ptr<double>(i);
-      fread(w_ptr, sizeof(double), w_cols, fd);
-    }
-  }
-  BoostCart& btcart = joincascador.btcarts[joincascador.current_stage_idx];
-  for (int k = 0; k < joincascador.current_cart_idx; k++) {
-    Cart& cart = btcart.carts[k];
-    cart.SerializeFrom(fd);
-  }
-  // if this stage is done
-  if (joincascador.current_cart_idx == joincascador.K) {
-    // global regression parameters
-    double* w_ptr;
-    const int w_rows = c.landmark_n * 2;
-    const int w_cols = c.K * (1 << (c.tree_depth - 1));
-    for (int i = 0; i < w_rows; i++) {
-      w_ptr = btcart.w.ptr<double>(i);
-      fread(w_ptr, sizeof(double), w_cols, fd);
-    }
-  }
-
-  fread(&YO, sizeof(YO), 1, fd);
+void JoinCascador::Resume(FILE* fd) {
+  SerializeFrom(fd);
 }
 
 void JoinCascador::SerializeTo(FILE* fd) const {
-  const Config& c = Config::GetInstance();
-
   fwrite(&YO, sizeof(YO), 1, fd);
-  fwrite(&c.T, sizeof(int), 1, fd);
-  fwrite(&c.K, sizeof(int), 1, fd);
-  fwrite(&c.landmark_n, sizeof(int), 1, fd);
-  fwrite(&c.tree_depth, sizeof(int), 1, fd);
+  fwrite(&T, sizeof(int), 1, fd); // number of stages
+  fwrite(&K, sizeof(int), 1, fd); // number of trees per stage
+  fwrite(&landmark_n, sizeof(int), 1, fd); // number of landmarks
+  fwrite(&tree_depth, sizeof(int), 1, fd); // tree depth
   // mean shape
   fwrite(mean_shape.ptr<double>(0), sizeof(double), mean_shape.cols, fd);
   // btcarts
-  for (int t = 0; t < c.T; t++) {
+  for (int t = 0; t < T; t++) {
     const BoostCart& btcart = btcarts[t];
-    for (int k = 0; k < c.K; k++) {
+    for (int k = 0; k < K; k++) {
       const Cart& cart = btcart.carts[k];
       cart.SerializeTo(fd);
     }
@@ -195,38 +96,31 @@ void JoinCascador::SerializeTo(FILE* fd) const {
 }
 
 void JoinCascador::SerializeFrom(FILE* fd) {
-  const Config& c = Config::GetInstance();
-
   int tmp;
   fread(&YO, sizeof(YO), 1, fd);
   fread(&tmp, sizeof(int), 1, fd);
-  if (tmp != c.T) dieWithMsg("Wrong Model Paratemers!");
+  JDA_Assert(tmp == T, "T is wrong!");
   fread(&tmp, sizeof(int), 1, fd);
-  if (tmp != c.K) dieWithMsg("Wrong Model Paratemers!");
+  JDA_Assert(tmp == K, "K is wrong!");
   fread(&tmp, sizeof(int), 1, fd);
-  if (tmp != c.landmark_n) dieWithMsg("Wrong Model Paratemers!");
+  JDA_Assert(tmp == landmark_n, "landmark_n is wrong!");
   fread(&tmp, sizeof(int), 1, fd);
-  if (tmp != c.tree_depth) dieWithMsg("Wrong Model Paratemers!");
+  JDA_Assert(tmp == tree_depth, "tree_depth is wrong!");
 
   // mean shape
-  mean_shape.create(1, 2 * c.landmark_n);
+  mean_shape.create(1, 2 * landmark_n);
   fread(mean_shape.ptr<double>(0), sizeof(double), mean_shape.cols, fd);
 
-  // still need to malloc full memory
-  Initialize(c.T);
-  current_stage_idx = c.T - 1;
-  current_cart_idx = c.K - 1;
-
-  for (int t = 0; t < c.T; t++) {
+  for (int t = 0; t < T; t++) {
     BoostCart& btcart = btcarts[t];
-    for (int k = 0; k < c.K; k++) {
+    for (int k = 0; k < K; k++) {
       Cart& cart = btcart.carts[k];
       cart.SerializeFrom(fd);
     }
     // global regression parameters
     double* w_ptr;
-    const int w_rows = c.landmark_n * 2;
-    const int w_cols = c.K * (1 << (c.tree_depth - 1));
+    const int w_rows = landmark_n * 2;
+    const int w_cols = K * (1 << (tree_depth - 1));
     for (int i = 0; i < w_rows; i++) {
       w_ptr = btcart.w.ptr<double>(i);
       fread(w_ptr, sizeof(double), w_cols, fd);

@@ -20,7 +20,6 @@ void train() {
 
   JoinCascador joincascador;
   c.joincascador = &joincascador; // set global joincascador
-  joincascador.Initialize(c.T);
   joincascador.mean_shape = pos.CalcMeanShape();
   LOG("Start training JoinCascador");
   joincascador.Train(pos, neg);
@@ -35,14 +34,16 @@ void train() {
 
 /*!
  * \breif Resume Training Status of JoinCascador
+ * \note may not work now
  */
 void resume() {
   printf("Attention! The stage you resume from should range in [2, c.T]\n");
-  printf("Please input the stage you want to resume from: ");
-  int stage;
+  printf("Please input the stage and the cart you want to resume from: ");
+  int stage_idx, cart_idx;
   char buff[256];
-  scanf("%d", &stage);
-  printf("The model file should be ../model/jda_tmp_{time}_stage%d.model", stage - 1);
+  scanf("%d%d", &stage_idx, &cart_idx);
+  printf("The model file should be ../model/jda_tmp_{time}_stage_%d_cart_%d.model", \
+         stage_idx, cart_idx);
   printf("Please input the model file path: ");
   scanf("%s", buff);
   printf("\n");
@@ -54,8 +55,11 @@ void resume() {
   JoinCascador joincascador;
   c.joincascador = &joincascador; // set global joincascador
   LOG("Loading Model Parameters from model file");
-  JoinCascador::Resume(joincascador, fd);
+  joincascador.Resume(fd);
   fclose(fd);
+
+  joincascador.current_stage_idx = stage_idx - 1;
+  joincascador.current_cart_idx = cart_idx - 1;
 
   DataSet pos, neg;
   LOG("Load Positive And Negative DataSet");
@@ -89,7 +93,7 @@ void resume() {
   pos_remain.is_sorted = false;
   pos_remain.size = pos_remain.imgs.size();
 
-  LOG("Start Resume Training Status from %dth stage", stage + 1);
+  LOG("Start Resume Training Status from %dth stage", stage_idx + 1);
   joincascador.Train(pos_remain, neg);
   LOG("End of JoinCascador Training");
 

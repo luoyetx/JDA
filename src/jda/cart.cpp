@@ -12,9 +12,7 @@ using namespace std;
 
 namespace jda {
 
-Cart::Cart() {}
-Cart::~Cart() {}
-void Cart::Initialize(int stage, int landmark_id) {
+Cart::Cart(int stage, int landmark_id) {
   const Config& c = Config::GetInstance();
   this->stage = stage;
   this->landmark_id = landmark_id;
@@ -24,9 +22,11 @@ void Cart::Initialize(int stage, int landmark_id) {
   featNum = c.feats[stage];
   radius = c.radius[stage];
   p = c.probs[stage];
-  features.resize(nodes_n / 2);
-  thresholds.resize(nodes_n / 2);
-  scores.resize(nodes_n / 2);
+  features.resize(nodes_n / 2); // all 0
+  thresholds.resize(nodes_n / 2); // all 0
+  scores.resize(nodes_n / 2); // all 0
+}
+Cart::~Cart() {
 }
 
 void Cart::Train(DataSet& pos, DataSet& neg) {
@@ -229,7 +229,6 @@ void Cart::SplitNodeWithRegression(DataSet& pos, const std::vector<int>& pos_idx
     return;
   }
 
-  double variance_reduce_max = 0;
   // select a feature reduce maximum variance
   vector<double> vs_(feature_n);
   vector<int> ths_(feature_n);
@@ -257,6 +256,7 @@ void Cart::SplitNodeWithRegression(DataSet& pos, const std::vector<int>& pos_idx
     ths_[i] = threshold_;
   }
 
+  double variance_reduce_max = std::numeric_limits<double>::min();
   for (int i = 0; i < feature_n; i++) {
     if (vs_[i] > variance_reduce_max) {
       variance_reduce_max = vs_[i];
@@ -272,14 +272,14 @@ void Cart::GenFeaturePool(vector<Feature>& feature_pool) {
   const int landmark_n = c.landmark_n;
   RNG rng(getTickCount());
   feature_pool.resize(featNum);
+
   for (int i = 0; i < featNum; i++) {
     double x1, y1, x2, y2;
-    x1 = rng.uniform(-1., 1.); y1 = rng.uniform(-1., 1.);
-    x2 = rng.uniform(-1., 1.); y2 = rng.uniform(-1., 1.);
+    x1 = y1 = x2 = y2 = 1.;
     // needs to be in a circle
-    if (x1*x1 + y1*y1 > 1. || x2*x2 + y2*y2 > 1.) {
-      i--;
-      continue;
+    while (x1*x1 + y1*y1 > 1. || x2*x2 + y2*y2 > 1.) {
+      x1 = rng.uniform(-1., 1.); y1 = rng.uniform(-1., 1.);
+      x2 = rng.uniform(-1., 1.); y2 = rng.uniform(-1., 1.);
     }
     Feature& feat = feature_pool[i];
     switch (rng.uniform(0, 3)) {
@@ -303,7 +303,6 @@ void Cart::GenFeaturePool(vector<Feature>& feature_pool) {
 
 int Cart::Forward(const Mat& img, const Mat& img_h, const Mat& img_q, \
                   const Mat_<double>& shape) const {
-  const Config& c = Config::GetInstance();
   int node_idx = 1;
   int len = depth - 1;
   while (len--) {

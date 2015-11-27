@@ -143,7 +143,7 @@ Config::Config() {
   double nps[5] = { 1, 1, 1, 1, 1 };
   double radius[5] = { 0.4, 0.3, 0.2, 0.15, 0.1 };
   double probs[5] = { 0.9, 0.8, 0.7, 0.6, 0.5 };
-  double accept_rates[5] = { 0.9999, 0.9999, 0.9999, 0.9999, 0.9999 };
+  double recall[5] = { 0.9999, 0.9999, 0.9999, 0.9999, 0.9999 };
 
   this->feats.clear();
   this->radius.clear();
@@ -153,7 +153,7 @@ Config::Config() {
     this->nps.push_back(nps[i]);
     this->radius.push_back(radius[i]);
     this->probs.push_back(probs[i]);
-    this->accept_rates.push_back(accept_rates[i]);
+    this->recall.push_back(recall[i]);
   }
   train_pos_txt = "../data/train.txt";
   test_pos_txt = "../data/test.txt";

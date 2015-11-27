@@ -50,6 +50,12 @@ public:
   static const int QUARTER = 2;
 
 public:
+  Feature() {
+    scale = ORIGIN;
+    landmark_id1 = landmark_id2 = 0;
+    offset1_x = offset1_y = 0.;
+    offset2_x = offset2_y = 0.;
+  }
   /*!
    * \breif Calculate feature value
    *  We have three scaled image and one shape of original image, the shape of half size
@@ -71,14 +77,6 @@ public:
   int landmark_id1, landmark_id2;
   /*! \breif relative offset range in [0, 1] */
   double offset1_x, offset1_y, offset2_x, offset2_y;
-
-  static inline Feature Default() {
-    Feature f;
-    f.scale = ORIGIN;
-    f.landmark_id1 = f.landmark_id2 = 0;
-    f.offset1_x = f.offset1_y = f.offset2_x = f.offset2_y = 0;
-    return f;
-  }
 };
 
 /*!
@@ -115,8 +113,8 @@ public:
   std::vector<int> feats;
   /*! \breif probability of classification in each stages */
   std::vector<double> probs;
-  /*! \breif accept rate of each stage */
-  std::vector<double> accept_rates;
+  /*! \breif recall of each stage */
+  std::vector<double> recall;
   /*! \breif hard negative mining parameters */
   double scale_factor;
   int x_step, y_step;

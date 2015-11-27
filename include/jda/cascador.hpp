@@ -14,13 +14,12 @@ class BoostCart;
  */
 class JoinCascador {
 public:
+  /*!
+   * \breif default constructor
+   * This will establish the whole model with parameters from config
+   */
   JoinCascador();
   ~JoinCascador();
-  /*!
-   * \breif Initialize JionCascador
-   * \param T   stages, should be `Config::T`
-   */
-  void Initialize(int T);
 
 public:
   /*!
@@ -35,7 +34,7 @@ public:
    *  `%time%` is the saving time point format `%Y%m%D-%H%M%S` like `20151011-103625`
    *  `stage` is current stage range in [1..c.T]
    */
-  static void Snapshot(const JoinCascador& joincascador);
+  void Snapshot();
   /*!
    * \breif Resume the Training Status
    *  Resume the Training Status from a Snapshot model file. We will load the model
@@ -46,7 +45,7 @@ public:
    *
    * \param fd      file discriptor of the model file
    */
-  static void Resume(JoinCascador& joincascador, FILE* fd);
+  void Resume(FILE* fd);
   /*!
    * \breif Write parameters to a binary file
    * \param   file discriptor of the model file
