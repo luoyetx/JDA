@@ -56,6 +56,10 @@ If you are using Visual Studio, make sure you know how to pass command line argu
 
 This project is not completed yet and may has some hidden bugs. Welcome any question or idea through the [issues](https://github.com/luoyetx/JDA/issues).
 
+### QQ Group
+
+There is a QQ group 347185749. If you are using Tencent QQ, welcome to join this group and we can discuss more there.
+
 ### License
 
 BSD 3-Clause
