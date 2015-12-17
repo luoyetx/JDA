@@ -11,6 +11,7 @@ if(OPENMP_FOUND)
 endif()
 
 include(${CMAKE_CURRENT_LIST_DIR}/3rdparty/liblinear/liblinear.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/3rdparty/jsmnpp/libjsmn.cmake)
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}/3rdparty
                     ${CMAKE_CURRENT_LIST_DIR}/include)
@@ -18,4 +19,4 @@ file(GLOB SRC ${CMAKE_CURRENT_LIST_DIR}/include/jda/*.hpp
               ${CMAKE_CURRENT_LIST_DIR}/src/jda/*.cpp)
 
 add_library(libjda STATIC ${SRC})
-target_link_libraries(libjda liblinear ${OpenCV_LIBS})
+target_link_libraries(libjda liblinear libjsmn ${OpenCV_LIBS})

@@ -1,0 +1,37 @@
+{
+    "T": 5,
+    "K": 1080,
+    "landmark_n": 5,
+    "tree_depth": 4,
+    "random_shift": 3,
+    "image_size": {
+        "multi_scale": true,
+        "origin_w": 80,
+        "origin_h": 80,
+        "half_w": 56,
+        "half_h": 56,
+        "quarter_w": 40,
+        "quarter_h": 40,
+    },
+    "hard_negative_mining": {
+        "x_step": 20,
+        "y_step": 20,
+        "scale": 0.8
+    },
+    "stages": {
+        "feature_pool_size": [1000, 1000, 1000, 1000, 1000],
+        "random_sample_radius": [0.4, 0.3, 0.2, 0.15, 0.1],
+        "classification_p": [0.9, 0.8, 0.7, 0.6, 0.5],
+        "recall": [0.9999, 0.9999, 0.9999, 0.9999, 0.9999],
+        "neg_pos_ratio": [1.0, 1.0, 1.0, 1.0, 1.0]
+    },
+    "data": {
+        "face": "../data/face.txt",
+        "background": "../data/background.txt"
+    },
+
+    "phase": "train",
+    "current_stage_idx": -1,
+    "current_cart_idx": -1,
+    "tmp_model": "../model/jda_xxx.model"
+}

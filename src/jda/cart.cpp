@@ -293,6 +293,10 @@ void Cart::GenFeaturePool(vector<Feature>& feature_pool) {
     default:
       feat.scale = Feature::ORIGIN; break;
     }
+
+    // may be no multi scale
+    if (!c.multi_scale) feat.scale = Feature::ORIGIN;
+
     feat.landmark_id1 = rng.uniform(0, landmark_n);
     feat.landmark_id2 = rng.uniform(0, landmark_n);
     feat.offset1_x = x1*radius;

@@ -5,10 +5,12 @@
 #include <cstdarg>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <jsmn.hpp>
 #include "jda/common.hpp"
 
 using namespace cv;
 using namespace std;
+using namespace jsmn;
 
 namespace jda {
 
@@ -127,39 +129,61 @@ void showImage(const Mat& img) {
 }
 
 Config::Config() {
-  T = 5;
-  K = 1080;
-  landmark_n = 5;
-  tree_depth = 4;
-  shift_size = 10;
-  img_o_height = img_o_width = 80;
-  img_h_height = img_h_width = 56;
-  img_q_height = img_q_width = 40;
-  x_step = y_step = 20;
-  scale_factor = 0.8;
+  jsmn::Object json_config = jsmn::parse("../config.json");
+
+  // model meta data
+  T = json_config["T"].unwrap<Number>();
+  K = json_config["K"].unwrap<Number>();
+  landmark_n = json_config["landmark_n"].unwrap<Number>();
+  tree_depth = json_config["tree_depth"].unwrap<Number>();
+  shift_size = json_config["random_shift"].unwrap<Number>();
+
+  // image size
+  jsmn::Object& image_size_config = json_config["image_size"].unwrap<Object>();
+  multi_scale = image_size_config["multi_scale"].unwrap<Boolean>();
+  img_o_width = image_size_config["origin_w"].unwrap<Number>();
+  img_o_height = image_size_config["origin_h"].unwrap<Number>();
+  img_h_width = image_size_config["half_w"].unwrap<Number>();
+  img_h_height = image_size_config["half_h"].unwrap<Number>();
+  img_q_width = image_size_config["quarter_w"].unwrap<Number>();
+  img_q_height = image_size_config["quarter_h"].unwrap<Number>();
+
+  // hard negative mining
+  jsmn::Object& mining_config = json_config["hard_negative_mining"].unwrap<Object>();
+  x_step = mining_config["x_step"].unwrap<Number>();
+  y_step = mining_config["y_step"].unwrap<Number>();
+  scale_factor = mining_config["scale"].unwrap<Number>();
   mining_pool_size = omp_get_max_threads();
   esp = 2.2e-16;
-  int feats[5] = { 1000, 1000, 1000, 1000, 1000 };
-  double nps[5] = { 1, 1, 1, 1, 1 };
-  double radius[5] = { 0.4, 0.3, 0.2, 0.15, 0.1 };
-  double probs[5] = { 0.9, 0.8, 0.7, 0.6, 0.5 };
-  double recall[5] = { 0.9999, 0.9999, 0.9999, 0.9999, 0.9999 };
 
+  // stage parameters
+  jsmn::Object& stages = json_config["stages"].unwrap<Object>();
   this->feats.clear();
   this->radius.clear();
   this->probs.clear();
   for (int i = 0; i < T; i++) {
-    this->feats.push_back(feats[i]);
-    this->nps.push_back(nps[i]);
-    this->radius.push_back(radius[i]);
-    this->probs.push_back(probs[i]);
-    this->recall.push_back(recall[i]);
+    this->feats.push_back(stages["feature_pool_size"][i].unwrap<Number>());
+    this->nps.push_back(stages["neg_pos_ratio"][i].unwrap<Number>());
+    this->radius.push_back(stages["random_sample_radius"][i].unwrap<Number>());
+    this->probs.push_back(stages["classification_p"][i].unwrap<Number>());
+    this->recall.push_back(stages["recall"][i].unwrap<Number>());
   }
-  train_pos_txt = "../data/train.txt";
+
+  // data
+  jsmn::Object& data = json_config["data"].unwrap<Object>();
+  train_pos_txt = data["face"].unwrap<jsmn::String>();
   test_pos_txt = "../data/test.txt";
-  train_neg_txt = "../data/nega.txt";
+  train_neg_txt = data["background"].unwrap<jsmn::String>();
   test_neg_txt = "../data/test_nega.txt";
   detection_txt = "../data/detection.txt";
+
+  // status
+  if (json_config["phase"].unwrap<jsmn::String>() == "train") phase = 0;
+  else phase = 1;
+
+  current_stage_idx = json_config["current_stage_idx"].unwrap<Number>();
+  current_cart_idx = json_config["current_cart_idx"].unwrap<Number>();
+  tmp_model = json_config["tmp_model"].unwrap<jsmn::String>();
 }
 
 } // namespace jda

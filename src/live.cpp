@@ -9,6 +9,7 @@ using namespace std;
 using namespace jda;
 
 void live() {
+  const Config& c = Config::GetInstance();
   VideoCapture cap(0);
   if (!cap.isOpened()) {
     dieWithMsg("Can not open Camera, Please Check it!");
@@ -19,6 +20,8 @@ void live() {
   FILE* fd = fopen("../model/jda.model", "rb");
   JDA_Assert(fd, "Can not open model file");
   joincascador.SerializeFrom(fd);
+  joincascador.current_stage_idx = c.current_stage_idx;
+  joincascador.current_cart_idx = c.current_cart_idx;
   fclose(fd);
 
   while (true) {

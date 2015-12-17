@@ -1,0 +1,6 @@
+[submodule "3rdparty/jsmnpp"]
+	path = 3rdparty/jsmnpp
+	url = https://github.com/luoyetx/jsmnpp.git
+[submodule "3rdparty/liblinear"]
+	path = 3rdparty/liblinear
+	url = https://github.com/luoyetx/liblinear.git

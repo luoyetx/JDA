@@ -37,29 +37,19 @@ void train() {
  * \note may not work now
  */
 void resume() {
-  printf("Attention! The stage you resume from should range in [2, c.T]\n");
-  printf("Please input the stage and the cart you want to resume from: ");
-  int stage_idx, cart_idx;
-  char buff[256];
-  scanf("%d%d", &stage_idx, &cart_idx);
-  printf("The model file should be ../model/jda_tmp_{time}_stage_%d_cart_%d.model", \
-         stage_idx, cart_idx);
-  printf("Please input the model file path: ");
-  scanf("%s", buff);
-  printf("\n");
+  Config& c = Config::GetInstance();
 
-  FILE* fd = fopen(buff, "rb");
+  FILE* fd = fopen(c.tmp_model.c_str(), "rb");
   JDA_Assert(fd, "Can not open model file");
 
-  Config& c = Config::GetInstance();
   JoinCascador joincascador;
   c.joincascador = &joincascador; // set global joincascador
   LOG("Loading Model Parameters from model file");
   joincascador.Resume(fd);
   fclose(fd);
 
-  joincascador.current_stage_idx = stage_idx - 1;
-  joincascador.current_cart_idx = cart_idx - 1;
+  joincascador.current_stage_idx = c.current_stage_idx;
+  joincascador.current_cart_idx = c.current_cart_idx;
 
   DataSet pos, neg;
   LOG("Load Positive And Negative DataSet");
@@ -93,7 +83,7 @@ void resume() {
   pos_remain.is_sorted = false;
   pos_remain.size = pos_remain.imgs.size();
 
-  LOG("Start Resume Training Status from %dth stage", stage_idx + 1);
+  LOG("Start Resume Training Status from %dth stage", joincascador.current_stage_idx);
   joincascador.Train(pos_remain, neg);
   LOG("End of JoinCascador Training");
 

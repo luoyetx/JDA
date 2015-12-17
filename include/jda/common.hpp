@@ -100,6 +100,7 @@ public:
   /*! \breif depth of cart */
   int tree_depth;
   /*! \breif size of all training data */
+  bool multi_scale; // whether use multi scale or not
   int img_o_width, img_o_height;
   int img_h_width, img_h_height;
   int img_q_width, img_q_height;
@@ -133,6 +134,18 @@ public:
   double esp;
   /*! \breif global training join casacdor */
   JoinCascador* joincascador;
+  /*! \breif training status from config.json */
+  int current_stage_idx;
+  int current_cart_idx;
+  /*! \breif model snapshot by JDA, used for resume and test only */
+  std::string tmp_model;
+  /*!
+   * \breif global status, train or test, 0 for train and 1 for test
+   *
+   * \note    when test the model, you should give `current_stage_idx`
+   *          and `current_cart_idx` to point out the model
+   */
+  int phase;
 
 private:
   Config();
