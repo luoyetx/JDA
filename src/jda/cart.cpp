@@ -1,6 +1,7 @@
 #include <cmath>
 #include <cstdio>
 #include <climits>
+#include <limits>
 #include <opencv2/imgproc/imgproc.hpp>
 #include "jda/data.hpp"
 #include "jda/cart.hpp"
