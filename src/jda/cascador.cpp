@@ -5,6 +5,7 @@
 #include "jda/cart.hpp"
 #include "jda/common.hpp"
 #include "jda/cascador.hpp"
+#include <map>
 
 using namespace cv;
 using namespace std;
