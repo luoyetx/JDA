@@ -3,46 +3,61 @@ JDA
 
 C++ implementation of Joint Cascade Face Detection and Alignment.
 
-### Build
+### Fetech Code
+
+I recommend using [Git](https://git-scm.com/) to fetch the source code. If you are not familiar with Git, there is a [tutorial](https://git-scm.com/book/en/v2) you can follow.
+
+```
+$ git clone --recursive https://github.com/luoyetx/JDA.git
+```
+
+OR
 
 ```
 $ git clone https://github.com/luoyetx/JDA.git
+$ cd JDA
+$ git submodule update --init
+```
+
+If you directly download the zip file, please remember to download [luoyetx/liblinear][luoyetx/liblinear] and [luoyetx/jsmnpp][luoyetx/jsmnpp], then extract the source code to `3rdparty`. liblinear is used for global regression training and jsmnpp is used for json config parsing.
+
+### Build
+
+We use [CMake][cmake] to build the project, I highly recommend you to use this build tool. We also need [OpenCV][opencv]. If you are on Windows, make sure you have set environment variable `OpenCV_DIR` to OpenCV's build directory like `D:/3rdparty/opencv2.4.11/build`. You may also need [Visual Studio][vs] to compile the source code. If you are on Linux or Unix, install the development packages of OpenCV via your system's Package Manager like `apt-get` on Ubuntu or `yum` on CentOS. However, Compile the source code of OpenCV will be the best choice of all.
+
+```
 $ cd JDA
 $ mkdir build && cd build
 $ cmake ..
 $ make
 ```
 
-If you are on Windows, make sure you have set environment variable `OpenCV_DIR` to OpenCV's build directory like `D:/3rdparty/opencv2.4.11/build`. You may also need [Visual Studio](https://www.visualstudio.com/) to compile the source code. If you are on Linux or Unix, install the development packages of OpenCV via your system's Package Manager like `apt-get` on Ubuntu or `yum` on CentOS. However, Compile the source code of OpenCV will be the best choice of all.
+### Config
+
+We use `config.json` for configuration. `config.template.json` is a template, please copy one and rename it to `config.json`. **Attention**, all relative path is start from `build` directory, and please use `/` instead of `\\` even if you are on Windows platform.
 
 ### Data
 
-You should prepare your own data and all data should be under `data` directory. You need two kinds of data, face with landmarks and background images. You also need to create two text file `train.txt` and `nega.txt` (you can change the name of these two text file by editing the code in `common.cpp`).
-
-Every line of `train.txt` stores a face image's path with its landmarks. The number of landmarks can be changed in `common.cpp` and the order of landmarks does not matter.
+You should prepare your own data. You need two kinds of data, face with landmarks and background images. You also need to create two text file `face.txt` and `background.txt` which can be changed in `config.json`. Every line of `face.txt` indicates a face image's path with its landmarks. The number of landmarks can be changed in `config.json` and the order of landmarks does not matter.
 
 ```
-../data/train/00001.jpg x1 y1 x2 y2 ........
-../data/train/00002.jpg x1 y1 x2 y2 ........
+../data/face/00001.jpg x1 y1 x2 y2 ........
+../data/face/00002.jpg x1 y1 x2 y2 ........
 ....
 ....
 ```
 
-The face images should be resized to the pre-defined size and you should do any data augmentation by yourself, the code will exactly use the face images you provide.
-
-`nega.txt` is much more simpler. Every line stores where the background image in the file system.
+The face images should be resized to the pre-defined size and you should do any data augmentation by yourself, the code will exactly use the face images you provide. `background.txt` is much more simpler. Every line indicates where the background image in the file system.
 
 ```
-../data/nega/000001.jpg
-../data/nega/000002.jpg
-../data/nega/000003.jpg
+../data/bg/000001.jpg
+../data/bg/000002.jpg
+../data/bg/000003.jpg
 ....
 ....
 ```
 
-Background images should have no face and we will do data augmentation during the hard negative mining.
-
-You may refer to `script/gen.py` for more detail.
+Background images should have no face and we will do data augmentation during the hard negative mining. Of course, you can use absolute path to indicate where is your face images and background images.
 
 ### Train
 
@@ -50,15 +65,42 @@ You may refer to `script/gen.py` for more detail.
 $ ./jda train
 ```
 
-If you are using Visual Studio, make sure you know how to pass command line arguments to the program. The model will be saved to `model` directory. The model file is stored in binary form and I may change the data format later, so training the model on your own risk. However, I will try to make sure that the further code can load the model parameter correctly.
+If you are using Visual Studio, make sure you know how to pass command line arguments to the program. All trained model file will be saved to `model` directory.
+
+### Model Layout
+
+All model file is saved as a binary file. The model parameters have two data type, 4 byte `int` and 8 byte `double`, please pay attention to the [endianness][endianness] of you CPU.
+
+```
+|-- mask (int)
+|-- meta
+|    |-- T (int)
+|    |-- K (int)
+|    |-- landmark_n (int)
+|    |-- tree_depth (int)
+|-- mean_shape (double, size = 2*landmark_n)
+|-- stages
+|    |-- stage_1
+|    |    |-- cart_1
+|    |    |-- cart_2
+|    |    |-- ...
+|    |    |-- cart_K
+|    |    |-- global regression weight
+|    |-- stage_2
+|    |-- ...
+|    |-- stage_T
+|-- mask (int)
+```
+
+For more details of the model file layout, please refer to `cascador.cpp` and `cart.cpp`.
 
 ### Attention
 
-This project is not completed yet and may has some hidden bugs. Welcome any question or idea through the [issues](https://github.com/luoyetx/JDA/issues).
+It's a shame that I still not get a fully trained model now. There is many detailed problems of JDA algorithm which need to be discussed. My code may have some hidden bugs. Welcome any bug report and any question or idea through the [issues](https://github.com/luoyetx/JDA/issues).
 
 ### QQ Group
 
-There is a QQ group 347185749. If you are using Tencent QQ, welcome to join this group and we can discuss more there.
+There is a QQ group 347185749. If you are a [Tencent QQ][qq] user, welcome to join this group and we can discuss more there.
 
 ### License
 
@@ -71,3 +113,13 @@ BSD 3-Clause
 - [FaceDetect/jointCascade_py](https://github.com/FaceDetect/jointCascade_py)
 - [luoyetx/face-alignment-at-3000fps](https://github.com/luoyetx/face-alignment-at-3000fps)
 - [cjlin1/liblinear](https://github.com/cjlin1/liblinear)
+- [luoyetx/jsmnpp](https://github.com/luoyetx/jsmnpp)
+
+
+[opencv]: http://opencv.org/
+[luoyetx/jsmnpp]: https://github.com/luoyetx/jsmnpp
+[luoyetx/liblinear]: https://github.com/luoyetx/liblinear
+[cmake]: https://cmake.org/
+[vs]: https://www.visualstudio.com/
+[endianness]: https://en.wikipedia.org/wiki/Endianness
+[qq]: http://im.qq.com/
