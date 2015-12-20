@@ -28,6 +28,7 @@ BoostCart::~BoostCart() {
 
 void BoostCart::Train(DataSet& pos, DataSet& neg) {
   const Config& c = Config::GetInstance();
+  JoinCascador& joincascador = *c.joincascador;
 
   // statistic parameters
   const int pos_original_size = pos.size;
@@ -37,7 +38,8 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
   const int landmark_n = c.landmark_n;
   RNG rng(getTickCount());
   // Real Boost
-  for (int k = 0; k < K; k++) {
+  const int start_of_cart = joincascador.current_cart_idx + 1;
+  for (int k = start_of_cart; k < K; k++) {
     Cart& cart = carts[k];
     // more neg if needed
     neg.MoreNegSamples(pos.size, c.nps[stage]);
@@ -51,23 +53,23 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
       cart.Train(pos, neg);
       LOG("Done with %d th Cart, costs %.4lf s", k + 1, TIMER_NOW);
     TIMER_END
-    c.joincascador->current_cart_idx = k;
+    joincascador.current_cart_idx = k;
     // update score
     pos.UpdateScores(cart);
     neg.UpdateScores(cart);
     // select th for pre-defined recall
     cart.th = pos.CalcThresholdByRate(1 - c.recall[stage]);
-    //if (k == K - 1) {
-      int pos_n = pos.size;
-      int neg_n = neg.size;
-      pos.Remove(cart.th);
-      neg.Remove(cart.th);
-      double pos_drop_rate = double(pos_n - pos.size) / double(pos_n)* 100.;
-      double neg_drop_rate = double(neg_n - neg.size) / double(neg_n)* 100.;
-      LOG("Pos drop rate = %.2lf%%, Neg drop rate = %.2lf%%", pos_drop_rate, neg_drop_rate);
-      neg_rejected += neg_n - neg.size;
-      LOG("Current Negative DataSet Reject Size is %d", neg_rejected);
-    //}
+    int pos_n = pos.size;
+    int neg_n = neg.size;
+    pos.Remove(cart.th);
+    neg.Remove(cart.th);
+    double pos_drop_rate = double(pos_n - pos.size) / double(pos_n)* 100.;
+    double neg_drop_rate = double(neg_n - neg.size) / double(neg_n)* 100.;
+    LOG("Pos drop rate = %.2lf%%, Neg drop rate = %.2lf%%", pos_drop_rate, neg_drop_rate);
+    neg_rejected += neg_n - neg.size;
+    LOG("Current Negative DataSet Reject Size is %d", neg_rejected);
+    // print cart info
+    cart.PrintSelf();
   }
   // Global Regression with LBF
   // generate lbf

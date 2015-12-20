@@ -33,10 +33,12 @@ JoinCascador::~JoinCascador() {
 void JoinCascador::Train(DataSet& pos, DataSet& neg) {
   this->pos = &pos;
   this->neg = &neg;
-  const int start = current_stage_idx;
-  for (int t = start; t < T; t++) {
+  const int start_of_stage = current_stage_idx;
+  for (int t = start_of_stage; t < T; t++) {
     current_stage_idx = t;
-    current_cart_idx = -1;
+    if (current_stage_idx != start_of_stage) {
+      current_cart_idx = -1;
+    }
     LOG("Train %d th stages", t + 1);
     TIMER_BEGIN
       btcarts[t].Train(pos, neg);

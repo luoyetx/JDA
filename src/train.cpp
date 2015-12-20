@@ -19,6 +19,8 @@ void train() {
   DataSet::LoadDataSet(pos, neg);
 
   JoinCascador joincascador;
+  joincascador.current_stage_idx = 0;
+  joincascador.current_cart_idx = -1;
   c.joincascador = &joincascador; // set global joincascador
   joincascador.mean_shape = pos.CalcMeanShape();
   LOG("Start training JoinCascador");

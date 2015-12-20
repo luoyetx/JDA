@@ -326,6 +326,9 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
   vector<double> score_pool(pool_size);
   vector<Mat_<double> > shape_pool(pool_size);
   vector<bool> used(pool_size, false);
+
+  const int size_o = size;
+  double ratio = 0.9;
   while (size > 0) {
     // We generate a negative sample pool for validation
     for (int i = 0; i < pool_size; i++) {
@@ -346,6 +349,11 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
         shapes.push_back(shape_pool[i]);
         size--;
       }
+    }
+
+    if (size < ratio*size_o) {
+      LOG("We have mined %d%%", int((1. - ratio + 1e-6) * 100));
+      ratio -= 0.1;
     }
   }
   return imgs.size();
@@ -461,7 +469,7 @@ void NegGenerator::NextState() {
             SaveTheWorld();
             continue;
           }
-          LOG("Use %d th Nega Image %s", current_idx + 1, list[current_idx].c_str());
+          //LOG("Use %d th Nega Image %s", current_idx + 1, list[current_idx].c_str());
           img = cv::imread(list[current_idx], CV_LOAD_IMAGE_GRAYSCALE);
           if (!img.data || img.cols <= w || img.rows <= h) {
             if (!img.data) {

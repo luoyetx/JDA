@@ -63,6 +63,8 @@ void Cart::SplitNode(DataSet& pos, vector<int>& pos_idx, \
     return;
   }
 
+  printf("Node %d has % 6d pos and % 6d neg.", node_idx, pos_n, neg_n);
+
   // feature pool
   vector<Feature> feature_pool;
   Mat_<int> pos_feature, neg_feature;
@@ -74,13 +76,13 @@ void Cart::SplitNode(DataSet& pos, vector<int>& pos_idx, \
   bool is_classification = (rng.uniform(0., 1.) < p) ? true : false;
   int feature_idx, threshold;
   if (is_classification) {
-    LOG("\tSplit %d th node by Classification", node_idx);
+    printf("\tSplit by Classification\n");
     SplitNodeWithClassification(pos, pos_idx, neg, neg_idx, \
                                 pos_feature, neg_feature, \
                                 feature_idx, threshold);
   }
   else {
-    LOG("\tSplit %d th node by Regression", node_idx);
+    printf("\tSplit by Regression\n");
     Mat_<double> shape_residual = pos.CalcShapeResidual(pos_idx, landmark_id);
     SplitNodeWithRegression(pos, pos_idx, neg, neg_idx, \
                             pos_feature, shape_residual, \
@@ -360,6 +362,25 @@ void Cart::SerializeTo(FILE* fd) const {
   }
   // threshold
   fwrite(&th, sizeof(double), 1, fd);
+}
+
+void Cart::PrintSelf() {
+  printf("\nSummary of this Cart\n");
+  printf("node parameters\n");
+  for (int i = 1; i < nodes_n / 2; i++) {
+    const Feature& f = features[i];
+    const int threshold = thresholds[i];
+    printf("  node %d: [scale = %d, th = %d, landmark_1 = (%d, %.4lf, %.4lf), "
+           "landmark_2 = (%d, %.4lf, %.4lf)]\n", \
+           i, f.scale, threshold, f.landmark_id1, f.offset1_x, f.offset1_y, \
+           f.landmark_id2, f.offset2_x, f.offset2_y);
+  }
+  printf("leaf scores\n[");
+  for (int i = 0; i < leafNum; i++) {
+    printf("%0.4lf, ", scores[i]);
+  }
+  printf("]\n");
+  printf("threshold = %.4lf\n\n", th);
 }
 
 } // namespace jda

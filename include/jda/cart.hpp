@@ -98,6 +98,8 @@ public:
    * \param fd    file discriptor of the model file
    */
   void SerializeFrom(FILE* fd);
+  /*! \breif Print out the Cart */
+  void PrintSelf();
 
 public:
   /*!
