@@ -355,7 +355,8 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
     }
 
     if (size < ratio*size_o) {
-      LOG("We have mined %d%%", int((1. - ratio + 1e-6) * 100));
+      LOG("We have mined %d%%, bg image remains %d%%", int((1. - ratio + 1e-6) * 100), \
+          int(100. - double(current_idx) / list.size() * 100.));
       ratio -= 0.1;
     }
   }
@@ -476,10 +477,10 @@ void NegGenerator::NextState() {
           img = cv::imread(list[current_idx], CV_LOAD_IMAGE_GRAYSCALE);
           if (!img.data || img.cols <= w || img.rows <= h) {
             if (!img.data) {
-              LOG("Can not open image %s, Skip it", list[current_idx].c_str());
+              //LOG("Can not open image %s, Skip it", list[current_idx].c_str());
             }
             else {
-              LOG("Image %s is too small, Skip it", list[current_idx].c_str());
+              //LOG("Image %s is too small, Skip it", list[current_idx].c_str());
             }
           }
           else {

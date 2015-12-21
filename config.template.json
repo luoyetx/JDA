@@ -31,5 +31,6 @@
     },
 
     "phase": "train",
-    "tmp_model": "../model/jda_xxx.model"
+    "tmp_model": "../model/jda_xxx.model",
+    "snapshot_iter": 20
 }

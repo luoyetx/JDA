@@ -139,6 +139,8 @@ public:
   int current_cart_idx;
   /*! \breif model snapshot by JDA, used for resume and test only */
   std::string tmp_model;
+  /*! \breif snapshot per iters */
+  int snapshot_iter;
   /*!
    * \breif global status, train or test, 0 for train and 1 for test
    *

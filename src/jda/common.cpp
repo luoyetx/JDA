@@ -182,6 +182,7 @@ Config::Config() {
   else phase = 1;
 
   tmp_model = json_config["tmp_model"].unwrap<jsmn::String>();
+  snapshot_iter = json_config["snapshot_iter"].unwrap<Number>();
 }
 
 } // namespace jda

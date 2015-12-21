@@ -74,6 +74,10 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     LOG("Current Negative DataSet Reject Size is %d", neg_rejected);
     // print cart info
     cart.PrintSelf();
+    const int kk = k + 1;
+    if ((kk != K) && (kk%c.snapshot_iter == 0)) { // snapshot
+      c.joincascador->Snapshot();
+    }
   }
   // Global Regression with LBF
   // generate lbf
