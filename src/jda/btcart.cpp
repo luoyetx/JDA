@@ -43,6 +43,10 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     Cart& cart = carts[k];
     // more neg if needed
     neg.MoreNegSamples(pos.size, c.nps[stage]);
+    // print out data set status
+    pos.QSort(); neg.QSort();
+    LOG("Pos max score = %.4lf, min score = %.4lf", pos.scores[0], pos.scores[pos.size - 1]);
+    LOG("Neg max score = %.4lf, min score = %.4lf", neg.scores[0], neg.scores[neg.size - 1]);
     // update weights
     DataSet::UpdateWeights(pos, neg);
     LOG("Current Positive DataSet Size is %d", pos.size);

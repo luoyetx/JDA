@@ -173,7 +173,7 @@ void DataSet::Remove(double th) {
   imgs.resize(offset);
   imgs_half.resize(offset);
   imgs_quarter.resize(offset);
-  gt_shapes.resize(offset);
+  if (is_pos) gt_shapes.resize(offset);
   current_shapes.resize(offset);
   scores.resize(offset);
   weights.resize(offset);
@@ -246,6 +246,7 @@ void DataSet::MoreNegSamples(int pos_size, double rate) {
     weights.push_back(0); // all weights will be updated by calling `UpdateWeights`
   }
   size = expanded;
+  is_sorted = false;
 }
 
 void DataSet::LoadPositiveDataSet(const string& positive) {
@@ -332,6 +333,7 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
   while (size > 0) {
     // We generate a negative sample pool for validation
     for (int i = 0; i < pool_size; i++) {
+      used[i] = false; // never comment this line
       region_pool[i] = NextImage();
     }
 
@@ -339,6 +341,7 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
     for (int i = 0; i < pool_size; i++) {
       bool is_face = joincascador.Validate(region_pool[i], score_pool[i], shape_pool[i]);
       if (is_face) used[i] = true;
+      else used[i] = false;
     }
 
     // collect
@@ -510,6 +513,7 @@ void NegGenerator::Load(const string& path) {
 
 void NegGenerator::SaveTheWorld() {
   const Config& c = Config::GetInstance();
+  c.joincascador->Snapshot();
 
   char buff1[256];
   char buff2[256];
