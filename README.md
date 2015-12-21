@@ -94,6 +94,29 @@ All model file is saved as a binary file. The model parameters have two data typ
 
 For more details of the model file layout, please refer to `cascador.cpp` and `cart.cpp`.
 
+### FDDB Benchmark
+
+[FDDB][fddb] is widely used for face detection evaluation, download the data and extract to `data` directory.
+
+```
+|-- data
+|    |-- fddb
+|         |-- images
+|         |    |-- 2002
+|         |    |-- 2003
+|         |-- FDDB-folds
+|         |    |-- FDDB-fold-01.txt
+|         |    |-- FDDB-fold-01-ellipseList.txt
+|         |    |-- ....
+|         |-- result
+```
+
+prepare your data and model file, you also need to set `current_stage_idx` and `current_cart_idx` correctly in `config.json`. All result text file used by [npinto/fddb-evaluation][npinto/fddb-evaluation] is under `result` directory.
+
+```
+$ ./jda fddb
+```
+
 ### Attention
 
 It's a shame that I still not get a fully trained model now. There is many detailed problems of JDA algorithm which need to be discussed. My code may have some hidden bugs. Welcome any bug report and any question or idea through the [issues](https://github.com/luoyetx/JDA/issues).
@@ -123,3 +146,5 @@ BSD 3-Clause
 [vs]: https://www.visualstudio.com/
 [endianness]: https://en.wikipedia.org/wiki/Endianness
 [qq]: http://im.qq.com/
+[fddb]: http://vis-www.cs.umass.edu/fddb/
+[npinto/fddb-evaluation]: https://github.com/npinto/fddb-evaluation
