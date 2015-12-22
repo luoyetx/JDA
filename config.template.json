@@ -29,6 +29,14 @@
         "face": "../data/face.txt",
         "background": "../data/background.txt"
     },
+    "fddb": {
+        "out": false,
+        "minimum_size": 80,
+        "x_step": 20,
+        "y_step": 20,
+        "scale": 1.3,
+        "overlap": 0.3,
+    },
 
     "phase": "train",
     "tmp_model": "../model/jda_xxx.model",

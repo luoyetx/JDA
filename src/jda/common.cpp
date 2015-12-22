@@ -183,6 +183,15 @@ Config::Config() {
 
   tmp_model = json_config["tmp_model"].unwrap<jsmn::String>();
   snapshot_iter = json_config["snapshot_iter"].unwrap<Number>();
+
+  // fddb benchmark
+  jsmn::Object& fddb = json_config["fddb"].unwrap<Object>();
+  fddb_result = fddb["out"].unwrap<Boolean>();
+  fddb_minimum_size = fddb["minimum_size"].unwrap<Number>();
+  fddb_x_step = fddb["x_step"].unwrap<Number>();
+  fdbb_y_step = fddb["y_step"].unwrap<Number>();
+  fddb_scale_factor = fddb["scale"].unwrap<Number>();
+  fddb_overlap = fddb["overlap"].unwrap<Number>();
 }
 
 } // namespace jda

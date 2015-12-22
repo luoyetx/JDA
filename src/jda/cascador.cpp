@@ -211,8 +211,10 @@ static void detectSingleScale(const JoinCascador& joincascador, const Mat& img, 
   const int win_h = c.img_o_height;
   const int x_max = img.cols - win_w;
   const int y_max = img.rows - win_h;
-  const int x_step = 20;
-  const int y_step = 20;
+  //const int x_step = 20;
+  //const int y_step = 20;
+  const int x_step = c.fddb_x_step;
+  const int y_step = c.fdbb_y_step;
   int x = 0;
   int y = 0;
 
@@ -240,6 +242,7 @@ static void detectSingleScale(const JoinCascador& joincascador, const Mat& img, 
 
 /*!
  * \breif detect multi scale
+ * \note    detection parameters can be configured in `config.json`
  */
 static void detectMultiScale(const JoinCascador& joincascador, const Mat& img, \
                              vector<Rect>& rects, vector<double>& scores, \
@@ -249,7 +252,8 @@ static void detectMultiScale(const JoinCascador& joincascador, const Mat& img, \
   const int win_h = c.img_o_height;
   int width = img.cols;
   int height = img.rows;
-  const double factor = 1.3;
+  //const double factor = 1.3;
+  const double factor = c.fddb_scale_factor;
   double scale = 1.;
   Mat img_ = img.clone();
 
@@ -340,7 +344,8 @@ int JoinCascador::Detect(const Mat& img, vector<Rect>& rects, vector<double>& sc
   vector<Mat_<double> > shapes_;
   detectMultiScale(*this, img, rects_, scores_, shapes_);
   
-  const double overlap = 0.3;
+  //const double overlap = 0.3;
+  const double overlap = Config::GetInstance().fddb_overlap;
   vector<int> picked = nms(rects_, scores_, overlap);
   const int n = picked.size();
   rects.resize(n);

@@ -148,6 +148,12 @@ public:
    *          and `current_cart_idx` to point out the model
    */
   int phase;
+  /*! \breif detection parameters */
+  int fddb_x_step, fdbb_y_step;
+  double fddb_scale_factor;
+  double fddb_overlap;
+  double fddb_minimum_size;
+  bool fddb_result;
 
 private:
   Config();

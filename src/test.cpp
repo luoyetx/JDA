@@ -10,9 +10,11 @@
 #define MKDIR(path) mkdir(path, 0775)
 #endif
 
+#include <ctime>
 #include <cstdio>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include "jda/data.hpp"
 #include "jda/common.hpp"
 #include "jda/cascador.hpp"
@@ -25,7 +27,9 @@ using namespace jda;
  * \breif Test JoinCascador Face Detection over FDDB
  */
 void fddb() {
-  const Config& c = Config::GetInstance();
+  Config& c = Config::GetInstance();
+  c.shift_size = 0; // no shift
+
   JoinCascador joincascador;
   FILE* fd = fopen("../model/jda.model", "rb");
   JDA_Assert(fd, "Can not open model file");
@@ -34,11 +38,22 @@ void fddb() {
 
   JDA_Assert(EXISTS("../data/fddb"), "No fddb data!");
 
+  // print out detection result
+  time_t t = time(NULL);
+  char buff[300];
+  strftime(buff, sizeof(buff), "../data/fddb/result/%Y%m%d-%H%M%S", localtime(&t));
+  if (c.fddb_result) {
+    MKDIR(buff);
+  }
+  string result_prefix(buff);
+
   string prefix = "../data/fddb/images/";
-  char fddb[300];
-  char fddb_out[300];
   // full test
+  #pragma omp parallel for
   for (int i = 1; i <= 10; i++) {
+    char fddb[300];
+    char fddb_out[300];
+
     LOG("Testing FDDB-fold-%02d.txt", i);
     sprintf(fddb, "../data/fddb/FDDB-folds/FDDB-fold-%02d.txt", i);
     sprintf(fddb_out, "../data/fddb/result/fold-%02d-out.txt", i);
@@ -49,25 +64,38 @@ void fddb() {
     JDA_Assert(fin, "Can not open fddb_out");
 
     char path[300];
+    int counter = 0;
     while (fscanf(fd, "%s", path) > 0) {
       string full_path = prefix + string(path) + string(".jpg");
-      Mat img = imread(full_path, CV_LOAD_IMAGE_GRAYSCALE);
+      Mat img = imread(full_path);
       if (!img.data) {
         LOG("Can not open %s, Skip it", full_path.c_str());
       }
+      Mat gray;
+      cvtColor(img, gray, CV_BGR2GRAY);
       vector<double> scores;
       vector<Rect> rects;
       vector<Mat_<double> > shapes;
-      joincascador.Detect(img, rects, scores, shapes);
+      joincascador.Detect(gray, rects, scores, shapes);
 
       const int n = rects.size();
       fprintf(fout, "%s\n%d\n", path, n);
       LOG("%s get %d faces", path, n);
 
-      for (int i = 0; i < n; i++) {
-        Rect& r = rects[i];
-        double s = scores[i];
-        fprintf(fout, "%d %d %d %d %lf\n", r.x, r.y, r.width, r.height, s);
+      for (int j = 0; j < n; j++) {
+        const Rect& r = rects[j];
+        double score = scores[j];
+        const Mat_<double> shape = shapes[j];
+        fprintf(fout, "%d %d %d %d %lf\n", r.x, r.y, r.width, r.height, score);
+        cv::rectangle(img, r, Scalar(0, 0, 255), 3);
+        for (int k = 0; k < c.landmark_n; k++) {
+          cv::circle(img, Point(shape(0, 2 * k), shape(0, 2 * k + 1)), 3, Scalar(0, 255, 0), -1);
+        }
+      }
+      if (c.fddb_result) {
+        counter++;
+        sprintf(buff, "%s/%02d_%04d.jpg", result_prefix.c_str(), i, counter);
+        cv::imwrite(buff, img);
       }
     }
 
