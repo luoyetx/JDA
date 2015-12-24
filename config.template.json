@@ -31,7 +31,5 @@
     },
 
     "phase": "train",
-    "current_stage_idx": -1,
-    "current_cart_idx": -1,
     "tmp_model": "../model/jda_xxx.model"
 }

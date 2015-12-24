@@ -102,9 +102,21 @@ public:
   /*! \breif carts */
   std::vector<BoostCart> btcarts;
 
-  /*! \breif training status */
-  int current_stage_idx; // range in [0, c.T)
-  int current_cart_idx; // range in [0, c.K)
+  /*!
+   * \breif training status
+   *  we have trained the model to current_stage_idx and current_cart_idx
+   *  (current_stage_idx, current_stage_idx) = (2, 99) means we have done with stage 0, 1
+   *  we are currently on stage 2, we also have done with cart 0, 1, ..., 99. And we are about to
+   *  train 100th cart. If K == 100, that means we have done with stage 2, and we will do global
+   *  regression immediately. When `Snapshot` happens, these two variable will be saved to
+   *  the model file to indicate current training status and will be used for further training
+   *  or testing. (2, 99) for example. The model file will be `jda_xxxx_stage_3_cart_100.model`.
+   *  If K != 100, which means we have not done with this stage, (2, 99) will be saved.
+   *  If K == 100, which means we have done with this stage, (3, -1) will be saved, we assume the
+   *  global regression has been trained.
+   */
+  int current_stage_idx;
+  int current_cart_idx;
   /*! \breif training data */
   DataSet* pos;
   DataSet* neg;

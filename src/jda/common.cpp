@@ -181,8 +181,6 @@ Config::Config() {
   if (json_config["phase"].unwrap<jsmn::String>() == "train") phase = 0;
   else phase = 1;
 
-  current_stage_idx = json_config["current_stage_idx"].unwrap<Number>();
-  current_cart_idx = json_config["current_cart_idx"].unwrap<Number>();
   tmp_model = json_config["tmp_model"].unwrap<jsmn::String>();
 }
 

@@ -30,9 +30,6 @@ void fddb() {
   FILE* fd = fopen("../model/jda.model", "rb");
   JDA_Assert(fd, "Can not open model file");
   joincascador.SerializeFrom(fd);
-  // make sure you set these two variables in `config.json` correctly
-  joincascador.current_stage_idx = c.current_stage_idx;
-  joincascador.current_cart_idx = c.current_cart_idx;
   fclose(fd);
 
   JDA_Assert(EXISTS("../data/fddb"), "No fddb data!");

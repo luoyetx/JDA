@@ -20,8 +20,6 @@ void live() {
   FILE* fd = fopen("../model/jda.model", "rb");
   JDA_Assert(fd, "Can not open model file");
   joincascador.SerializeFrom(fd);
-  joincascador.current_stage_idx = c.current_stage_idx;
-  joincascador.current_cart_idx = c.current_cart_idx;
   fclose(fd);
 
   while (true) {

@@ -77,6 +77,26 @@ void JoinCascador::SerializeTo(FILE* fd) const {
   fwrite(&K, sizeof(int), 1, fd); // number of trees per stage
   fwrite(&landmark_n, sizeof(int), 1, fd); // number of landmarks
   fwrite(&tree_depth, sizeof(int), 1, fd); // tree depth
+  // \note
+  //  current_stage_idx and current_cart_idx
+  //  these two variable are setted to indicate the training status of JDA
+  //  current_stage_idx = 0, current_cart_idx = 4    --> jda_xxxx_stage_1_cart_5.model
+  //  current_stage_idx = 1, current_catr_idx = K-1  --> jda_xxxx_stage_2_cart_K.model
+  //  whene current_cart_idx == K-1, we assume that the global regression of this stage
+  //  is already done and these two variable will be saved as `current_stage_idx+1` and
+  //  `current_cart_idx = -1`
+  if (current_cart_idx == K - 1) {
+    int idx = current_stage_idx + 1;
+    fwrite(&idx, sizeof(int), 1, fd);
+    idx = -1;
+    fwrite(&idx, sizeof(int), 1, fd);
+  }
+  else {
+    int idx = current_stage_idx;
+    fwrite(&idx, sizeof(int), 1, fd);
+    idx = current_cart_idx;
+    fwrite(&idx, sizeof(int), 1, fd);
+  }
   // mean shape
   fwrite(mean_shape.ptr<double>(0), sizeof(double), mean_shape.cols, fd);
   // btcarts
@@ -109,6 +129,12 @@ void JoinCascador::SerializeFrom(FILE* fd) {
   JDA_Assert(tmp == landmark_n, "landmark_n is wrong!");
   fread(&tmp, sizeof(int), 1, fd);
   JDA_Assert(tmp == tree_depth, "tree_depth is wrong!");
+  fread(&tmp, sizeof(int), 1, fd);
+  JDA_Assert(0 <= tmp && tmp <= T, "current_stage_idx out of range");
+  current_stage_idx = tmp;
+  fread(&tmp, sizeof(int), 1, fd);
+  JDA_Assert(-1 <= tmp && tmp < K, "current_cart_idx out of range");
+  current_cart_idx = tmp;
 
   // mean shape
   mean_shape.create(1, 2 * landmark_n);

@@ -78,6 +78,8 @@ All model file is saved as a binary file. The model parameters have two data typ
 |    |-- K (int)
 |    |-- landmark_n (int)
 |    |-- tree_depth (int)
+|    |-- current_stage_idx (int) // training status
+|    |-- current_cart_idx (int)
 |-- mean_shape (double, size = 2*landmark_n)
 |-- stages
 |    |-- stage_1
