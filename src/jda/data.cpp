@@ -318,35 +318,35 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
   imgs.clear();
   scores.clear();
   shapes.clear();
-  imgs.reserve(size * 2); // enough memory to overflow
-  scores.reserve(size * 2);
-  shapes.reserve(size * 2);
 
-  int pool_size = Config::GetInstance().mining_pool_size;
+  const int pool_size = Config::GetInstance().mining_pool_size;
+  imgs.reserve(size + pool_size); // enough memory to overflow
+  scores.reserve(size + pool_size);
+  shapes.reserve(size + pool_size);
+
   vector<Mat> region_pool(pool_size);
   vector<double> score_pool(pool_size);
   vector<Mat_<double> > shape_pool(pool_size);
-  vector<bool> used(pool_size, false);
+  vector<int> used(pool_size);
 
   const int size_o = size;
   double ratio = 0.9;
   while (size > 0) {
     // We generate a negative sample pool for validation
     for (int i = 0; i < pool_size; i++) {
-      used[i] = false; // never comment this line
       region_pool[i] = NextImage();
     }
 
-    //#pragma omp parallel for
+    #pragma omp parallel for
     for (int i = 0; i < pool_size; i++) {
       bool is_face = joincascador.Validate(region_pool[i], score_pool[i], shape_pool[i]);
-      if (is_face) used[i] = true;
-      else used[i] = false;
+      if (is_face) used[i] = 1;
+      else used[i] = 0;
     }
 
     // collect
     for (int i = 0; i < pool_size; i++) {
-      if (used[i]) {
+      if (used[i] > 0) {
         imgs.push_back(region_pool[i]);
         scores.push_back(score_pool[i]);
         shapes.push_back(shape_pool[i]);
