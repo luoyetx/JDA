@@ -92,6 +92,7 @@ void fddb() {
           cv::circle(img, Point(shape(0, 2 * k), shape(0, 2 * k + 1)), 3, Scalar(0, 255, 0), -1);
         }
       }
+      char buff[300];
       if (c.fddb_result) {
         counter++;
         sprintf(buff, "%s/%02d_%04d.jpg", result_prefix.c_str(), i, counter);

@@ -38,7 +38,7 @@ public:
   /*!
    * \breif Wrapper for `SplitNode`
    */
-  void Train(DataSet& pos, DataSet& neg);
+  void Train(const DataSet& pos, const DataSet& neg);
   /*!
    * \breif Split node with training data
    * \param pos         positive dataset
@@ -47,9 +47,9 @@ public:
    * \param neg_idx     index of used negative dataset
    * \param node_idx    index of current node in this cart
    */
-  void SplitNode(DataSet& pos, std::vector<int>& pos_idx, \
-                  DataSet& neg, std::vector<int>& neg_idx, \
-                  int node_idx);
+  void SplitNode(const DataSet& pos, const std::vector<int>& pos_idx, \
+                 const DataSet& neg, const std::vector<int>& neg_idx, \
+                 int node_idx);
   /**
    * \breif Classification
    *  split node with classification, minimum Gini
@@ -64,8 +64,8 @@ public:
    * \param feature_id    which feature we should use
    * \param threshold     split threshold
    */
-  static void SplitNodeWithClassification(DataSet& pos, const std::vector<int>& pos_idx, \
-                                          DataSet& neg, const std::vector<int>& neg_idx, \
+  static void SplitNodeWithClassification(const DataSet& pos, const std::vector<int>& pos_idx, \
+                                          const DataSet& neg, const std::vector<int>& neg_idx, \
                                           const cv::Mat_<int>& pos_feature, \
                                           const cv::Mat_<int>& neg_feature, \
                                           int& feature_id, int& threshold);
@@ -83,8 +83,8 @@ public:
    * \param feature_id    which feature we should use
    * \param threshold     split threshold
    */
-  static void SplitNodeWithRegression(DataSet& pos, const std::vector<int>& pos_idx, \
-                                      DataSet& neg, const std::vector<int>& neg_idx, \
+  static void SplitNodeWithRegression(const DataSet& pos, const std::vector<int>& pos_idx, \
+                                      const DataSet& neg, const std::vector<int>& neg_idx, \
                                       const cv::Mat_<int>& pos_feature, \
                                       const cv::Mat_<double>& shape_residual, \
                                       int& feature_id, int& threshold);

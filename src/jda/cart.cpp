@@ -30,7 +30,7 @@ Cart::Cart(int stage, int landmark_id) {
 Cart::~Cart() {
 }
 
-void Cart::Train(DataSet& pos, DataSet& neg) {
+void Cart::Train(const DataSet& pos, const DataSet& neg) {
   vector<int> pos_idx, neg_idx;
   int n = pos.size;
   pos_idx.resize(n);
@@ -40,10 +40,18 @@ void Cart::Train(DataSet& pos, DataSet& neg) {
   for (int i = 0; i < n; i++) neg_idx[i] = i;
   // split node from root with idx = 1, why 1? see binary tree in sequence
   SplitNode(pos, pos_idx, neg, neg_idx, 1);
+  //// normalize score
+  //double score_m = std::numeric_limits<double>::min();
+  //for (int i = 0; i < leafNum; i++) {
+  //  if (std::abs(scores[i]) > score_m) score_m = std::abs(scores[i]);
+  //}
+  //for (int i = 0; i < leafNum; i++) {
+  //  scores[i] /= score_m;
+  //}
 }
 
-void Cart::SplitNode(DataSet& pos, vector<int>& pos_idx, \
-                     DataSet& neg, vector<int>& neg_idx, \
+void Cart::SplitNode(const DataSet& pos, const vector<int>& pos_idx, \
+                     const DataSet& neg, const vector<int>& neg_idx, \
                      int node_idx) {
   const Config& c = Config::GetInstance();
   const int pos_n = pos_idx.size();
@@ -130,8 +138,8 @@ static inline double calcGini(double p) {
   return gini;
 }
 
-void Cart::SplitNodeWithClassification(DataSet& pos, const vector<int>& pos_idx, \
-                                       DataSet& neg, const vector<int>& neg_idx, \
+void Cart::SplitNodeWithClassification(const DataSet& pos, const vector<int>& pos_idx, \
+                                       const DataSet& neg, const vector<int>& neg_idx, \
                                        const Mat_<int>& pos_feature, \
                                        const Mat_<int>& neg_feature, \
                                        int& feature_idx, int& threshold) {
@@ -212,8 +220,8 @@ double calcVariance(const vector<double>& vec) {
   return variance;
 }
 
-void Cart::SplitNodeWithRegression(DataSet& pos, const std::vector<int>& pos_idx, \
-                                   DataSet& neg, const std::vector<int>& neg_idx, \
+void Cart::SplitNodeWithRegression(const DataSet& pos, const std::vector<int>& pos_idx, \
+                                   const DataSet& neg, const std::vector<int>& neg_idx, \
                                    const Mat_<int>& pos_feature, \
                                    const Mat_<double>& shape_residual, \
                                    int& feature_idx, int& threshold) {
