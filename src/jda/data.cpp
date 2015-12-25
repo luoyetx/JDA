@@ -337,7 +337,7 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
       region_pool[i] = NextImage();
     }
 
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for (int i = 0; i < pool_size; i++) {
       bool is_face = joincascador.Validate(region_pool[i], score_pool[i], shape_pool[i]);
       if (is_face) used[i] = true;
