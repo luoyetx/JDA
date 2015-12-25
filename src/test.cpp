@@ -29,6 +29,11 @@ using namespace jda;
 void fddb() {
   Config& c = Config::GetInstance();
   c.shift_size = 0; // no shift
+  // set img_o_size, img_h_size and img_q_size by fddb.minimum_size
+  const int size = c.fddb_minimum_size;
+  c.img_o_size = size;
+  c.img_h_size = int(std::sqrt(size*size / 2.));
+  c.img_q_size = int(std::sqrt(size*size / 4.));
 
   JoinCascador joincascador;
   FILE* fd = fopen("../model/jda.model", "rb");

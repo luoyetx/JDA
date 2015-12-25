@@ -161,8 +161,8 @@ void JoinCascador::SerializeFrom(FILE* fd) {
 bool JoinCascador::Validate(const Mat& img, double& score, Mat_<double>& shape) const {
   const Config& c = Config::GetInstance();
   Mat img_h, img_q;
-  cv::resize(img, img_h, Size(c.img_h_width, c.img_h_height));
-  cv::resize(img, img_q, Size(c.img_q_width, c.img_q_height));
+  cv::resize(img, img_h, Size(c.img_h_size, c.img_h_size));
+  cv::resize(img, img_q, Size(c.img_q_size, c.img_q_size));
   DataSet::RandomShape(mean_shape, shape);
   score = 0;
   Mat_<int> lbf(1, c.K);
@@ -207,12 +207,10 @@ static void detectSingleScale(const JoinCascador& joincascador, const Mat& img, 
                               vector<Rect>& rects, vector<double>& scores, \
                               vector<Mat_<double> >& shapes) {
   const Config& c = Config::GetInstance();
-  const int win_w = c.img_o_width;
-  const int win_h = c.img_o_height;
+  const int win_w = c.img_o_size;
+  const int win_h = c.img_o_size;
   const int x_max = img.cols - win_w;
   const int y_max = img.rows - win_h;
-  //const int x_step = 20;
-  //const int y_step = 20;
   const int x_step = c.fddb_x_step;
   const int y_step = c.fdbb_y_step;
   int x = 0;
@@ -248,11 +246,10 @@ static void detectMultiScale(const JoinCascador& joincascador, const Mat& img, \
                              vector<Rect>& rects, vector<double>& scores, \
                              vector<Mat_<double> >& shapes) {
   const Config& c = Config::GetInstance();
-  const int win_w = c.img_o_width;
-  const int win_h = c.img_o_height;
+  const int win_w = c.img_o_size;
+  const int win_h = c.img_o_size;
   int width = img.cols;
   int height = img.rows;
-  //const double factor = 1.3;
   const double factor = c.fddb_scale_factor;
   double scale = 1.;
   Mat img_ = img.clone();
@@ -359,8 +356,8 @@ int JoinCascador::Detect(const Mat& img, vector<Rect>& rects, vector<double>& sc
     Mat_<double>& shape = shapes_[index];
     const int landmark_n = shape.cols / 2;
     for (int j = 0; j < landmark_n; j++) {
-      shape(0, 2 * j) += rect.x;
-      shape(0, 2 * j + 1) += rect.y;
+      shape(0, 2 * j) = rect.x + shape(0, 2 * j)*rect.width;
+      shape(0, 2 * j + 1) = rect.y + shape(0, 2 * j + 1)*rect.height;
     }
     rects[i] = rect;
     shapes[i] = shape;

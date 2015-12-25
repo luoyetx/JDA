@@ -157,14 +157,12 @@ void BoostCart::GlobalRegression(const vector<Mat_<int> >& lbf, const Mat_<doubl
     X[i][m].index = -1;
     X[i][m].value = -1.;
   }
-  // relatively scaled range in [-1, 1]
-  Mat_<double> shape_residual_ = shape_residual / double(c.img_o_width);
   for (int i = 0; i < landmark_n; i++) {
     Y[2 * i] = (double*)malloc(n*sizeof(double));
     Y[2 * i + 1] = (double*)malloc(n*sizeof(double));
     for (int j = 0; j < n; j++) {
-      Y[2 * i][j] = shape_residual_(j, 2 * i);
-      Y[2 * i + 1][j] = shape_residual_(j, 2 * i + 1);
+      Y[2 * i][j] = shape_residual(j, 2 * i);
+      Y[2 * i + 1][j] = shape_residual(j, 2 * i + 1);
     }
   }
   // train every landmark
@@ -195,8 +193,6 @@ void BoostCart::GlobalRegression(const vector<Mat_<int> >& lbf, const Mat_<doubl
     freeModel(model);
   }
 
-  // give back absolute scale range in [-img_width, img_width]
-  w = w * double(c.img_o_width);
   // free
   for (int i = 0; i < n; i++) free(X[i]);
   for (int i = 0; i < 2 * landmark_n; i++) free(Y[i]);
@@ -211,8 +207,8 @@ Mat_<int> BoostCart::GenLBF(const Mat& img, const Mat_<double>& shape) const {
   const int base = carts[0].leafNum;
   int offset = 0;
   Mat img_h, img_q;
-  cv::resize(img, img_h, Size(c.img_h_width, c.img_h_height));
-  cv::resize(img, img_q, Size(c.img_q_width, c.img_q_height));
+  cv::resize(img, img_h, Size(c.img_h_size, c.img_h_size));
+  cv::resize(img, img_q, Size(c.img_q_size, c.img_q_size));
   for (int k = 0; k < K; k++) {
     ptr[k] = offset + carts[k].Forward(img, img_h, img_q, shape);
     offset += base;

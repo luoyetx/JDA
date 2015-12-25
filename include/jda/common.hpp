@@ -32,7 +32,7 @@
 #define TIMER_NOW   ((double(cv::getTickCount()) - __time__) / cv::getTickFrequency())
 #define TIMER_END   }
 
-#define JDA_Assert(expr, msg) do { if (!(expr)) dieWithMsg(msg); } while(0)
+#define JDA_Assert(expr, msg) do { if (!(expr)) jda::dieWithMsg(msg); } while(0)
 
 namespace jda {
 
@@ -101,11 +101,11 @@ public:
   int tree_depth;
   /*! \breif size of all training data */
   bool multi_scale; // whether use multi scale or not
-  int img_o_width, img_o_height;
-  int img_h_width, img_h_height;
-  int img_q_width, img_q_height;
+  int img_o_size;
+  int img_h_size;
+  int img_q_size;
   /*! \breif maximum random shift size on mean shape range [0, shift_size] */
-  int shift_size;
+  double shift_size;
   /*! \breif N(negative) / N(postive) */
   std::vector<double> nps;
   /*! \breif sample radius of feature points in each stages */
@@ -134,9 +134,6 @@ public:
   double esp;
   /*! \breif global training join casacdor */
   JoinCascador* joincascador;
-  /*! \breif training status from config.json */
-  int current_stage_idx;
-  int current_cart_idx;
   /*! \breif model snapshot by JDA, used for resume and test only */
   std::string tmp_model;
   /*! \breif snapshot per iters */

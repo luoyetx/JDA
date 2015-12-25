@@ -236,8 +236,8 @@ void DataSet::MoreNegSamples(int pos_size, double rate) {
   weights.reserve(expanded);
   for (int i = 0; i < extra_size; i++) {
     Mat half, quarter;
-    cv::resize(imgs_[i], half, Size(c.img_h_width, c.img_h_height));
-    cv::resize(imgs_[i], quarter, Size(c.img_q_width, c.img_q_height));
+    cv::resize(imgs_[i], half, Size(c.img_h_size, c.img_h_size));
+    cv::resize(imgs_[i], quarter, Size(c.img_q_size, c.img_q_size));
     imgs.push_back(imgs_[i]);
     imgs_half.push_back(half);
     imgs_quarter.push_back(quarter);
@@ -255,39 +255,54 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
   FILE* file = fopen(positive.c_str(), "r");
   JDA_Assert(file, "Can not open positive dataset file");
 
-  char buff[256];
+  char buff[300];
+  vector<string> path;
   imgs.clear();
   imgs_half.clear();
   imgs_quarter.clear();
   gt_shapes.clear();
+  // read all meta data
   while (fscanf(file, "%s", buff) > 0) {
+    path.push_back(string(buff));
     Mat_<double> shape(1, 2 * landmark_n);
     const double* ptr = shape.ptr<double>(0);
     for (int i = 0; i < 2 * landmark_n; i++) {
       fscanf(file, "%lf", ptr + i);
     }
-    // images are preprocessed via `script/gen.py`, size = 80x80
-    Mat img = imread(buff, CV_LOAD_IMAGE_GRAYSCALE);
-    if (!img.data) {
-      LOG("Can not open image %s, Skip it", buff);
-      continue;
-    }
-    Mat half, quarter; // these two variables should be defined here
-    cv::resize(img, half, Size(c.img_h_width, c.img_h_height));
-    cv::resize(img, quarter, Size(c.img_q_width, c.img_q_height));
-    imgs.push_back(img);
-    imgs_half.push_back(half);
-    imgs_quarter.push_back(quarter);
     gt_shapes.push_back(shape);
   }
-  size = imgs.size();
+  fclose(file);
+
+  const int n = path.size();
+  imgs.resize(n);
+  imgs_half.resize(n);
+  imgs_quarter.resize(n);
+
+  #pragma omp parallel for
+  for (int i = 0; i < n; i++) {
+    // face image should be a sqaure
+    Mat origin = imread(buff, CV_LOAD_IMAGE_GRAYSCALE);
+    if ((!origin.data) || (origin.cols != origin.rows)) {
+      char msg[300];
+      sprintf(msg, "%s is not valide", buff);
+      JDA_Assert(false, msg);
+    }
+    gt_shapes[i] /= origin.cols; // relative landmark position range in [0, 1]
+    Mat img, half, quarter; // should be defined here due to the memory manager by OpenCV Mat
+    cv::resize(origin, img, Size(c.img_o_size, c.img_o_size));
+    cv::resize(origin, half, Size(c.img_h_size, c.img_h_size));
+    cv::resize(origin, quarter, Size(c.img_q_size, c.img_q_size));
+    imgs[i] = img;
+    imgs_half[i] = half;
+    imgs_quarter[i] = quarter;
+  }
+
+  size = n;
   is_pos = true;
   current_shapes.resize(size);
   scores.resize(size);
   weights.resize(size);
   std::fill(scores.begin(), scores.end(), 0);
-
-  fclose(file);
 }
 void DataSet::LoadNegativeDataSet(const string& negative) {
   neg_generator.Load(negative);
@@ -365,8 +380,8 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
 
 Mat NegGenerator::NextImage() {
   const Config& c = Config::GetInstance();
-  const int w = c.img_o_width;
-  const int h = c.img_o_height;
+  const int w = c.img_o_size;
+  const int h = c.img_o_size;
 
   NextState();
 
@@ -417,8 +432,8 @@ void NegGenerator::NextState() {
   const double scale_factor = c.scale_factor;
   const int x_step = c.x_step;
   const int y_step = c.y_step;
-  const int w = c.img_o_width;
-  const int h = c.img_o_height;
+  const int w = c.img_o_size;
+  const int h = c.img_o_size;
   const double scale = c.scale_factor;
 
   const int width = img.cols;

@@ -16,26 +16,15 @@ namespace jda {
 
 int Feature::CalcFeatureValue(const Mat& o, const Mat& h, const Mat& q, \
                               const Mat_<double>& s) const {
-  double ratio;
-  int height, width;
   Mat img;
   switch (scale) {
   case ORIGIN:
-    ratio = 1;
-    height = o.rows;
-    width = o.cols;
     img = o; // ref
     break;
   case HALF:
-    ratio = double(h.rows) / double(o.rows);
-    height = h.rows;
-    width = h.cols;
     img = h; // ref
     break;
   case QUARTER:
-    ratio = double(q.rows) / double(o.rows);
-    height = q.rows;
-    width = q.cols;
     img = q; // ref
     break;
   default:
@@ -44,12 +33,12 @@ int Feature::CalcFeatureValue(const Mat& o, const Mat& h, const Mat& q, \
   }
 
   double x1, y1, x2, y2;
-  x1 = s(0, 2 * landmark_id1) + o.cols*offset1_x;
-  y1 = s(0, 2 * landmark_id1 + 1) + o.rows*offset1_y;
-  x2 = s(0, 2 * landmark_id2) + o.cols*offset2_x;
-  y2 = s(0, 2 * landmark_id2 + 1) + o.rows*offset2_y;
-  x1 *= ratio; y1 *= ratio;
-  x2 *= ratio; y2 *= ratio;
+  const int width = img.cols;
+  const int height = img.rows;
+  x1 = (s(0, 2 * landmark_id1) + offset1_x)*width;
+  y1 = (s(0, 2 * landmark_id1 + 1) + offset1_y)*height;
+  x2 = (s(0, 2 * landmark_id2) + offset2_x)*width;
+  y2 = (s(0, 2 * landmark_id2 + 1) + offset2_y)*height;
   int x1_ = int(round(x1));
   int y1_ = int(round(y1));
   int x2_ = int(round(x2));
@@ -101,7 +90,7 @@ double calcMeanError(const vector<Mat_<double> >& gt_shapes, \
     }
   }
   e /= landmark_n * N;
-  e /= c.img_o_width;
+  e /= c.img_o_size;
   return e;
 }
 
@@ -141,12 +130,9 @@ Config::Config() {
   // image size
   jsmn::Object& image_size_config = json_config["image_size"].unwrap<Object>();
   multi_scale = image_size_config["multi_scale"].unwrap<Boolean>();
-  img_o_width = image_size_config["origin_w"].unwrap<Number>();
-  img_o_height = image_size_config["origin_h"].unwrap<Number>();
-  img_h_width = image_size_config["half_w"].unwrap<Number>();
-  img_h_height = image_size_config["half_h"].unwrap<Number>();
-  img_q_width = image_size_config["quarter_w"].unwrap<Number>();
-  img_q_height = image_size_config["quarter_h"].unwrap<Number>();
+  img_o_size = image_size_config["origin_size"].unwrap<Number>();
+  img_h_size = image_size_config["half_size"].unwrap<Number>();
+  img_q_size = image_size_config["quarter_size"].unwrap<Number>();
 
   // hard negative mining
   jsmn::Object& mining_config = json_config["hard_negative_mining"].unwrap<Object>();

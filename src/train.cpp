@@ -50,9 +50,6 @@ void resume() {
   joincascador.Resume(fd);
   fclose(fd);
 
-  joincascador.current_stage_idx = c.current_stage_idx;
-  joincascador.current_cart_idx = c.current_cart_idx;
-
   DataSet pos, neg;
   LOG("Load Positive And Negative DataSet");
   DataSet::LoadDataSet(pos, neg);
