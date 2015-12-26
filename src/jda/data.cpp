@@ -97,7 +97,7 @@ Mat_<double> DataSet::CalcMeanShape() const {
 
 void DataSet::RandomShape(const Mat_<double>& mean_shape, Mat_<double>& shape) {
   const Config& c = Config::GetInstance();
-  const int shift_size = c.shift_size;
+  const double shift_size = c.shift_size;
   RNG rng = RNG(getTickCount());
   Mat_<double> shift(shape.rows, shape.cols);
   // we use a uniform distribution over [-shift_size, shift_size]
@@ -106,7 +106,7 @@ void DataSet::RandomShape(const Mat_<double>& mean_shape, Mat_<double>& shape) {
 }
 void DataSet::RandomShapes(const Mat_<double>& mean_shape, vector<Mat_<double> >& shapes) {
   const Config& c = Config::GetInstance();
-  const int shift_size = c.shift_size;
+  const double shift_size = c.shift_size;
   const int n = shapes.size();
   RNG rng = RNG(getTickCount());
   Mat_<double> shift(shapes[0].rows, shapes[0].cols);
@@ -281,7 +281,7 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
   #pragma omp parallel for
   for (int i = 0; i < n; i++) {
     // face image should be a sqaure
-    Mat origin = imread(buff, CV_LOAD_IMAGE_GRAYSCALE);
+    Mat origin = imread(path[i], CV_LOAD_IMAGE_GRAYSCALE);
     if ((!origin.data) || (origin.cols != origin.rows)) {
       char msg[300];
       sprintf(msg, "%s is not valide", buff);
