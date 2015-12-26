@@ -49,7 +49,7 @@ void JoinCascador::Train(DataSet& pos, DataSet& neg) {
   }
 }
 
-void JoinCascador::Snapshot() {
+void JoinCascador::Snapshot() const {
   int stage_idx = current_stage_idx;
   int cart_idx = current_cart_idx;
   char buff1[256];
@@ -334,7 +334,7 @@ static vector<int> nms(const vector<Rect>& rects, const vector<double>& scores, 
 }
 
 int JoinCascador::Detect(const Mat& img, vector<Rect>& rects, vector<double>& scores, \
-                         vector<Mat_<double> >& shapes) {
+                         vector<Mat_<double> >& shapes) const {
   vector<Rect> rects_;
   vector<double> scores_;
   vector<Mat_<double> > shapes_;

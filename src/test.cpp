@@ -70,7 +70,7 @@ void fddb() {
 
     char path[300];
     int counter = 0;
-    while (fscanf(fd, "%s", path) > 0) {
+    while (fscanf(fin, "%s", path) > 0) {
       string full_path = prefix + string(path) + string(".jpg");
       Mat img = imread(full_path);
       if (!img.data) {

@@ -34,7 +34,7 @@ public:
    *  `%time%` is the saving time point format `%Y%m%D-%H%M%S` like `20151011-103625`
    *  `stage` is current stage range in [1..c.T]
    */
-  void Snapshot();
+  void Snapshot() const;
   /*!
    * \breif Resume the Training Status
    *  Resume the Training Status from a Snapshot model file. We will load the model
@@ -86,7 +86,7 @@ public:
    * \return          number of faces
    */
   int Detect(const cv::Mat& img, std::vector<cv::Rect>& rects, std::vector<double>& scores, \
-             std::vector<cv::Mat_<double> >& shapes);
+             std::vector<cv::Mat_<double> >& shapes) const;
 
 public:
   /*! \breif number of stages */
