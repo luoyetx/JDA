@@ -153,6 +153,7 @@ public:
   double fddb_overlap;
   double fddb_minimum_size;
   bool fddb_result;
+  bool fddb_nms;
 
 private:
   Config();

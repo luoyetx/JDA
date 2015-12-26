@@ -177,6 +177,7 @@ Config::Config() {
   // fddb benchmark
   jsmn::Object& fddb = json_config["fddb"].unwrap<Object>();
   fddb_result = fddb["out"].unwrap<Boolean>();
+  fddb_nms = fddb["nms"].unwrap<Boolean>();
   fddb_minimum_size = fddb["minimum_size"].unwrap<Number>();
   fddb_x_step = fddb["x_step"].unwrap<Number>();
   fdbb_y_step = fddb["y_step"].unwrap<Number>();

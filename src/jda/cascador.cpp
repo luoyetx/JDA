@@ -268,7 +268,6 @@ static void detectMultiScale(const JoinCascador& joincascador, const Mat& img, \
       Rect& r = rects_[i];
       r.x *= scale; r.y *= scale;
       r.width *= scale; r.height *= scale;
-      shapes_[i] *= scale;
     }
     rects.insert(rects.end(), rects_.begin(), rects_.end());
     scores.insert(scores.end(), scores_.begin(), scores_.end());
@@ -341,9 +340,18 @@ int JoinCascador::Detect(const Mat& img, vector<Rect>& rects, vector<double>& sc
   vector<Mat_<double> > shapes_;
   detectMultiScale(*this, img, rects_, scores_, shapes_);
   
+  const Config& c = Config::GetInstance();
   //const double overlap = 0.3;
-  const double overlap = Config::GetInstance().fddb_overlap;
-  vector<int> picked = nms(rects_, scores_, overlap);
+  const double overlap = c.fddb_overlap;
+  vector<int> picked;
+  if (c.fddb_nms) {
+    picked = nms(rects_, scores_, overlap);
+  }
+  else {
+    const int n = rects_.size();
+    picked.resize(n);
+    for (int i = 0; i < n; i++) picked[i] = i;
+  }
   const int n = picked.size();
   rects.resize(n);
   scores.resize(n);
@@ -352,7 +360,7 @@ int JoinCascador::Detect(const Mat& img, vector<Rect>& rects, vector<double>& sc
   // relocate the shape points
   for (int i = 0; i < n; i++) {
     const int index = picked[i];
-    Rect& rect = rects_[index];
+    const Rect& rect = rects_[index];
     Mat_<double>& shape = shapes_[index];
     const int landmark_n = shape.cols / 2;
     for (int j = 0; j < landmark_n; j++) {
