@@ -162,10 +162,8 @@ Config::Config() {
   // data
   jsmn::Object& data = json_config["data"].unwrap<Object>();
   train_pos_txt = data["face"].unwrap<jsmn::String>();
-  test_pos_txt = "../data/test.txt";
   train_neg_txt = data["background"].unwrap<jsmn::String>();
-  test_neg_txt = "../data/test_nega.txt";
-  detection_txt = "../data/detection.txt";
+  test_txt = data["test"].unwrap<jsmn::String>();
 
   // status
   if (json_config["phase"].unwrap<jsmn::String>() == "train") phase = 0;

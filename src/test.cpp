@@ -39,12 +39,12 @@ void test() {
   joincascador.SerializeFrom(fd);
   fclose(fd);
 
-  JDA_Assert(EXISTS("../data/test.txt"), "No test.txt!");
+  JDA_Assert(EXISTS(c.test_txt.c_str()), "No test.txt!");
   if (!EXISTS("../data/test_result")) {
     MKDIR("../data/test_result");
   }
 
-  FILE* fin = fopen("../data/test.txt", "r");
+  FILE* fin = fopen(c.test_txt.c_str(), "r");
   char path[300];
   int counter = 0;
   while (fscanf(fin, "%[^\n]\n", path) > 0) {

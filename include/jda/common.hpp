@@ -126,12 +126,8 @@ public:
   std::string train_pos_txt;
   /*! \breif a text file for train negative dataset */
   std::string train_neg_txt;
-  /*! \breif a text file for test positive dataset */
-  std::string test_pos_txt;
-  /*! \breif a text file for test negative dataset */
-  std::string test_neg_txt;
-  /*! \breif a text file for detection */
-  std::string detection_txt;
+  /*! \breif a text file for face detection test */
+  std::string test_txt;
   /*! \breif esp */
   double esp;
   /*! \breif global training join casacdor */
