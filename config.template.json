@@ -28,7 +28,8 @@
     },
     "data": {
         "face": "../data/face.txt",
-        "background": "../data/background.txt"
+        "background": "../data/background.txt",
+        "test": "../data/test.txt"
     },
     "fddb": {
         "out": false,
