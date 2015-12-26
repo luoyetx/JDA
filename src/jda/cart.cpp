@@ -137,6 +137,15 @@ static inline double calcGini(double p) {
   double gini = 2 * p * (1 - p);
   return gini;
 }
+/*!
+ * \breif Calculate Entropy
+ * \param p   p
+ * \return    entropy
+ */
+static inline double calcEntropy(double p) {
+  double entropy = -p*std::log(p) - (1 - p)*std::log(1 - p);
+  return entropy;
+}
 
 void Cart::SplitNodeWithClassification(const DataSet& pos, const vector<int>& pos_idx, \
                                        const DataSet& neg, const vector<int>& neg_idx, \
@@ -171,7 +180,13 @@ void Cart::SplitNodeWithClassification(const DataSet& pos, const vector<int>& po
     w = wp_r + wn_r;
 
     int threshold_ = -256;
-    double gini = calcGini(wp_r / w);
+    double gini = 0.;
+    if (c.use_gini) {
+      gini = calcGini(wp_r / w);
+    }
+    else {
+      gini = calcEntropy(wp_r / w);
+    }
     for (int th = -255; th <= 255; th++) {
       const int idx = th + 255;
       wp_l += wp[idx];
@@ -180,8 +195,15 @@ void Cart::SplitNodeWithClassification(const DataSet& pos, const vector<int>& po
       wn_r -= wn[idx];
       double w_l = wp_l + wn_l + c.esp;
       double w_r = wp_r + wn_r + c.esp;
-      double g = (w_l / w) * calcGini(wp_l / w_l) + \
-                 (w_r / w) * calcGini(wp_r / w_r);
+      double g = 0.;
+      if (c.use_gini) {
+        g = (w_l / w) * calcGini(wp_l / w_l) + \
+            (w_r / w) * calcGini(wp_r / w_r);
+      }
+      else {
+        g = (w_l / w) * calcEntropy(wp_l / w_l) + \
+            (w_r / w) * calcEntropy(wp_r / w_r);
+      }
       if (g < gini) {
         gini = g;
         threshold_ = th;

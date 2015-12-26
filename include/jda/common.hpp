@@ -106,6 +106,8 @@ public:
   int img_q_size;
   /*! \breif maximum random shift size on mean shape range [0, shift_size] */
   double shift_size;
+  /*! \breif method of split node when by classification */
+  bool use_gini;
   /*! \breif N(negative) / N(postive) */
   std::vector<double> nps;
   /*! \breif sample radius of feature points in each stages */

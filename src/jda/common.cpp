@@ -126,6 +126,10 @@ Config::Config() {
   landmark_n = json_config["landmark_n"].unwrap<Number>();
   tree_depth = json_config["tree_depth"].unwrap<Number>();
   shift_size = json_config["random_shift"].unwrap<Number>();
+  use_gini = json_config["classification"]["gini"].unwrap<Boolean>();
+  bool use_entropy = json_config["classification"]["entropy"].unwrap<Boolean>();
+  JDA_Assert(!(use_gini && use_entropy), "gini and entropy shouldn\'t be both true");
+  JDA_Assert(use_gini || use_entropy, "gini and entropy shouldn\'t be both false");
 
   // image size
   jsmn::Object& image_size_config = json_config["image_size"].unwrap<Object>();
