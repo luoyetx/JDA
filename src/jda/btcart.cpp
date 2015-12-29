@@ -9,79 +9,82 @@ using namespace cv;
 using namespace std;
 
 namespace jda {
-	void draw_density_graph(vector<double>& pos_scores, vector<double>& neg_scores, const int n = 100, const int rows = 20)
-	{
-		assert(n < 115, "number of bins should be less than 150");
-		assert(rows < 100, "graph rows should be less than 100");
-		double s_max = max(pos_scores[0], neg_scores[0]);
-		int pos_size = pos_scores.size();
-		int neg_size = neg_scores.size();
-		double s_min = min(pos_scores[pos_size - 1], neg_scores[neg_size - 1]);
-		//printf("s_max: %f\n", s_max);
-		//printf("s_min: %f\n", s_min);
-		vector<int> pos_bin(n, 0);
-		vector<int> neg_bin(n, 0);
-		double delta = (s_max - s_min) / n + 1e-9;
-		double th = s_max - delta;
-		// calc bin
-		int bin_idx = 0;
-		for (int i = 0; i < pos_size; i++)
-		{
-			if (pos_scores[i] >= th)
-				pos_bin[bin_idx]++;
-			else
-			{
-				i--;
-				bin_idx++;
-				th -= delta;
-			}
-		}
-		th = s_max - delta;
-		bin_idx = 0;
-		for (int i = 0; i < neg_size; i++)
-		{
-			if (neg_scores[i] >= th)
-				neg_bin[bin_idx]++;
-			else
-			{
-				i--;
-				bin_idx++;
-				th -= delta;
-			}
-		}
-		// draw graph
-		int graph[100][120] = { 0 };
-		for (int i = 0; i < n; i++)
-		{
-			if (pos_bin[i]>0)
-			{
-				int density = int(pos_bin[i] / double(pos_size) * rows + 0.5);
-				graph[density][i] += 1;
-			}
-			if (neg_bin[i] > 0)
-			{
-				int density = int(neg_bin[i] / double(neg_size) * rows + 0.5);
-				graph[density][i] += 2;
-			}
 
-		}
-		// render graph
-		for (int c = 0; c < n + 5; c++)
-			printf("=");
-		printf("\n");
-		char var[5] = { ' ', '+', 'x', '*' };
-		for (int r = rows - 1; r >= 0; r--)
+/*! \breif draw the distribution of scores */
+static void draw_density_graph(vector<double>& pos_scores, vector<double>& neg_scores, const int n = 100, const int rows = 20)
+{
+	assert(n < 115, "number of bins should be less than 150");
+	assert(rows < 100, "graph rows should be less than 100");
+	double s_max = max(pos_scores[0], neg_scores[0]);
+	int pos_size = pos_scores.size();
+	int neg_size = neg_scores.size();
+	double s_min = min(pos_scores[pos_size - 1], neg_scores[neg_size - 1]);
+	//printf("s_max: %f\n", s_max);
+	//printf("s_min: %f\n", s_min);
+	vector<int> pos_bin(n, 0);
+	vector<int> neg_bin(n, 0);
+	double delta = (s_max - s_min) / n + 1e-9;
+	double th = s_max - delta;
+	// calc bin
+	int bin_idx = 0;
+	for (int i = 0; i < pos_size; i++)
+	{
+		if (pos_scores[i] >= th)
+			pos_bin[bin_idx]++;
+		else
 		{
-			printf("%03d%% ", int(double(r + 1) / rows * 100 + 0.5));
-			for (int c = 0; c < n; c++)
-				printf("%c", var[graph[r][c]]);
-			printf("\n");
+			i--;
+			bin_idx++;
+			th -= delta;
 		}
-		for (int c = 0; c < n + 5; c++)
-			printf("=");
-		printf("\n");
+	}
+	th = s_max - delta;
+	bin_idx = 0;
+	for (int i = 0; i < neg_size; i++)
+	{
+		if (neg_scores[i] >= th)
+			neg_bin[bin_idx]++;
+		else
+		{
+			i--;
+			bin_idx++;
+			th -= delta;
+		}
+	}
+	// draw graph
+	int graph[100][120] = { 0 };
+	for (int i = 0; i < n; i++)
+	{
+		if (pos_bin[i]>0)
+		{
+			int density = int(pos_bin[i] / double(pos_size) * rows + 0.5);
+			graph[density][i] += 1;
+		}
+		if (neg_bin[i] > 0)
+		{
+			int density = int(neg_bin[i] / double(neg_size) * rows + 0.5);
+			graph[density][i] += 2;
+		}
 
 	}
+	// render graph
+	for (int c = 0; c < n + 5; c++)
+		printf("=");
+	printf("\n");
+	char var[5] = { ' ', '+', 'x', '*' };
+	for (int r = rows - 1; r >= 0; r--)
+	{
+		printf("%03d%% ", int(double(r + 1) / rows * 100 + 0.5));
+		for (int c = 0; c < n; c++)
+			printf("%c", var[graph[r][c]]);
+		printf("\n");
+	}
+	for (int c = 0; c < n + 5; c++)
+		printf("=");
+	printf("\n");
+
+}
+
 BoostCart::BoostCart(int stage) {
   const Config& c = Config::GetInstance();
   this->stage = stage;
