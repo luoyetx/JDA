@@ -13,8 +13,8 @@ namespace jda {
 /*! \breif draw the distribution of scores */
   void draw_density_graph(vector<double>& pos_scores, vector<double>& neg_scores, const int n = 100, const int rows = 20)
   {
-    assert(n < 115, "number of bins should be less than 150");
-    assert(rows < 100, "graph rows should be less than 100");
+    JDA_Assert(n < 115, "number of bins should be less than 150");
+    JDA_Assert(rows < 100, "graph rows should be less than 100");
     double s_max = max(pos_scores[0], neg_scores[0]);
     int pos_size = pos_scores.size();
     int neg_size = neg_scores.size();
