@@ -10,114 +10,94 @@ using namespace std;
 
 namespace jda {
 
-/*! \breif draw the distribution of scores */
-  void draw_density_graph(vector<double>& pos_scores, vector<double>& neg_scores, const int n = 100, const int rows = 20)
-  {
-    JDA_Assert(n < 115, "number of bins should be less than 150");
-    JDA_Assert(rows < 100, "graph rows should be less than 100");
-    double s_max = max(pos_scores[0], neg_scores[0]);
-    int pos_size = pos_scores.size();
-    int neg_size = neg_scores.size();
-    double s_min = min(pos_scores[pos_size - 1], neg_scores[neg_size - 1]);
-    //printf("s_max: %f\n", s_max);
-    //printf("s_min: %f\n", s_min);
-    vector<int> pos_bin(n, 0);
-    vector<int> neg_bin(n, 0);
-    double delta = (s_max - s_min) / n + 1e-9;
-    double th = s_max - delta;
-    // calc bin
-    int bin_idx = 0;
-    for (int i = 0; i < pos_size; i++)
-    {
-      if (pos_scores[i] >= th)
-        pos_bin[bin_idx]++;
-      else
-      {
-        i--;
-        bin_idx++;
-        th -= delta;
-      }
+/*!
+ * \breif draw the distribution of scores
+ * \note scores should be in order
+ */
+static void draw_density_graph(vector<double>& pos_scores, vector<double>& neg_scores, \
+                               const int n = 100, const int rows = 20) {
+  JDA_Assert(n < 115, "number of bins should be less than 150");
+  JDA_Assert(rows < 100, "graph rows should be less than 100");
+  double s_max = max(pos_scores[0], neg_scores[0]);
+  int pos_size = pos_scores.size();
+  int neg_size = neg_scores.size();
+  double s_min = min(pos_scores[pos_size - 1], neg_scores[neg_size - 1]);
+  vector<int> pos_bin(n, 0);
+  vector<int> neg_bin(n, 0);
+  double delta = (s_max - s_min) / n + 1e-9;
+  double th = s_max - delta;
+  // calc bin
+  int bin_idx = 0;
+  for (int i = 0; i < pos_size; i++) {
+    if (pos_scores[i] >= th) {
+      pos_bin[bin_idx]++;
     }
-    th = s_max - delta;
-    bin_idx = 0;
-    for (int i = 0; i < neg_size; i++)
-    {
-      if (neg_scores[i] >= th)
-        neg_bin[bin_idx]++;
-      else
-      {
-        i--;
-        bin_idx++;
-        th -= delta;
-      }
+    else {
+      i--;
+      bin_idx++;
+      th -= delta;
     }
-    // enlargre local detail
-#define detail 1
-#if detail
-    double max_bin_rate = 0;
-    double min_bin_rate = 1;
-    for (int i = 0; i < n; i++)
-    {
-      if (pos_bin[i] > 0)
-      {
-        double bin_rate = pos_bin[i] / double(pos_size);
-        if (bin_rate > max_bin_rate)
-          max_bin_rate = bin_rate;
-        if (bin_rate <  min_bin_rate)
-          min_bin_rate = bin_rate;
-      }
-      if (neg_bin[i] > 0)
-      {
-        double bin_rate = neg_bin[i] / double(neg_size);
-        if (bin_rate > max_bin_rate)
-          max_bin_rate = bin_rate;
-        if (bin_rate < min_bin_rate)
-          min_bin_rate = bin_rate;
-      }
-    }
-    max_bin_rate += 1e-5;
-    min_bin_rate -= 1e-5;
-    double range = max_bin_rate - min_bin_rate + 1e-18;
-
-#else
-    double max_bin_rate = 1 + 1e-5;
-    double min_bin_rate = 0 - 1e-5;
-    double range = max_bin_rate - min_bin_rate + 1e-18;
-#endif
-    // draw graph
-    int graph[100][120] = { 0 };
-    for (int i = 0; i < n; i++)
-    {
-      //printf("pos_bin[%d]: %d\n", i, pos_bin[i]);
-      if (pos_bin[i]>0)
-      {
-        int density = int((pos_bin[i] / double(pos_size) - min_bin_rate) / range * rows);	
-        graph[density][i] += 1;
-      }
-      if (neg_bin[i] > 0)
-      {
-        int density = int((neg_bin[i] / double(neg_size) - min_bin_rate) / range * rows);
-        graph[density][i] += 2;
-      }
-
-    }
-    // render graph
-    for (int c = 0; c < n + 8; c++)
-      printf("=");
-    printf("\n");
-    char var[5] = { ' ', '+', 'x', '*' };
-    for (int r = rows - 1; r >= 0; r--)
-    {
-      printf("%06.2lf%% ", (double(r + 1) / rows * range + min_bin_rate) * 100);
-      for (int c = 0; c < n; c++)
-        printf("%c", var[graph[r][c]]);
-      printf("\n");
-    }
-    for (int c = 0; c < n + 8; c++)
-      printf("=");
-    printf("\n");
-
   }
+  th = s_max - delta;
+  bin_idx = 0;
+  for (int i = 0; i < neg_size; i++) {
+    if (neg_scores[i] >= th) {
+      neg_bin[bin_idx]++;
+    }
+    else {
+      i--;
+      bin_idx++;
+      th -= delta;
+    }
+  }
+  // enlargre local detail
+  double max_bin_rate = 0;
+  double min_bin_rate = 1;
+  for (int i = 0; i < n; i++) {
+    if (pos_bin[i] > 0) {
+      double bin_rate = pos_bin[i] / double(pos_size);
+      if (bin_rate > max_bin_rate) max_bin_rate = bin_rate;
+      if (bin_rate <  min_bin_rate) min_bin_rate = bin_rate;
+    }
+    if (neg_bin[i] > 0) {
+      double bin_rate = neg_bin[i] / double(neg_size);
+      if (bin_rate > max_bin_rate) max_bin_rate = bin_rate;
+      if (bin_rate < min_bin_rate) min_bin_rate = bin_rate;
+    }
+  }
+  max_bin_rate += 1e-5;
+  min_bin_rate -= 1e-5;
+  double range = max_bin_rate - min_bin_rate + 1e-18;
+  // draw graph
+  int graph[100][120] = { 0 };
+  for (int i = 0; i < n; i++) {
+    if (pos_bin[i]>0) {
+      int density = int((pos_bin[i] / double(pos_size) - min_bin_rate) / range * rows);
+      graph[density][i] += 1;
+    }
+    if (neg_bin[i] > 0) {
+      int density = int((neg_bin[i] / double(neg_size) - min_bin_rate) / range * rows);
+      graph[density][i] += 2;
+    }
+  }
+  // render graph
+  for (int c = 0; c < n + 8; c++) {
+    printf("=");
+  }
+  printf("\n");
+  char var[5] = { ' ', '+', 'x', '*' };
+  for (int r = rows - 1; r >= 0; r--) {
+    printf("%06.2lf%% ", (double(r + 1) / rows * range + min_bin_rate) * 100);
+    for (int c = 0; c < n; c++) {
+      printf("%c", var[graph[r][c]]);
+    }
+    printf("\n");
+  }
+  for (int c = 0; c < n + 8; c++) {
+    printf("=");
+  }
+  printf("\n");
+}
 
 BoostCart::BoostCart(int stage) {
   const Config& c = Config::GetInstance();
@@ -156,8 +136,8 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     pos.QSort(); neg.QSort();
     LOG("Pos max score = %.4lf, min score = %.4lf", pos.scores[0], pos.scores[pos.size - 1]);
     LOG("Neg max score = %.4lf, min score = %.4lf", neg.scores[0], neg.scores[neg.size - 1]);
-	// draw scores desity graph
-	draw_density_graph(pos.scores, neg.scores);
+    // draw scores desity graph
+    draw_density_graph(pos.scores, neg.scores);
     // update weights
     DataSet::UpdateWeights(pos, neg);
     LOG("Current Positive DataSet Size is %d", pos.size);
