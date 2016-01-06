@@ -99,7 +99,7 @@ void DataSet::RandomShape(const Mat_<double>& mean_shape, Mat_<double>& shape) {
   const Config& c = Config::GetInstance();
   const double shift_size = c.shift_size;
   RNG rng = RNG(getTickCount());
-  Mat_<double> shift(shape.rows, shape.cols);
+  Mat_<double> shift(mean_shape.rows, mean_shape.cols);
   // we use a uniform distribution over [-shift_size, shift_size]
   rng.fill(shift, RNG::UNIFORM, -shift_size, shift_size);
   shape = mean_shape + shift;
@@ -109,7 +109,7 @@ void DataSet::RandomShapes(const Mat_<double>& mean_shape, vector<Mat_<double> >
   const double shift_size = c.shift_size;
   const int n = shapes.size();
   RNG rng = RNG(getTickCount());
-  Mat_<double> shift(shapes[0].rows, shapes[0].cols);
+  Mat_<double> shift(mean_shape.rows, mean_shape.cols);
   for (int i = 0; i < n; i++) {
     // we use a uniform distribution over [-shift_size, shift_size]
     rng.fill(shift, RNG::UNIFORM, -shift_size, shift_size);
