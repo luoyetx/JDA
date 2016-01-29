@@ -9,7 +9,9 @@ using namespace std;
 using namespace jda;
 
 void live() {
-  const Config& c = Config::GetInstance();
+  Config& c = Config::GetInstance();
+  c.log_to_file = false; // turn off log
+
   VideoCapture cap(0);
   if (!cap.isOpened()) {
     dieWithMsg("Can not open Camera, Please Check it!");
@@ -32,7 +34,8 @@ void live() {
       vector<Rect> rects;
       vector<double> scores;
       vector<Mat_<double> > shapes;
-      int n = joincascador.Detect(gray, rects, scores, shapes);
+      DetectionStatisic statisic;
+      int n = joincascador.Detect(gray, rects, scores, shapes, statisic);
       for (int i = 0; i < n; i++) {
         frame = jda::drawShape(frame, shapes[i], rects[i]);
       }

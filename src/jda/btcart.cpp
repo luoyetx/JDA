@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <liblinear/linear.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include "jda/data.hpp"
@@ -116,7 +117,7 @@ BoostCart::~BoostCart() {
 }
 
 void BoostCart::Train(DataSet& pos, DataSet& neg) {
-  const Config& c = Config::GetInstance();
+  Config& c = Config::GetInstance();
   JoinCascador& joincascador = *c.joincascador;
 
   // statistic parameters
@@ -126,8 +127,15 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
 
   const int landmark_n = c.landmark_n;
   RNG rng(getTickCount());
-  // Real Boost
+  int drop_n = (1. - c.recall[stage])*pos.size / K; // pos drop number per cart
+  if (drop_n <= 1) drop_n = 1;
+
   const int start_of_cart = joincascador.current_cart_idx + 1;
+  int restarts = 0;
+  double best_drop_rate = 0.;
+  Cart best_cart = carts[0];
+
+  // Real Boost
   for (int k = start_of_cart; k < K; k++) {
     Cart& cart = carts[k];
     // more neg if needed
@@ -150,25 +158,55 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     TIMER_END
     joincascador.current_cart_idx = k;
     // update score
+    vector<double> pos_scores_cached = pos.scores;
+    vector<double> neg_scores_cached = neg.scores;
     pos.UpdateScores(cart);
     neg.UpdateScores(cart);
     // select th for pre-defined recall
-    cart.th = pos.CalcThresholdByRate(1 - c.recall[stage]);
+    cart.th = pos.CalcThresholdByNumber(drop_n);
     int pos_n = pos.size;
     int neg_n = neg.size;
+    int will_removed = neg.PreRemove(cart.th);
+    double tmp_drop_rate = double(will_removed) / neg_n;
+    int number_of_carts = joincascador.current_stage_idx*joincascador.K + joincascador.current_cart_idx;
+    if (tmp_drop_rate < c.restart_th && number_of_carts > 10) {
+      restarts++;
+      LOG("***** Drop rate neg is %.4lf%%, Restart current Cart *****", tmp_drop_rate*100.);
+      LOG("***** Restart Time: %d *****", restarts);
+      // compare with best cart for now
+      if (tmp_drop_rate > best_drop_rate) {
+        best_drop_rate = tmp_drop_rate;
+        best_cart = cart;
+      }
+      // select the best cart for this cart
+      if (restarts >= c.restart_times) {
+        LOG("***** Select a cart which give us %.4lf drop rate *****", best_drop_rate);
+        cart = best_cart;
+        best_drop_rate = 0.;
+      }
+      else {
+        // recover data scores
+        pos.scores = pos_scores_cached;
+        neg.scores = neg_scores_cached;
+        k--;
+        continue;
+      }
+    }
+
+    restarts = 0;
     pos.Remove(cart.th);
     neg.Remove(cart.th);
-    double pos_drop_rate = double(pos_n - pos.size) / double(pos_n)* 100.;
-    double neg_drop_rate = double(neg_n - neg.size) / double(neg_n)* 100.;
-    LOG("Pos drop rate = %.2lf%%, Neg drop rate = %.2lf%%", pos_drop_rate, neg_drop_rate);
-    neg_rejected += neg_n - neg.size;
-    LOG("Current Negative DataSet Reject Size is %d", neg_rejected);
     // print cart info
     cart.PrintSelf();
     const int kk = k + 1;
     if ((kk != K) && (kk%c.snapshot_iter == 0)) { // snapshot
       c.joincascador->Snapshot();
     }
+    double pos_drop_rate = double(pos_n - pos.size) / double(pos_n)* 100.;
+    double neg_drop_rate = double(neg_n - neg.size) / double(neg_n)* 100.;
+    LOG("Pos drop rate = %.2lf%%, Neg drop rate = %.2lf%%", pos_drop_rate, neg_drop_rate);
+    neg_rejected += neg_n - neg.size;
+    LOG("Current Negative DataSet Reject Size is %d", neg_rejected);
   }
   // Global Regression with LBF
   // generate lbf

@@ -158,13 +158,14 @@ void JoinCascador::SerializeFrom(FILE* fd) {
   fread(&YO, sizeof(YO), 1, fd);
 }
 
-bool JoinCascador::Validate(const Mat& img, double& score, Mat_<double>& shape) const {
+bool JoinCascador::Validate(const Mat& img, double& score, Mat_<double>& shape, int& n) const {
   const Config& c = Config::GetInstance();
   Mat img_h, img_q;
   cv::resize(img, img_h, Size(c.img_h_size, c.img_h_size));
   cv::resize(img, img_q, Size(c.img_q_size, c.img_q_size));
   DataSet::RandomShape(mean_shape, shape);
   score = 0;
+  n = 0;
   Mat_<int> lbf(1, c.K);
   int* lbf_ptr = lbf.ptr<int>(0);
   const int base = 1 << (c.tree_depth - 1);
@@ -177,6 +178,7 @@ bool JoinCascador::Validate(const Mat& img, double& score, Mat_<double>& shape) 
       const Cart& cart = btcart.carts[k];
       int idx = cart.Forward(img, img_h, img_q, shape);
       score += cart.scores[idx];
+      n++;
       if (score < cart.th) {
         // not a face
         return false;
@@ -192,6 +194,7 @@ bool JoinCascador::Validate(const Mat& img, double& score, Mat_<double>& shape) 
     const Cart& cart = btcarts[current_stage_idx].carts[k];
     int idx = cart.Forward(img, img_h, img_q, shape);
     score += cart.scores[idx];
+    n++;
     if (score < cart.th) {
       // not a face
       return false;
@@ -203,16 +206,16 @@ bool JoinCascador::Validate(const Mat& img, double& score, Mat_<double>& shape) 
 /*!
  * \breif detect single scale
  */
-static void detectSingleScale(const JoinCascador& joincascador, const Mat& img, \
-                              vector<Rect>& rects, vector<double>& scores, \
-                              vector<Mat_<double> >& shapes) {
+static void detectSingleScale(const JoinCascador& joincascador, const Mat& img, int step, \
+                              int win_size, vector<Rect>& rects, vector<double>& scores, \
+                              vector<Mat_<double> >& shapes, DetectionStatisic& statisic) {
   const Config& c = Config::GetInstance();
-  const int win_w = c.img_o_size;
-  const int win_h = c.img_o_size;
+  const int win_w = win_size;
+  const int win_h = win_size;
   const int x_max = img.cols - win_w;
   const int y_max = img.rows - win_h;
-  const int x_step = c.fddb_x_step;
-  const int y_step = c.fdbb_y_step;
+  const int x_step = step;
+  const int y_step = step;
   int x = 0;
   int y = 0;
 
@@ -220,16 +223,25 @@ static void detectSingleScale(const JoinCascador& joincascador, const Mat& img, 
   scores.clear();
   shapes.clear();
 
+  Mat data; // used as a patch
+
   while (y <= y_max) {
     while (x <= x_max) {
       Rect roi(x, y, win_w, win_h);
       double score;
       Mat_<double> shape;
-      bool is_face = joincascador.Validate(img(roi), score, shape);
+      int reject_length;
+      cv::resize(img(roi), data, Size(c.img_o_size, c.img_o_size));
+      bool is_face = joincascador.Validate(data, score, shape, reject_length);
       if (is_face) {
         rects.push_back(roi);
         scores.push_back(score);
         shapes.push_back(shape);
+        statisic.face_patch_n++;
+      }
+      else {
+        statisic.nonface_patch_n++;
+        statisic.cart_gothrough_n += reject_length;
       }
       x += x_step;
     }
@@ -244,7 +256,7 @@ static void detectSingleScale(const JoinCascador& joincascador, const Mat& img, 
  */
 static void detectMultiScale(const JoinCascador& joincascador, const Mat& img, \
                              vector<Rect>& rects, vector<double>& scores, \
-                             vector<Mat_<double> >& shapes) {
+                             vector<Mat_<double> >& shapes, DetectionStatisic& statisic) {
   const Config& c = Config::GetInstance();
   const int win_w = c.img_o_size;
   const int win_h = c.img_o_size;
@@ -252,6 +264,7 @@ static void detectMultiScale(const JoinCascador& joincascador, const Mat& img, \
   int height = img.rows;
   const double factor = c.fddb_scale_factor;
   double scale = 1.;
+  const int step = c.fddb_step;
   Mat img_ = img.clone();
 
   rects.clear();
@@ -262,7 +275,7 @@ static void detectMultiScale(const JoinCascador& joincascador, const Mat& img, \
     vector<Rect> rects_;
     vector<double> scores_;
     vector<Mat_<double> > shapes_;
-    detectSingleScale(joincascador, img_, rects_, scores_, shapes_);
+    detectSingleScale(joincascador, img_, step, win_w, rects_, scores_, shapes_, statisic);
     const int n = rects_.size();
     for (int i = 0; i < n; i++) {
       Rect& r = rects_[i];
@@ -274,15 +287,18 @@ static void detectMultiScale(const JoinCascador& joincascador, const Mat& img, \
     shapes.insert(shapes.end(), shapes_.begin(), shapes_.end());
 
     scale *= factor;
-    width = int(width / factor + 0.5);
-    height = int(height / factor + 0.5);
+    width = int(width / factor);
+    height = int(height / factor);
     cv::resize(img_, img_, Size(width, height));
   }
+  // statisic
+  statisic.patch_n = statisic.face_patch_n + statisic.nonface_patch_n;
+  statisic.average_cart_n = double(statisic.cart_gothrough_n) / statisic.nonface_patch_n;
 }
 
 /*!
  * \breif nms Non-maximum suppression
- * the algorithm is from https://github.com/ShaoqingRen/SPP_net/blob/master/nms%2Fnms_mex.cpp
+ *  the algorithm is from https://github.com/ShaoqingRen/SPP_net/blob/master/nms%2Fnms_mex.cpp
  *
  * \param rects     area of faces
  * \param scores    score of faces
@@ -334,11 +350,11 @@ static vector<int> nms(const vector<Rect>& rects, const vector<double>& scores, 
 }
 
 int JoinCascador::Detect(const Mat& img, vector<Rect>& rects, vector<double>& scores, \
-                         vector<Mat_<double> >& shapes) const {
+                         vector<Mat_<double> >& shapes, DetectionStatisic& statisic) const {
   vector<Rect> rects_;
   vector<double> scores_;
   vector<Mat_<double> > shapes_;
-  detectMultiScale(*this, img, rects_, scores_, shapes_);
+  detectMultiScale(*this, img, rects_, scores_, shapes_, statisic);
   
   const Config& c = Config::GetInstance();
   //const double overlap = 0.3;

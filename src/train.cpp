@@ -41,7 +41,7 @@ void train() {
 void resume() {
   Config& c = Config::GetInstance();
 
-  FILE* fd = fopen(c.tmp_model.c_str(), "rb");
+  FILE* fd = fopen(c.resume_model.c_str(), "rb");
   JDA_Assert(fd, "Can not open model file");
 
   JoinCascador joincascador;
@@ -67,7 +67,8 @@ void resume() {
   pos_remain.weights.reserve(pos_size);
   // remove tf data points, update score and shape
   for (int i = 0; i < pos_size; i++) {
-    bool is_face = joincascador.Validate(pos.imgs[i], pos.scores[i], pos.current_shapes[i]);
+    int not_used;
+    bool is_face = joincascador.Validate(pos.imgs[i], pos.scores[i], pos.current_shapes[i], not_used);
     if (is_face) {
       pos_remain.imgs.push_back(pos.imgs[i]);
       pos_remain.imgs_half.push_back(pos.imgs_half[i]);

@@ -119,6 +119,8 @@ void DataSet::RandomShapes(const Mat_<double>& mean_shape, vector<Mat_<double> >
 
 void DataSet::UpdateWeights() {
   const double flag = -(is_pos ? 1 : -1);
+
+  #pragma omp parallel for
   for (int i = 0; i < size; i++) {
     weights[i] = exp(flag*scores[i]);
   }
@@ -129,16 +131,23 @@ void DataSet::UpdateWeights(DataSet& pos, DataSet& neg) {
   // normalize to 1
   const int pos_n = pos.size;
   const int neg_n = neg.size;
+  double sum_pos_w = 0.;
+  double sum_neg_w = 0.;
   double sum_w = 0.;
   for (int i = 0; i < pos_n; i++) {
-    sum_w += pos.weights[i];
+    sum_pos_w += pos.weights[i];
   }
   for (int i = 0; i < neg_n; i++) {
-    sum_w += neg.weights[i];
+    sum_neg_w += neg.weights[i];
   }
+  sum_w = sum_pos_w + sum_neg_w;
+
+  #pragma omp parallel for
   for (int i = 0; i < pos_n; i++) {
     pos.weights[i] /= sum_w;
   }
+
+  #pragma omp parallel for
   for (int i = 0; i < neg_n; i++) {
     neg.weights[i] /= sum_w;
   }
@@ -157,9 +166,25 @@ void DataSet::UpdateScores(const Cart& cart) {
   is_sorted = false;
 }
 
+void DataSet::Swap(int i, int j) {
+  std::swap(imgs[i], imgs[j]);
+  std::swap(imgs_half[i], imgs_half[j]);
+  std::swap(imgs_quarter[i], imgs_quarter[j]);
+  if (is_pos) std::swap(gt_shapes[i], gt_shapes[j]);
+  std::swap(current_shapes[i], current_shapes[j]);
+  std::swap(scores[i], scores[j]);
+  std::swap(weights[i], weights[j]);
+}
+
 double DataSet::CalcThresholdByRate(double rate) {
   if (!is_sorted) QSort();
   int offset = size - 1 - int(rate*size);
+  return scores[offset];
+}
+double DataSet::CalcThresholdByNumber(int remove) {
+  if (!is_sorted) QSort();
+  int offset = size - 1 - remove;
+  if (offset < 0) offset = 0;
   return scores[offset];
 }
 
@@ -181,6 +206,15 @@ void DataSet::Remove(double th) {
   size = offset;
 }
 
+int DataSet::PreRemove(double th) {
+  if (!is_sorted) QSort();
+  int offset = size - 1;
+  const int upper = scores.size();
+  // get offset
+  while (offset >= 0 && scores[offset] < th) offset--;
+  return size - 1 - offset;
+}
+
 void DataSet::QSort() {
   if (is_sorted) return;
   _QSort_(0, size - 1);
@@ -195,13 +229,7 @@ void DataSet::_QSort_(int left, int right) {
     while (scores[j] < t) j--;
     if (i <= j) {
       // swap data point
-      std::swap(imgs[i], imgs[j]);
-      std::swap(imgs_half[i], imgs_half[j]);
-      std::swap(imgs_quarter[i], imgs_quarter[j]);
-      if (is_pos) std::swap(gt_shapes[i], gt_shapes[j]);
-      std::swap(current_shapes[i], current_shapes[j]);
-      std::swap(scores[i], scores[j]);
-      std::swap(weights[i], weights[j]);
+      Swap(i, j);
       i++; j--;
     }
   } while (i <= j);
@@ -257,6 +285,7 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
 
   char buff[300];
   vector<string> path;
+  vector<Rect> bboxes;
   imgs.clear();
   imgs_half.clear();
   imgs_quarter.clear();
@@ -264,6 +293,11 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
   // read all meta data
   while (fscanf(file, "%s", buff) > 0) {
     path.push_back(string(buff));
+    // bbox
+    Rect bbox;
+    fscanf(file, "%d%d%d%d", &bbox.x, &bbox.y, &bbox.width, &bbox.height);
+    bboxes.push_back(bbox);
+    // shape
     Mat_<double> shape(1, 2 * landmark_n);
     const double* ptr = shape.ptr<double>(0);
     for (int i = 0; i < 2 * landmark_n; i++) {
@@ -273,40 +307,75 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
   }
   fclose(file);
 
-  const int n = path.size();
-  imgs.resize(n);
-  imgs_half.resize(n);
-  imgs_quarter.resize(n);
+  //const int n = path.size();
+  const int n = 20000;
+  size = c.face_augment_on ? 2 * n : n;
+  imgs.resize(size);
+  imgs_half.resize(size);
+  imgs_quarter.resize(size);
+  gt_shapes.resize(size);
 
   #pragma omp parallel for
   for (int i = 0; i < n; i++) {
     // face image should be a sqaure
     Mat origin = imread(path[i], CV_LOAD_IMAGE_GRAYSCALE);
-    if ((!origin.data) || (origin.cols != origin.rows)) {
+    if (!origin.data) {
       char msg[300];
-      sprintf(msg, "%s is not valide", buff);
+      sprintf(msg, "Can not open %s", path[i].c_str());
       JDA_Assert(false, msg);
     }
-    gt_shapes[i] /= origin.cols; // relative landmark position range in [0, 1]
+    // get face
+    Mat face = origin(bboxes[i]);
+    // relocate landmarks
+    for (int j = 0; j < landmark_n; j++) {
+      gt_shapes[i](0, 2 * j) = (gt_shapes[i](0, 2 * j) - bboxes[i].x) / bboxes[i].width;
+      gt_shapes[i](0, 2 * j + 1) = (gt_shapes[i](0, 2 * j + 1) - bboxes[i].y) / bboxes[i].height;
+    }
     Mat img, half, quarter; // should be defined here due to the memory manager by OpenCV Mat
-    cv::resize(origin, img, Size(c.img_o_size, c.img_o_size));
-    cv::resize(origin, half, Size(c.img_h_size, c.img_h_size));
-    cv::resize(origin, quarter, Size(c.img_q_size, c.img_q_size));
+    cv::resize(face, img, Size(c.img_o_size, c.img_o_size));
+    cv::resize(face, half, Size(c.img_h_size, c.img_h_size));
+    cv::resize(face, quarter, Size(c.img_q_size, c.img_q_size));
     imgs[i] = img;
     imgs_half[i] = half;
     imgs_quarter[i] = quarter;
+
+    if (c.face_augment_on) { // flip
+      cv::flip(imgs[i], imgs[i + n], 1);
+      cv::flip(imgs_half[i], imgs_half[i + n], 1);
+      cv::flip(imgs_quarter[i], imgs_quarter[i + n], 1);
+      gt_shapes[i + n] = gt_shapes[i].clone();
+      // flip all landmarks
+      for (int j = 0; j < c.landmark_n; j++) {
+        gt_shapes[i + n](0, 2 * j) = 1 - gt_shapes[i + n](0, 2 * j);
+      }
+      // swap symmetric landmarks
+      for (int j = 0; j < c.symmetric_landmarks[0].size(); j++) {
+        const int idx1 = c.symmetric_landmarks[0][j];
+        const int idx2 = c.symmetric_landmarks[1][j];
+        double x1, y1, x2, y2;
+        x1 = gt_shapes[i + n](0, 2 * idx2);
+        y1 = gt_shapes[i + n](0, 2 * idx2 + 1);
+        x2 = gt_shapes[i + n](0, 2 * idx1);
+        y2 = gt_shapes[i + n](0, 2 * idx1 + 1);
+        gt_shapes[i + n](0, 2 * idx1) = x1;
+        gt_shapes[i + n](0, 2 * idx1 + 1) = y1;
+        gt_shapes[i + n](0, 2 * idx2) = x2;
+        gt_shapes[i + n](0, 2 * idx2 + 1) = y2;
+      }
+    }
   }
 
-  size = n;
   is_pos = true;
   current_shapes.resize(size);
   scores.resize(size);
   weights.resize(size);
   std::fill(scores.begin(), scores.end(), 0);
 }
-void DataSet::LoadNegativeDataSet(const string& negative) {
+void DataSet::LoadNegativeDataSet(const vector<string>& negative) {
   neg_generator.Load(negative);
   imgs.clear();
+  imgs_half.clear();
+  imgs_quarter.clear();
   gt_shapes.clear();
   current_shapes.clear();
   size = 0;
@@ -314,13 +383,43 @@ void DataSet::LoadNegativeDataSet(const string& negative) {
 }
 void DataSet::LoadDataSet(DataSet& pos, DataSet& neg) {
   const Config& c = Config::GetInstance();
-  pos.LoadPositiveDataSet(c.train_pos_txt);
-  neg.LoadNegativeDataSet(c.train_neg_txt);
+  vector<string> bgs(c.bg_txts.begin() + 1, c.bg_txts.end());
+  pos.LoadPositiveDataSet(c.face_txt);
+  neg.LoadNegativeDataSet(bgs);
   Mat_<double> mean_shape = pos.CalcMeanShape();
   // for current_shapes
   DataSet::RandomShapes(mean_shape, pos.current_shapes);
   // for negative generator
   neg.neg_generator.mean_shape = mean_shape;
+
+  // first bg_txts is hard negative already prepared
+  FILE* file = fopen(c.bg_txts[0].c_str(), "r");
+  JDA_Assert(file, "Can not open negative dataset file list");
+
+  char buff[256];
+  vector<string> list;
+  while (fscanf(file, "%s", buff) > 0) {
+    list.push_back(buff);
+  }
+
+  const int n = list.size();
+  neg.imgs.resize(n);
+  neg.imgs_half.resize(n);
+  neg.imgs_quarter.resize(n);
+  neg.current_shapes.resize(n);
+  neg.scores.resize(n);
+  neg.weights.resize(n);
+  std::fill(neg.scores.begin(), neg.scores.end(), 0);
+  neg.size = n;
+
+  #pragma omp parallel for
+  for (int i = 0; i < n; i++) {
+    neg.imgs[i] = cv::imread(list[i], CV_LOAD_IMAGE_GRAYSCALE);
+    cv::resize(neg.imgs[i], neg.imgs_half[i], Size(c.img_h_size, c.img_h_size));
+    cv::resize(neg.imgs[i], neg.imgs_quarter[i], Size(c.img_q_size, c.img_q_size));
+    cv::resize(neg.imgs[i], neg.imgs[i], Size(c.img_o_size, c.img_o_size));
+    DataSet::RandomShape(mean_shape, neg.current_shapes[i]);
+  }
 }
 
 
@@ -343,6 +442,9 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
   vector<double> score_pool(pool_size);
   vector<Mat_<double> > shape_pool(pool_size);
   vector<int> used(pool_size);
+  vector<int> carts_go_through(pool_size);
+  int nega_n = 0; // not hard nega
+  int carts_n = 0; // number of carts go through by all not hard nega
 
   const int size_o = size;
   double ratio = 0.9;
@@ -354,7 +456,8 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
 
     #pragma omp parallel for
     for (int i = 0; i < pool_size; i++) {
-      bool is_face = joincascador.Validate(region_pool[i], score_pool[i], shape_pool[i]);
+      bool is_face = joincascador.Validate(region_pool[i], score_pool[i], \
+                                           shape_pool[i], carts_go_through[i]);
       if (is_face) used[i] = 1;
       else used[i] = 0;
     }
@@ -367,6 +470,10 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
         shapes.push_back(shape_pool[i]);
         size--;
       }
+      else { // not hard enough
+        nega_n++;
+        carts_n += carts_go_through[i];
+      }
     }
 
     if (size < ratio*size_o) {
@@ -374,6 +481,16 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
           int(100. - double(current_idx) / list.size() * 100.));
       ratio -= 0.1;
     }
+  }
+  if (nega_n != 0) {
+    const int patch_n = imgs.size() + nega_n;
+    const double fp_rate = double(imgs.size()) / patch_n*100.;
+    const double average_cart = double(carts_n) / nega_n;
+    LOG("Done with mining, number of not hard enough is %d", nega_n);
+    LOG("Average number of cart to reject is %.2lf, FP = %.4lf%%", average_cart, fp_rate);
+  }
+  else {
+    LOG("Done with mining, all nega is hard enough");
   }
   return imgs.size();
 }
@@ -389,41 +506,6 @@ Mat NegGenerator::NextImage() {
   Rect roi(x, y, w, h);
   region = img(roi).clone();
 
-  switch (transform_type) {
-  case ORIGIN:
-    break;
-  case ORIGIN_R:
-    flip(region, region, 0);
-    transpose(region, region);
-    break;
-  case ORIGIN_RR:
-    flip(region, region, -1);
-    break;
-  case ORIGIN_RRR:
-    flip(region, region, 1);
-    transpose(region, region);
-    break;
-  case ORIGIN_FLIP:
-    flip(region, region, 1);
-    break;
-  case ORIGIN_FLIP_R:
-    flip(region, region, -1);
-    transpose(region, region);
-    break;
-  case ORIGIN_FLIP_RR:
-    flip(region, region, -1);
-    flip(region, region, 1);
-    break;
-  case ORIGIN_FLIP_RRR:
-    flip(region, region, 0);
-    transpose(region, region);
-    flip(region, region, 1);
-    break;
-  default:
-    dieWithMsg("Unsupported Transform of Negative Sample");
-    break;
-  }
-
   return region;
 }
 
@@ -438,36 +520,6 @@ void NegGenerator::NextState() {
 
   const int width = img.cols;
   const int height = img.rows;
-
-  switch (transform_type) {
-  case ORIGIN:
-    transform_type = ORIGIN_R;
-    return;
-  case ORIGIN_R:
-    transform_type = ORIGIN_RR;
-    return;
-  case ORIGIN_RR:
-    transform_type = ORIGIN_RRR;
-    return;
-  case ORIGIN_RRR:
-    transform_type = ORIGIN_FLIP;
-    return;
-  case ORIGIN_FLIP:
-    transform_type = ORIGIN_FLIP_R;
-    return;
-  case ORIGIN_FLIP_R:
-    transform_type = ORIGIN_FLIP_RR;
-    return;
-  case ORIGIN_FLIP_RR:
-    transform_type = ORIGIN_FLIP_RRR;
-    return;
-  case ORIGIN_FLIP_RRR:
-    transform_type = ORIGIN;
-    break;
-  default:
-    dieWithMsg("Unsupported Transform of Negative Sample");
-    break;
-  }
 
   x += x_step; // move x
   if (x + w >= width) {
@@ -508,21 +560,23 @@ void NegGenerator::NextState() {
   }
 }
 
-void NegGenerator::Load(const string& path) {
-  FILE* file = fopen(path.c_str(), "r");
-  JDA_Assert(file, "Can not open negative dataset file list");
+void NegGenerator::Load(const vector<string>& path) {
+  for (int i = 0; i < path.size(); i++) {
+    FILE* file = fopen(path[i].c_str(), "r");
+    JDA_Assert(file, "Can not open negative dataset file list");
 
-  char buff[256];
-  list.clear();
-  while (fscanf(file, "%s", buff) > 0) {
-    list.push_back(buff);
+    char buff[256];
+    list.clear();
+    while (fscanf(file, "%s", buff) > 0) {
+      list.push_back(buff);
+    }
   }
+
   std::random_shuffle(list.begin(), list.end());
 
   // initialize
   x = y = 0;
   current_idx = 0;
-  transform_type = ORIGIN;
   img = cv::imread(list[current_idx], CV_LOAD_IMAGE_GRAYSCALE);
   if (!img.data) dieWithMsg("Can not open image, the path is %s", list[current_idx].c_str());
 }
@@ -549,7 +603,7 @@ void NegGenerator::SaveTheWorld() {
   LOG("We have %d images to save", size);
   for (int i = 0; i < size; i++) {
     sprintf(buff2, "%s/%05d.jpg", buff1, i + 1);
-    imwrite(buff2, c.joincascador->neg->imgs[i]);
+    cv::imwrite(buff2, c.joincascador->neg->imgs[i]);
   }
 
   char path[256];

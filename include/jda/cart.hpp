@@ -50,7 +50,7 @@ public:
   void SplitNode(const DataSet& pos, const std::vector<int>& pos_idx, \
                  const DataSet& neg, const std::vector<int>& neg_idx, \
                  int node_idx);
-  /**
+  /*!
    * \breif Classification
    *  split node with classification, minimum Gini
    *  `f = argmax_{f \in F} H_{root} - (H_{left} + H_{right})`
@@ -126,8 +126,6 @@ public:
   double radius;
   /*! \breif number of leaf on cart */
   int leafNum;
-  /*! \breif probability of internel node to do classification or regression */
-  double p;
   /*! \breif landmark id for regression in this tree */
   int landmark_id;
   /*! \breif threshold, see more on paper about `\theta_k^t` */

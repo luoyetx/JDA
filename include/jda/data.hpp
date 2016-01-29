@@ -47,7 +47,7 @@ public:
    * \breif Load nagetive image file list from path
    * \param path    background image file list
    */
-  void Load(const std::string& path);
+  void Load(const std::vector<std::string>& path);
 
 private:
   /*!
@@ -69,23 +69,12 @@ private:
   cv::Mat_<double> mean_shape;
 
 private:
-  typedef enum {
-    ORIGIN = 0,
-    ORIGIN_R,
-    ORIGIN_RR,
-    ORIGIN_RRR,
-    ORIGIN_FLIP,
-    ORIGIN_FLIP_R,
-    ORIGIN_FLIP_RR,
-    ORIGIN_FLIP_RRR,
-  } TransformType;
   /*! \breif index of image current used */
   int current_idx;
   /*! \breif negative file list */
   std::vector<std::string> list;
   int x, y;
   cv::Mat img;
-  TransformType transform_type;
 };
 
 /*!
@@ -113,9 +102,9 @@ public:
    *  the filesystem, in this way, we can easily add more negative sample groups without
    *  touching other groups
    *
-   * \param negative    a text file path
+   * \param negative    negative text list
    */
-  void LoadNegativeDataSet(const std::string& negative);
+  void LoadNegativeDataSet(const std::vector<std::string>& negative);
   /*!
    * \breif Wrapper for `LoadPositiveDataSet` and `LoadNegative DataSet`
    *  Since positive dataset and negative dataset may share some information between
@@ -170,10 +159,21 @@ public:
    *  `sum(scores < th) / N = rate`
    */
   double CalcThresholdByRate(double rate);
+  double CalcThresholdByNumber(int remove);
   /*!
    * \breif Adjust DataSet by removing scores < th
+   * \param th    threshold
    */
   void Remove(double th);
+  /*!
+   * \breif Get removed number if we perform remove operation
+   * \param th    threshold
+   */
+  int PreRemove(double th);
+  /*!
+   * \breif Swap data point
+   */
+  void Swap(int i, int j);
   /*!
    * \breif More Negative Samples if needed (only neg dataset needs)
    * \param pos_size    positive dataset size, reference for generating
