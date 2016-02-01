@@ -45,9 +45,9 @@ class JoinCascador;
  */
 class Feature {
 public:
-  static const int ORIGIN = 0;
-  static const int HALF = 1;
-  static const int QUARTER = 2;
+  static const int8_t ORIGIN = 0;
+  static const int8_t HALF = 1;
+  static const int8_t QUARTER = 2;
 
 public:
   Feature() {
@@ -72,7 +72,7 @@ public:
 
 public:
   /*! \breif scale */
-  int scale;
+  int8_t scale;
   /*! \breif landmark ids */
   int landmark_id1, landmark_id2;
   /*! \breif relative offset range in [0, 1] */

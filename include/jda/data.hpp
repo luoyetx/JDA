@@ -140,7 +140,7 @@ public:
    * \return              every data point in each row
    */
   cv::Mat_<double> CalcShapeResidual(const std::vector<int>& idx) const;
-  cv::Mat_<double> CalcShapeResidual(const std::vector<int>& idx, int landmark_id) const;
+  cv::Mat_<double> CalcShapeResidual(const std::vector<int>& idx, int8_t landmark_id) const;
   /*!
    * \biref Calculate Mean Shape over gt_shapes
    * \return    mean_shape of gt_shapes in positive dataset

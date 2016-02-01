@@ -13,7 +13,7 @@ using namespace std;
 
 namespace jda {
 
-Cart::Cart(int stage, int landmark_id) {
+Cart::Cart(int stage, int8_t landmark_id) {
   const Config& c = Config::GetInstance();
   this->stage = stage;
   this->landmark_id = landmark_id;
@@ -356,9 +356,9 @@ void Cart::SerializeFrom(FILE* fd) {
   // only non leaf node need to save parameters
   for (int i = 1; i < nodes_n / 2; i++) {
     Feature& feature = features[i];
-    fread(&feature.scale, sizeof(int), 1, fd);
-    fread(&feature.landmark_id1, sizeof(int), 1, fd);
-    fread(&feature.landmark_id2, sizeof(int), 1, fd);
+    fread(&feature.scale, sizeof(int8_t), 1, fd);
+    fread(&feature.landmark_id1, sizeof(int8_t), 1, fd);
+    fread(&feature.landmark_id2, sizeof(int8_t), 1, fd);
     fread(&feature.offset1_x, sizeof(double), 1, fd);
     fread(&feature.offset1_y, sizeof(double), 1, fd);
     fread(&feature.offset2_x, sizeof(double), 1, fd);
@@ -377,9 +377,9 @@ void Cart::SerializeTo(FILE* fd) const {
   // only non leaf node need to save parameters
   for (int i = 1; i < nodes_n / 2; i++) {
     const Feature& feature = features[i];
-    fwrite(&feature.scale, sizeof(int), 1, fd);
-    fwrite(&feature.landmark_id1, sizeof(int), 1, fd);
-    fwrite(&feature.landmark_id2, sizeof(int), 1, fd);
+    fwrite(&feature.scale, sizeof(int8_t), 1, fd);
+    fwrite(&feature.landmark_id1, sizeof(int8_t), 1, fd);
+    fwrite(&feature.landmark_id2, sizeof(int8_t), 1, fd);
     fwrite(&feature.offset1_x, sizeof(double), 1, fd);
     fwrite(&feature.offset1_y, sizeof(double), 1, fd);
     fwrite(&feature.offset2_x, sizeof(double), 1, fd);

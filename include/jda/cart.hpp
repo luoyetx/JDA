@@ -26,7 +26,7 @@ public:
    * \param stage         which stage this cart lie in
    * \param landmark_id   which landmark this cart training for regression
    */
-  Cart(int stage, int landmark_id);
+  Cart(int stage, int8_t landmark_id);
   ~Cart();
 
 public:
@@ -129,7 +129,7 @@ public:
   /*! \breif probability of internel node to do classification or regression */
   double p;
   /*! \breif landmark id for regression in this tree */
-  int landmark_id;
+  int8_t landmark_id;
   /*! \breif threshold, see more on paper about `\theta_k^t` */
   double th;
   /*! \breif features used by this cart, in sequence */
