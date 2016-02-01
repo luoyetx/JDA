@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <liblinear/linear.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include "jda/data.hpp"

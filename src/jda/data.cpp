@@ -69,7 +69,7 @@ Mat_<double> DataSet::CalcShapeResidual(const vector<int>& idx) const {
   }
   return shape_residual;
 }
-Mat_<double> DataSet::CalcShapeResidual(const vector<int>& idx, int landmark_id) const {
+Mat_<double> DataSet::CalcShapeResidual(const vector<int>& idx, int8_t landmark_id) const {
   JDA_Assert(is_pos == true, "Negative Dataset can not use `CalcShapeResidual`");
   const int n = idx.size();
   // specific landmark
