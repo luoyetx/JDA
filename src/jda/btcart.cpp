@@ -158,11 +158,11 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     TIMER_END
     joincascador.current_cart_idx = k;
     // update score
-    vector<double> pos_scores_cached = pos.scores;
-    vector<double> neg_scores_cached = neg.scores;
     pos.UpdateScores(cart);
     neg.UpdateScores(cart);
     // select th for pre-defined recall
+    pos.QSort();
+    neg.QSort();
     cart.th = pos.CalcThresholdByNumber(drop_n);
     int pos_n = pos.size;
     int neg_n = neg.size;
@@ -186,8 +186,8 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
       }
       else {
         // recover data scores
-        pos.scores = pos_scores_cached;
-        neg.scores = neg_scores_cached;
+        pos.ResetScores();
+        neg.ResetScores();
         k--;
         continue;
       }

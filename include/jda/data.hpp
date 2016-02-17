@@ -64,7 +64,7 @@ private:
    */
   void SaveTheWorld();
 
- public:
+public:
   /*! \breif mean shape of pos dataset for init_shape */
   cv::Mat_<double> mean_shape;
 
@@ -185,6 +185,10 @@ public:
    */
   void QSort();
   void _QSort_(int left, int right);
+  /*!
+   * \breif Reset score to last_score
+   */
+  void ResetScores();
 
 public:
   /*! \breif generator for more negative samples */
@@ -200,6 +204,7 @@ public:
   std::vector<cv::Mat_<double> > current_shapes;
   /*! \breif scores, see more about `f_i` on paper */
   std::vector<double> scores;
+  std::vector<double> last_scores;
   /*! \breif weights, see more about `w_i` on paper */
   std::vector<double> weights;
   /*! \breif is positive dataset */

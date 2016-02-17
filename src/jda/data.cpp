@@ -161,6 +161,7 @@ void DataSet::UpdateScores(const Cart& cart) {
     const Mat& img_q = imgs_quarter[i];
     Mat_<double>& shape = current_shapes[i];
     int leaf_node_idx = cart.Forward(img, img_h, img_q, shape);
+    last_scores[i] = scores[i]; // cache
     scores[i] += cart.scores[leaf_node_idx];
   }
   is_sorted = false;
@@ -173,6 +174,7 @@ void DataSet::Swap(int i, int j) {
   if (is_pos) std::swap(gt_shapes[i], gt_shapes[j]);
   std::swap(current_shapes[i], current_shapes[j]);
   std::swap(scores[i], scores[j]);
+  std::swap(last_scores[i], last_scores[j]);
   std::swap(weights[i], weights[j]);
 }
 
@@ -201,6 +203,7 @@ void DataSet::Remove(double th) {
   if (is_pos) gt_shapes.resize(offset);
   current_shapes.resize(offset);
   scores.resize(offset);
+  last_scores.resize(offset);
   weights.resize(offset);
   // new size
   size = offset;
@@ -235,6 +238,13 @@ void DataSet::_QSort_(int left, int right) {
   } while (i <= j);
   if (left < j) _QSort_(left, j);
   if (i < right) _QSort_(i, right);
+}
+
+void DataSet::ResetScores() {
+  #pragma omp parallel for
+  for (int i = 0; i < size; i++) {
+    scores[i] = last_scores[i];
+  }
 }
 
 void DataSet::MoreNegSamples(int pos_size, double rate) {
@@ -368,8 +378,11 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
   is_pos = true;
   current_shapes.resize(size);
   scores.resize(size);
+  last_scores.resize(size);
   weights.resize(size);
+  std::fill(weights.begin(), weights.end(), 0);
   std::fill(scores.begin(), scores.end(), 0);
+  std::fill(last_scores.begin(), last_scores.end(), 0);
 }
 void DataSet::LoadNegativeDataSet(const vector<string>& negative) {
   neg_generator.Load(negative);
@@ -378,6 +391,9 @@ void DataSet::LoadNegativeDataSet(const vector<string>& negative) {
   imgs_quarter.clear();
   gt_shapes.clear();
   current_shapes.clear();
+  weights.clear();
+  scores.clear();
+  last_scores.clear();
   size = 0;
   is_pos = false;
 }
@@ -408,8 +424,11 @@ void DataSet::LoadDataSet(DataSet& pos, DataSet& neg) {
   neg.imgs_quarter.resize(n);
   neg.current_shapes.resize(n);
   neg.scores.resize(n);
+  neg.last_scores.resize(n);
   neg.weights.resize(n);
+  std::fill(neg.weights.begin(), neg.weights.end(), 0);
   std::fill(neg.scores.begin(), neg.scores.end(), 0);
+  std::fill(neg.last_scores.begin(), neg.last_scores.end(), 0);
   neg.size = n;
 
   #pragma omp parallel for
