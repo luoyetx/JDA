@@ -158,11 +158,9 @@ void JoinCascador::SerializeFrom(FILE* fd) {
   fread(&YO, sizeof(YO), 1, fd);
 }
 
-bool JoinCascador::Validate(const Mat& img, double& score, Mat_<double>& shape, int& n) const {
+bool JoinCascador::Validate(const Mat& img, const Mat& img_h, const Mat& img_q, \
+                            double& score, Mat_<double>& shape, int& n) const {
   const Config& c = Config::GetInstance();
-  Mat img_h, img_q;
-  cv::resize(img, img_h, Size(c.img_h_size, c.img_h_size));
-  cv::resize(img, img_q, Size(c.img_q_size, c.img_q_size));
   DataSet::RandomShape(mean_shape, shape);
   score = 0;
   n = 0;
@@ -223,7 +221,9 @@ static void detectSingleScale(const JoinCascador& joincascador, const Mat& img, 
   scores.clear();
   shapes.clear();
 
-  Mat data; // used as a patch
+  Mat patch; // used as a patch
+  Mat patch_h;
+  Mat patch_q;
 
   while (y <= y_max) {
     while (x <= x_max) {
@@ -231,8 +231,10 @@ static void detectSingleScale(const JoinCascador& joincascador, const Mat& img, 
       double score;
       Mat_<double> shape;
       int reject_length;
-      cv::resize(img(roi), data, Size(c.img_o_size, c.img_o_size));
-      bool is_face = joincascador.Validate(data, score, shape, reject_length);
+      cv::resize(img(roi), patch, Size(c.img_o_size, c.img_o_size));
+      cv::resize(img(roi), patch_h, Size(c.img_h_size, c.img_h_size));
+      cv::resize(img(roi), patch_q, Size(c.img_q_size, c.img_q_size));
+      bool is_face = joincascador.Validate(patch, patch_h, patch_q, score, shape, reject_length);
       if (is_face) {
         rects.push_back(roi);
         scores.push_back(score);

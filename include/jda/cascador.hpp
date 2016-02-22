@@ -80,12 +80,15 @@ public:
    *  and `current_cart_idx`.
    *
    * \param img     img
+   * \param img_h   half img
+   * \param img_q   quarter img
    * \param score   classification score of this image
    * \param shape   shape on this image
    * \param n       number of carts the image go through
    * \return        whether a face or not
    */
-  bool Validate(const cv::Mat& img, double& score, cv::Mat_<double>& shape, int& n) const;
+  bool Validate(const cv::Mat& img, const cv::Mat& img_h, const cv::Mat& img_q, \
+                double& score, cv::Mat_<double>& shape, int& n) const;
   /*!
    * \breif Detect faces in a gray image
    *  Currently using Sliding Window to search face regions and Non-Maximum Suppression

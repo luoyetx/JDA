@@ -61,17 +61,7 @@ void LOG(const char* fmt, ...) {
   char buff[256];
   time_t t = time(NULL);
   strftime(buff, sizeof(buff), "[%x - %X]", localtime(&t));
-
-  // log
-  Config& c = Config::GetInstance();
-  if (c.log_to_console) printf("%s %s\n", buff, msg);
-  if (c.log_to_file) {
-    if (!c.log_file) { // lazy open
-      c.log_file = fopen(c.log_file_path.c_str(), "w");
-      if (!c.log_file) dieWithMsg("Can not open log file to write");
-    }
-    fprintf(c.log_file, "%s %s\n", buff, msg);
-  }
+  printf("%s %s\n", buff, msg);
 }
 
 void dieWithMsg(const char* fmt, ...) {
@@ -209,32 +199,9 @@ Config::Config() {
     symmetric_landmarks[0][i] = left[i].unwrap<Number>() - offset;
     symmetric_landmarks[1][i] = right[i].unwrap<Number>() - offset;
   }
-
-  // log
-  jsmn::Object& log = json_config["log"].unwrap<Object>();
-  log_to_console = log["console"].unwrap<Boolean>();
-  log_to_file = log["file"].unwrap<Boolean>();
-  if (log_to_file) {
-    string dir = log["directory"].unwrap<jsmn::String>();
-    char buff[300];
-    char path[300];
-    time_t t = time(NULL);
-    strftime(buff, sizeof(buff), "%Y%m%d-%H%M%S", localtime(&t));
-    if (dir[dir.length() - 1] != '/') {
-      sprintf(path, "%s/%s.log", dir.c_str(), buff);
-    }
-    else {
-      sprintf(path, "%s%s.log", dir.c_str(), buff);
-    }
-    log_file_path = path;
-    log_file = NULL;
-  }
 }
 
 Config::~Config() {
-  if (log_to_file && log_file) {
-    fclose(log_file);
-  }
 }
 
 } // namespace jda

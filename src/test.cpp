@@ -27,7 +27,6 @@ using namespace jda;
 void test() {
   Config& c = Config::GetInstance();
   c.shift_size = 0.; // no shift
-  c.log_to_file = false; // turn off log
 
   JoinCascador joincascador;
   FILE* fd = fopen("../model/jda.model", "rb");
@@ -86,7 +85,6 @@ void test() {
 void fddb() {
   Config& c = Config::GetInstance();
   c.shift_size = 0; // no shift
-  c.log_to_file = false; // turn off log
 
   // set img_o_size, img_h_size and img_q_size by fddb.minimum_size, not used now
   //const int size = c.fddb_minimum_size;

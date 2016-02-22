@@ -159,7 +159,7 @@ void DataSet::UpdateScores(const Cart& cart) {
     const Mat& img = imgs[i];
     const Mat& img_h = imgs_half[i];
     const Mat& img_q = imgs_quarter[i];
-    Mat_<double>& shape = current_shapes[i];
+    const Mat_<double>& shape = current_shapes[i];
     int leaf_node_idx = cart.Forward(img, img_h, img_q, shape);
     last_scores[i] = scores[i]; // cache
     scores[i] += cart.scores[leaf_node_idx];
@@ -245,6 +245,7 @@ void DataSet::ResetScores() {
   for (int i = 0; i < size; i++) {
     scores[i] = last_scores[i];
   }
+  is_sorted = false;
 }
 
 void DataSet::MoreNegSamples(int pos_size, double rate) {
@@ -271,6 +272,7 @@ void DataSet::MoreNegSamples(int pos_size, double rate) {
   //gt_shapes.reserve(expanded);
   current_shapes.reserve(expanded);
   scores.reserve(expanded);
+  last_scores.reserve(expanded);
   weights.reserve(expanded);
   for (int i = 0; i < extra_size; i++) {
     Mat half, quarter;
@@ -281,6 +283,7 @@ void DataSet::MoreNegSamples(int pos_size, double rate) {
     imgs_quarter.push_back(quarter);
     current_shapes.push_back(shapes_[i]);
     scores.push_back(scores_[i]);
+    last_scores.push_back(0);
     weights.push_back(0); // all weights will be updated by calling `UpdateWeights`
   }
   size = expanded;
@@ -448,16 +451,19 @@ NegGenerator::~NegGenerator() {}
 int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
                            vector<Mat>& imgs, vector<double>& scores, \
                            vector<Mat_<double> >& shapes) {
+  const Config& c = Config::GetInstance();
   imgs.clear();
   scores.clear();
   shapes.clear();
 
-  const int pool_size = Config::GetInstance().mining_pool_size;
+  const int pool_size = c.mining_pool_size;
   imgs.reserve(size + pool_size); // enough memory to overflow
   scores.reserve(size + pool_size);
   shapes.reserve(size + pool_size);
 
   vector<Mat> region_pool(pool_size);
+  vector<Mat> region_h_pool(pool_size);
+  vector<Mat> region_q_pool(pool_size);
   vector<double> score_pool(pool_size);
   vector<Mat_<double> > shape_pool(pool_size);
   vector<int> used(pool_size);
@@ -475,8 +481,11 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
 
     #pragma omp parallel for
     for (int i = 0; i < pool_size; i++) {
-      bool is_face = joincascador.Validate(region_pool[i], score_pool[i], \
-                                           shape_pool[i], carts_go_through[i]);
+      cv::resize(region_pool[i], region_h_pool[i], Size(c.img_h_size, c.img_h_size));
+      cv::resize(region_pool[i], region_q_pool[i], Size(c.img_q_size, c.img_q_size));
+      cv::resize(region_pool[i], region_pool[i], Size(c.img_o_size, c.img_o_size));
+      bool is_face = joincascador.Validate(region_pool[i], region_h_pool[i], region_q_pool[i], \
+                                           score_pool[i], shape_pool[i], carts_go_through[i]);
       if (is_face) used[i] = 1;
       else used[i] = 0;
     }

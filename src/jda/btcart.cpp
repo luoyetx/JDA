@@ -169,7 +169,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     int will_removed = neg.PreRemove(cart.th);
     double tmp_drop_rate = double(will_removed) / neg_n;
     int number_of_carts = joincascador.current_stage_idx*joincascador.K + joincascador.current_cart_idx;
-    if (tmp_drop_rate < c.restart_th && number_of_carts > 10) {
+    if (c.restart_on && tmp_drop_rate < c.restart_th && number_of_carts > 10) {
       restarts++;
       LOG("***** Drop rate neg is %.4lf%%, Restart current Cart *****", tmp_drop_rate*100.);
       LOG("***** Restart Time: %d *****", restarts);

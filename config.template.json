@@ -51,11 +51,6 @@
             "right": [2, 5]
         }
     },
-    "log": {
-        "console": true,
-        "file": false,
-        "directory": "../log/"
-    },
     "resume_model": "../model/jda_xxx.model",
     "snapshot_iter": 20
 }

@@ -9,8 +9,7 @@ using namespace std;
 using namespace jda;
 
 void live() {
-  Config& c = Config::GetInstance();
-  c.log_to_file = false; // turn off log
+  const Config& c = Config::GetInstance();
 
   VideoCapture cap(0);
   if (!cap.isOpened()) {

@@ -156,11 +156,6 @@ public:
   bool face_augment_on;
   int landmark_offset;
   std::vector<std::vector<int> > symmetric_landmarks;
-  /*! \breif log stuffs */
-  bool log_to_console;
-  bool log_to_file;
-  std::string log_file_path;
-  FILE* log_file;
 
 private:
   Config();

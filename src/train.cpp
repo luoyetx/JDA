@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <opencv2/core/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include "jda/data.hpp"
 #include "jda/common.hpp"
 #include "jda/cascador.hpp"
@@ -68,7 +69,8 @@ void resume() {
   // remove tf data points, update score and shape
   for (int i = 0; i < pos_size; i++) {
     int not_used;
-    bool is_face = joincascador.Validate(pos.imgs[i], pos.scores[i], pos.current_shapes[i], not_used);
+    bool is_face = joincascador.Validate(pos.imgs[i], pos.imgs_half[i], pos.imgs_quarter[i], \
+                                         pos.scores[i], pos.current_shapes[i], not_used);
     if (is_face) {
       pos_remain.imgs.push_back(pos.imgs[i]);
       pos_remain.imgs_half.push_back(pos.imgs_half[i]);
