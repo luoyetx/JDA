@@ -6,7 +6,7 @@ import numpy as np
 
 
 IMG_ROOT = 'F:/JDA_BG/CelebA/img_celeba/img_celeba/'
-LANDMARK_TXT = 'results.80k.txt' # result from TCDCN
+LANDMARK_TXT = 'results.200k.txt' # result from TCDCN
 
 
 def get_bbox(size, landmark):
@@ -50,22 +50,22 @@ def main():
 
             # select landmarks from 68
             landmark_27[1 - 1] = landmark_68[18 - 1]
-            landmark_27[2 - 1] = landmark_68[20 - 1]
-            landmark_27[3 - 1] = landmark_68[22 - 1]
-            landmark_27[4 - 1] = landmark_68[23 - 1]
-            landmark_27[5 - 1] = landmark_68[25 - 1]
-            landmark_27[6 - 1] = landmark_68[26 - 1]
-            landmark_27[7 - 1] = landmark_68[37 - 1]
-            landmark_27[8 - 1] = (landmark_68[38 - 1]+landmark_68[39 - 1]) / 2.
-            landmark_27[9 - 1] = landmark_68[40 - 1]
-            landmark_27[10 - 1] = (landmark_68[41 - 1]+landmark_68[42 - 1]) / 2.
-            landmark_27[11 - 1] = (landmark_68[38 - 1]+landmark_68[39 - 1]+landmark_68[41 - 1]+landmark_68[42 - 1]) / 4.
-            landmark_27[12 - 1] = landmark_68[43 - 1]
-            landmark_27[13 - 1] = (landmark_68[44 - 1]+landmark_68[45 - 1]) / 2.
-            landmark_27[14 - 1] = landmark_68[46 - 1]
-            landmark_27[15 - 1] = (landmark_68[47 - 1]+landmark_68[48 - 1]) / 2.
-            landmark_27[16 - 1] = (landmark_68[44 - 1]+landmark_68[45 - 1]+landmark_68[47 - 1]+landmark_68[48 - 1]) / 4.
-            landmark_27[17 - 1] = landmark_68[29 - 1]
+            landmark_27[2 - 1] = landmark_68[22 - 1]
+            landmark_27[3 - 1] = landmark_68[23 - 1]
+            landmark_27[4 - 1] = landmark_68[27 - 1]
+            landmark_27[5 - 1] = landmark_68[37 - 1]
+            landmark_27[6 - 1] = (landmark_68[38 - 1]+landmark_68[39 - 1]) / 2.
+            landmark_27[7 - 1] = landmark_68[40 - 1]
+            landmark_27[8 - 1] = (landmark_68[41 - 1]+landmark_68[42 - 1]) / 2.
+            landmark_27[9 - 1] = (landmark_68[38 - 1]+landmark_68[39 - 1]+landmark_68[41 - 1]+landmark_68[42 - 1]) / 4.
+            landmark_27[10 - 1] = landmark_68[43 - 1]
+            landmark_27[11 - 1] = (landmark_68[44 - 1]+landmark_68[45 - 1]) / 2.
+            landmark_27[12 - 1] = landmark_68[46 - 1]
+            landmark_27[13 - 1] = (landmark_68[47 - 1]+landmark_68[48 - 1]) / 2.
+            landmark_27[14 - 1] = (landmark_68[44 - 1]+landmark_68[45 - 1]+landmark_68[47 - 1]+landmark_68[48 - 1]) / 4.
+            landmark_27[15 - 1] = landmark_68[28 - 1]
+            landmark_27[16 - 1] = landmark_68[29 - 1]
+            landmark_27[17 - 1] = landmark_68[30 - 1]
             landmark_27[18 - 1] = landmark_68[31 - 1]
             landmark_27[19 - 1] = landmark_68[32 - 1]
             landmark_27[20 - 1] = landmark_68[34 - 1]

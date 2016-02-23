@@ -298,6 +298,74 @@ static void detectMultiScale(const JoinCascador& joincascador, const Mat& img, \
   statisic.average_cart_n = double(statisic.cart_gothrough_n) / statisic.nonface_patch_n;
 }
 
+static void detectMultiScale1(const JoinCascador& joincascador, const Mat& img, \
+                              vector<Rect>& rects, vector<double>& scores, \
+                              vector<Mat_<double> >& shapes, DetectionStatisic& statisic) {
+  const Config& c = Config::GetInstance();
+  int win_w = c.fddb_minimum_size;
+  int win_h = c.fddb_minimum_size;
+  int step_size = c.fddb_step;
+  const double factor = c.fddb_scale_factor;
+  Mat img_o, img_h, img_q;
+  int img_o_w, img_o_h;
+  int img_h_w, img_h_h;
+  int img_q_w, img_q_h;
+  img_o_w = img.cols;
+  img_o_h = img.rows;
+  img_h_w = int(img.cols / std::sqrt(2.));
+  img_h_h = int(img.rows / std::sqrt(2.));
+  img_q_w = img.cols / 2;
+  img_q_h = img.rows / 2;
+
+  img_o = img.clone();
+  cv::resize(img, img_h, Size(img_h_w, img_h_h));
+  cv::resize(img, img_q, Size(img_q_w, img_q_h));
+
+  while (win_w <= img_o_w && win_h <= img_o_h) {
+    int x, y, x_max, y_max;
+    x = y = 0;
+    x_max = img_o_w - win_w;
+    y_max = img_o_h - win_h;
+    while (y <= y_max) {
+      while (x <= x_max) {
+        Rect roi_o(x, y, win_w, win_h);
+        double r = std::sqrt(2.);
+        Rect roi_h(int(x / r), int(y / r), int(win_w / r), int(win_h / r));
+        Rect roi_q(x / 2, y / 2, win_w / 2, win_h / 2);
+        //roi_h.width = std::min(roi_h.width, img_h.cols - roi_h.x);
+        //roi_h.height = std::min(roi_h.height, img_h.rows - roi_h.y);
+        //roi_q.width = std::min(roi_q.width, img_q.cols - roi_q.x);
+        //roi_q.height = std::min(roi_q.height, img_q.rows - roi_q.y);
+        double score;
+        Mat_<double> shape;
+        int reject_length;
+        Mat patch_o = img_o(roi_o);
+        Mat patch_h = img_h(roi_h);
+        Mat patch_q = img_q(roi_q);
+        bool is_face = joincascador.Validate(patch_o, patch_h, patch_q, score, shape, reject_length);
+        if (is_face) {
+          rects.push_back(roi_o);
+          scores.push_back(score);
+          shapes.push_back(shape);
+          statisic.face_patch_n++;
+        }
+        else {
+          statisic.nonface_patch_n++;
+          statisic.cart_gothrough_n += reject_length;
+        }
+        x += step_size;
+      }
+      x = 0;
+      y += step_size;
+    }
+    win_w = int(win_w*factor);
+    win_h = int(win_h*factor);
+  }
+  // statisic
+  statisic.patch_n = statisic.face_patch_n + statisic.nonface_patch_n;
+  statisic.average_cart_n = double(statisic.cart_gothrough_n) / statisic.nonface_patch_n;
+}
+
 /*!
  * \breif nms Non-maximum suppression
  *  the algorithm is from https://github.com/ShaoqingRen/SPP_net/blob/master/nms%2Fnms_mex.cpp

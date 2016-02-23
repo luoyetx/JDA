@@ -49,6 +49,11 @@
             "offset": 1,
             "left": [1, 4],
             "right": [2, 5]
+        },
+        "pupils": {
+            "offset": 1,
+            "left": [1],
+            "right": [2]
         }
     },
     "resume_model": "../model/jda_xxx.model",

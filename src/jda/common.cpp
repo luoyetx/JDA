@@ -83,14 +83,33 @@ double calcMeanError(const vector<Mat_<double> >& gt_shapes, \
   double e = 0.;
   Mat_<double> delta_shape;
   for (int i = 0; i < N; i++) {
+    double left_x, left_y, right_x, right_y;
+    left_x = left_y = right_x = right_y = 0.;
+    for (int j = 0; j < c.left_pupils.size(); j++) {
+      left_x += gt_shapes[i](0, 2 * c.left_pupils[j]);
+      left_y += gt_shapes[i](0, 2 * c.left_pupils[j] + 1);
+    }
+    left_x /= c.left_pupils.size();
+    left_y /= c.left_pupils.size();
+    for (int j = 0; j < c.right_pupils.size(); j++) {
+      right_x += gt_shapes[i](0, 2 * c.right_pupils[j]);
+      right_y += gt_shapes[i](0, 2 * c.right_pupils[j] + 1);
+    }
+    right_x /= c.right_pupils.size();
+    right_y /= c.right_pupils.size();
+    double pupil_dis;
+    pupil_dis = std::sqrt(std::pow(left_x - right_x, 2) + \
+                std::pow(left_y - right_y, 2));
+
     delta_shape = gt_shapes[i] - current_shapes[i];
+    double e_ = 0.;
     for (int j = 0; j < landmark_n; j++) {
-      e += std::sqrt(std::pow(delta_shape(0, 2 * j), 2) + \
+      e_ += std::sqrt(std::pow(delta_shape(0, 2 * j), 2) + \
                      std::pow(delta_shape(0, 2 * j + 1), 2));
     }
+    e += e_ / pupil_dis;
   }
   e /= landmark_n * N;
-  e /= c.img_o_size;
   return e;
 }
 
@@ -198,6 +217,20 @@ Config::Config() {
   for (int i = 0; i < left.size(); i++) {
     symmetric_landmarks[0][i] = left[i].unwrap<Number>() - offset;
     symmetric_landmarks[1][i] = right[i].unwrap<Number>() - offset;
+  }
+
+  // pupils
+  jsmn::Object& pupils = face["pupils"].unwrap<Object>();
+  offset = pupils["offset"].unwrap<Number>();
+  jsmn::Array& pupils_left = pupils["left"].unwrap<Array>();
+  jsmn::Array& pupils_right = pupils["right"].unwrap<Array>();
+  left_pupils.resize(pupils_left.size());
+  right_pupils.resize(pupils_right.size());
+  for (int i = 0; i < pupils_left.size(); i++) {
+    left_pupils[i] = pupils_left[i].unwrap<Number>() - offset;
+  }
+  for (int i = 0; i < pupils_right.size(); i++) {
+    right_pupils[i] = pupils_right[i].unwrap<Number>() - offset;
   }
 }
 

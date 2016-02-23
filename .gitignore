@@ -1,5 +1,6 @@
 build/
 data/
 model/
+script/
 
 config.json

@@ -163,7 +163,8 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     // select th for pre-defined recall
     pos.QSort();
     neg.QSort();
-    cart.th = pos.CalcThresholdByNumber(drop_n);
+    //cart.th = pos.CalcThresholdByNumber(drop_n);
+    cart.th = pos.CalcThresholdByNumber(0);
     int pos_n = pos.size;
     int neg_n = neg.size;
     int will_removed = neg.PreRemove(cart.th);

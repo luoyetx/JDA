@@ -156,6 +156,9 @@ public:
   bool face_augment_on;
   int landmark_offset;
   std::vector<std::vector<int> > symmetric_landmarks;
+  /*! \breif pupils for calculating regreesin error*/
+  std::vector<int> left_pupils;
+  std::vector<int> right_pupils;
 
 private:
   Config();
