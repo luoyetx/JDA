@@ -248,7 +248,20 @@ void DataSet::ResetScores() {
   is_sorted = false;
 }
 
-void DataSet::MoreNegSamples(int pos_size, double rate) {
+void DataSet::Clear() {
+  imgs.clear();
+  imgs_half.clear();
+  imgs_quarter.clear();
+  current_shapes.clear();
+  gt_shapes.clear();
+  scores.clear();
+  last_scores.clear();
+  weights.clear();
+  is_sorted = false;
+  size = 0;
+}
+
+void DataSet::MoreNegSamples(int pos_size, double rate, double score_th) {
   JDA_Assert(is_pos == false, "Positive Dataset can not use `MoreNegSamples`");
   const Config& c = Config::GetInstance();
   // get the size of negative to generate
@@ -263,7 +276,7 @@ void DataSet::MoreNegSamples(int pos_size, double rate) {
   vector<double> scores_;
   vector<Mat_<double> > shapes_;
   const int extra_size = neg_generator.Generate(*c.joincascador, size_, \
-                                                imgs_, scores_, shapes_);
+                                                imgs_, scores_, shapes_, score_th);
   LOG("We have mined %d hard negative samples", extra_size);
   const int expanded = imgs.size() + imgs_.size();
   imgs.reserve(expanded);
@@ -320,8 +333,7 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
   }
   fclose(file);
 
-  //const int n = path.size();
-  const int n = 20000;
+  const int n = std::min(int(path.size()), c.original_pos_size);
   size = c.face_augment_on ? 2 * n : n;
   imgs.resize(size);
   imgs_half.resize(size);
@@ -450,7 +462,7 @@ NegGenerator::~NegGenerator() {}
 
 int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
                            vector<Mat>& imgs, vector<double>& scores, \
-                           vector<Mat_<double> >& shapes) {
+                           vector<Mat_<double> >& shapes, double score_th) {
   const Config& c = Config::GetInstance();
   imgs.clear();
   scores.clear();
@@ -473,6 +485,7 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
 
   const int size_o = size;
   double ratio = 0.9;
+  const double score_upper = std::abs(score_th) + 4;
   while (size > 0) {
     // We generate a negative sample pool for validation
     for (int i = 0; i < pool_size; i++) {
@@ -486,7 +499,7 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
       cv::resize(region_pool[i], region_pool[i], Size(c.img_o_size, c.img_o_size));
       bool is_face = joincascador.Validate(region_pool[i], region_h_pool[i], region_q_pool[i], \
                                            score_pool[i], shape_pool[i], carts_go_through[i]);
-      if (is_face) used[i] = 1;
+      if (is_face && score_pool[i] < score_upper) used[i] = 1;
       else used[i] = 0;
     }
 
@@ -637,13 +650,14 @@ void NegGenerator::SaveTheWorld() {
   char path[256];
   LOG("We need more background images, "
       "Please input a text file which contains background image list: ");
-  scanf("%s", path);
+  std::scanf("%s", path);
 
   FILE* file = fopen(path, "r");
   while (!file) {
     LOG("Can not open %s, Please Check it!", path);
+    dieWithMsg("Kill Self");
     LOG("Please input a text file below:");
-    scanf("%s", path);
+    std::scanf("%s", path);
     file = fopen(path, "r");
   }
 

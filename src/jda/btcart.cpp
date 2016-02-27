@@ -138,10 +138,11 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
   // Real Boost
   for (int k = start_of_cart; k < K; k++) {
     Cart& cart = carts[k];
+    pos.QSort();
     // more neg if needed
-    neg.MoreNegSamples(pos.size, c.nps[stage]);
+    neg.MoreNegSamples(pos.size, c.nps[stage], pos.scores[pos.size - 1]);
     // print out data set status
-    pos.QSort(); neg.QSort();
+    neg.QSort();
     LOG("Pos max score = %.4lf, min score = %.4lf", pos.scores[0], pos.scores[pos.size - 1]);
     LOG("Neg max score = %.4lf, min score = %.4lf", neg.scores[0], neg.scores[neg.size - 1]);
     // draw scores desity graph
@@ -164,7 +165,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     pos.QSort();
     neg.QSort();
     //cart.th = pos.CalcThresholdByNumber(drop_n);
-    cart.th = pos.CalcThresholdByNumber(0);
+    cart.th = pos.CalcThresholdByNumber(1);
     int pos_n = pos.size;
     int neg_n = neg.size;
     int will_removed = neg.PreRemove(cart.th);
@@ -184,6 +185,12 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
         LOG("***** Select a cart which give us %.4lf drop rate *****", best_drop_rate);
         cart = best_cart;
         best_drop_rate = 0.;
+        pos.ResetScores();
+        neg.ResetScores();
+        pos.UpdateScores(cart);
+        neg.UpdateScores(cart);
+        pos.QSort();
+        neg.QSort();
       }
       else {
         // recover data scores
@@ -205,9 +212,8 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     }
     double pos_drop_rate = double(pos_n - pos.size) / double(pos_n)* 100.;
     double neg_drop_rate = double(neg_n - neg.size) / double(neg_n)* 100.;
-    LOG("Pos drop rate = %.2lf%%, Neg drop rate = %.2lf%%", pos_drop_rate, neg_drop_rate);
+    LOG("Pos drop = %d, Neg drop rate = %.2lf%%", pos_n - pos.size, neg_drop_rate);
     neg_rejected += neg_n - neg.size;
-    LOG("Current Negative DataSet Reject Size is %d", neg_rejected);
   }
   // Global Regression with LBF
   // generate lbf
@@ -255,7 +261,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
   double reject_rate = 0.;
   accept_rate = double(pos_n) / double(pos_original_size) * 100.;
   reject_rate = double(neg_rejected) / double(neg_rejected + neg_original_size) * 100.;
-  LOG("Accept Rate = %.2lf%%, Reject Rate = %.2lf%%", accept_rate, reject_rate);
+  LOG("Accept Rate = %.2lf%%", accept_rate);
   // Done
 }
 

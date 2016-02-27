@@ -158,6 +158,7 @@ Config::Config() {
   x_step = mining_config["x_step"].unwrap<Number>();
   y_step = mining_config["y_step"].unwrap<Number>();
   scale_factor = mining_config["scale"].unwrap<Number>();
+  area_refine_factor = mining_config["area"].unwrap<Number>();
   mining_pool_size = omp_get_max_threads();
   esp = 2.2e-16;
 
@@ -206,6 +207,7 @@ Config::Config() {
 
   // face augment
   jsmn::Object& face = json_config["face"].unwrap<Object>();
+  original_pos_size = face["size"].unwrap<Number>();
   face_augment_on = face["online_augment"].unwrap<Boolean>();
   symmetric_landmarks.resize(2);
   int offset = face["symmetric_landmarks"]["offset"].unwrap<Number>();

@@ -2,6 +2,7 @@
 #define CASCADOR_HPP_
 
 #include <vector>
+#include <opencv2/core/core.hpp>
 
 namespace jda {
 

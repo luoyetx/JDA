@@ -37,11 +37,12 @@ public:
    * \param imgs            negative samples
    * \param scores          scores of negative samples
    * \param shapes          shapes of samples, for training
+   * \param score_th        minimum score of positive dataset
    * \return                real size
    */
   int Generate(const JoinCascador& joincascador, int size, \
                std::vector<cv::Mat>& imgs, std::vector<double>& scores, \
-               std::vector<cv::Mat_<double> >& shapes);
+               std::vector<cv::Mat_<double> >& shapes, double score_th);
 
   /*!
    * \breif Load nagetive image file list from path
@@ -178,8 +179,9 @@ public:
    * \breif More Negative Samples if needed (only neg dataset needs)
    * \param pos_size    positive dataset size, reference for generating
    * \param rate        N(negative) / N(positive)
+   * \param score_th    minimum score of positive dataset
    */
-  void MoreNegSamples(int pos_size, double rate);
+  void MoreNegSamples(int pos_size, double rate, double score_th);
   /*!
    * \breif Quick Sort by scores descending
    */
@@ -189,6 +191,10 @@ public:
    * \breif Reset score to last_score
    */
   void ResetScores();
+  /*!
+   * \breif Clear all
+   */
+  void Clear();
 
 public:
   /*! \breif generator for more negative samples */

@@ -65,6 +65,7 @@ void resume() {
   pos_remain.gt_shapes.reserve(pos_size);
   pos_remain.current_shapes.reserve(pos_size);
   pos_remain.scores.reserve(pos_size);
+  pos_remain.last_scores.reserve(pos_size);
   pos_remain.weights.reserve(pos_size);
   // remove tf data points, update score and shape
   for (int i = 0; i < pos_size; i++) {
@@ -78,12 +79,14 @@ void resume() {
       pos_remain.gt_shapes.push_back(pos.gt_shapes[i]);
       pos_remain.current_shapes.push_back(pos.current_shapes[i]);
       pos_remain.scores.push_back(pos.scores[i]);
+      pos_remain.last_scores.push_back(0);
       pos_remain.weights.push_back(pos.weights[i]);
     }
   }
   pos_remain.is_pos = true;
   pos_remain.is_sorted = false;
   pos_remain.size = pos_remain.imgs.size();
+  neg.Clear();
 
   LOG("Start Resume Training Status from %dth stage", joincascador.current_stage_idx);
   joincascador.Train(pos_remain, neg);

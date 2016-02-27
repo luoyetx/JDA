@@ -180,7 +180,7 @@ void fddb() {
       char buff[300];
       if (c.fddb_result) {
         counter++;
-        sprintf(buff, "%s/%02d_%04d_%02d.jpg", result_prefix.c_str(), i, counter, n);
+        sprintf(buff, "%s/%02d_%03d_%03d_%02d.jpg", result_prefix.c_str(), i, counter, statisic_.face_patch_n, n);
 
         // get answer
         int face_n = 0;

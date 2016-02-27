@@ -13,7 +13,8 @@
     "hard_negative_mining": {
         "x_step": 20,
         "y_step": 20,
-        "scale": 0.8
+        "scale": 0.8,
+        "area": 10
     },
     "stages": {
         "feature_pool_size": [1000, 1000, 1000, 1000, 1000],
@@ -44,6 +45,7 @@
         }
     },
     "face": {
+        "size": 10000,
         "online_augment": false,
         "symmetric_landmarks": {
             "offset": 1,

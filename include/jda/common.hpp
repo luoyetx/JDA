@@ -125,6 +125,7 @@ public:
   double scale_factor;
   int x_step, y_step;
   int mining_pool_size;
+  int area_refine_factor; // resize original backgournd image size
   /*! \breif a text file for train positive dataset */
   std::string face_txt;
   /*! \breif a text file for train negative dataset */
@@ -156,6 +157,7 @@ public:
   bool face_augment_on;
   int landmark_offset;
   std::vector<std::vector<int> > symmetric_landmarks;
+  int original_pos_size; // maximum original face size
   /*! \breif pupils for calculating regreesin error*/
   std::vector<int> left_pupils;
   std::vector<int> right_pupils;
