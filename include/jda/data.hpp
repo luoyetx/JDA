@@ -53,6 +53,9 @@ public:
    * \breif Update mining queue
    */
   void Reload();
+  int inline reload_time() {
+    return reload_time_;
+  }
 
 private:
   /*!
@@ -78,6 +81,7 @@ private:
   std::vector<cv::Mat> pool;
   int target_count;
   int current_count;
+  int reload_time_;
 };
 
 /*!

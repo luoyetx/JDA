@@ -199,6 +199,7 @@ Config::Config() {
   fddb_overlap = fddb["overlap"].unwrap<Number>();
   fddb_draw_score = fddb["draw_score"].unwrap<Boolean>();
   fddb_draw_shape = fddb["draw_shape"].unwrap<Boolean>();
+  fddb_detect_method = fddb["method"].unwrap<Number>();
 
   // cart
   jsmn::Object& cart = json_config["cart"].unwrap<Object>();
@@ -208,7 +209,6 @@ Config::Config() {
 
   // face augment
   jsmn::Object& face = json_config["face"].unwrap<Object>();
-  original_pos_size = face["size"].unwrap<Number>();
   face_augment_on = face["online_augment"].unwrap<Boolean>();
   symmetric_landmarks.resize(2);
   int offset = face["symmetric_landmarks"]["offset"].unwrap<Number>();

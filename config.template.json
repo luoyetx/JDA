@@ -36,7 +36,8 @@
         "minimum_size": 80,
         "step": 20,
         "scale": 1.1,
-        "overlap": 0.3
+        "overlap": 0.3,
+        "method": 0
     },
     "cart": {
         "restart": {

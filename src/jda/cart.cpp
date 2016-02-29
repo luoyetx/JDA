@@ -37,12 +37,16 @@ Cart::~Cart() {
 
 void Cart::Train(const DataSet& pos, const DataSet& neg) {
   vector<int> pos_idx, neg_idx;
-  int n = pos.size;
-  pos_idx.resize(n);
-  for (int i = 0; i < n; i++) pos_idx[i] = i;
-  n = neg.size;
-  neg_idx.resize(n);
-  for (int i = 0; i < n; i++) neg_idx[i] = i;
+  int pos_n = pos.size;
+  int neg_n = neg.size;
+  pos_idx.resize(pos_n);
+  neg_idx.resize(neg_n);
+
+  #pragma omp parallel for
+  for (int i = 0; i < pos_n; i++) pos_idx[i] = i;
+  #pragma omp parallel for
+  for (int i = 0; i < neg_n; i++) neg_idx[i] = i;
+
   // split node from root with idx = 1, why 1? see binary tree in sequence
   SplitNode(pos, pos_idx, neg, neg_idx, 1);
 }
@@ -58,12 +62,23 @@ void Cart::SplitNode(const DataSet& pos, const vector<int>& pos_idx, \
     const int idx = node_idx - nodes_n / 2;
     double pos_w, neg_w;
     pos_w = neg_w = c.esp;
-    for (int i = 0; i < pos_n; i++) {
-      pos_w += pos.weights[pos_idx[i]];
+
+    #pragma omp parallel sections
+    {
+      #pragma omp section
+      {
+        for (int i = 0; i < pos_n; i++) {
+          pos_w += pos.weights[pos_idx[i]];
+        }
+      }
+      #pragma omp section
+      {
+        for (int i = 0; i < neg_n; i++) {
+          neg_w += neg.weights[neg_idx[i]];
+        }
+      }
     }
-    for (int i = 0; i < neg_n; i++) {
-      neg_w += neg.weights[neg_idx[i]];
-    }
+
     scores[idx] = 0.5*(log(pos_w) - log(neg_w));
     printf("Leaf % 3d has % 6d pos and % 6d neg. Score is %.2lf\n", node_idx, pos_n, neg_n, scores[idx]);
     return;
@@ -97,27 +112,39 @@ void Cart::SplitNode(const DataSet& pos, const vector<int>& pos_idx, \
   // split training data into left and right if any more
   vector<int> left_pos_idx, left_neg_idx;
   vector<int> right_pos_idx, right_neg_idx;
-  left_pos_idx.reserve(pos_n);
-  right_pos_idx.reserve(pos_n);
-  left_neg_idx.reserve(neg_n);
-  right_neg_idx.reserve(neg_n);
 
-  for (int i = 0; i < pos_n; i++) {
-    if (pos_feature(feature_idx, i) <= threshold) {
-      left_pos_idx.push_back(pos_idx[i]);
+  #pragma omp parallel sections
+  {
+    // pos
+    #pragma omp section
+    {
+      left_pos_idx.reserve(pos_n);
+      right_pos_idx.reserve(pos_n);
+      for (int i = 0; i < pos_n; i++) {
+        if (pos_feature(feature_idx, i) <= threshold) {
+          left_pos_idx.push_back(pos_idx[i]);
+        }
+        else {
+          right_pos_idx.push_back(pos_idx[i]);
+        }
+      }
     }
-    else {
-      right_pos_idx.push_back(pos_idx[i]);
+    // neg
+    #pragma omp section
+    {
+      left_neg_idx.reserve(neg_n);
+      right_neg_idx.reserve(neg_n);
+      for (int i = 0; i < neg_n; i++) {
+        if (neg_feature(feature_idx, i) <= threshold) {
+          left_neg_idx.push_back(neg_idx[i]);
+        }
+        else {
+          right_neg_idx.push_back(neg_idx[i]);
+        }
+      }
     }
   }
-  for (int i = 0; i < neg_n; i++) {
-    if (neg_feature(feature_idx, i) <= threshold) {
-      left_neg_idx.push_back(neg_idx[i]);
-    }
-    else {
-      right_neg_idx.push_back(neg_idx[i]);
-    }
-  }
+
   // save parameters on this node
   features[node_idx] = feature_pool[feature_idx];
   thresholds[node_idx] = threshold;
@@ -204,48 +231,6 @@ void Cart::SplitNodeWithClassification(const DataSet& pos, const vector<int>& po
     es_[i] = entropy;
     ths_[i] = threshold_;
   }
-
-  //Mat_<int> feature(feature_n, total_n), feature_sorted(feature_n, total_n);
-  //feature(Rect(0, 0, pos_n, feature_n)) = pos_feature.clone();
-  //feature(Rect(pos_n, 0, neg_n, feature_n)) = neg_feature.clone();
-  //cv::sort(feature, feature_sorted, SORT_EVERY_ROW + SORT_ASCENDING);
-
-  //#pragma omp parallel for
-  //for (int i = 0; i < feature_n; i++) {
-  //  RNG rng(getTickCount());
-
-  //  double wp_l, wp_r, wn_l, wn_r;
-  //  wp_l = wp_r = wn_l = wn_r = 0.;
-  //  int threshold_ = feature_sorted(i, int(total_n*rng.uniform(0.05, 0.95)));
-
-  //  for (int j = 0; j < pos_n; j++) {
-  //    if (pos_feature(i, j) <= threshold_) {
-  //      wp_l += pos.weights[pos_idx[j]];
-  //    }
-  //    else {
-  //      wp_r += pos.weights[pos_idx[j]];
-  //    }
-  //  }
-  //  for (int j = 0; j < neg_n; j++) {
-  //    if (neg_feature(i, j) <= threshold_) {
-  //      wn_l += neg.weights[neg_idx[j]];
-  //    }
-  //    else {
-  //      wn_r += neg.weights[neg_idx[j]];
-  //    }
-  //  }
-
-  //  double w_l, w_r, w;
-  //  w_l = wp_l + wn_l;
-  //  w_r = wp_r + wn_r;
-  //  w = w_l + w_r;
-  //  double e_l = (w_l / w)*calcEntropy(wp_l / w_l);
-  //  double e_r = (w_r / w)*calcEntropy(wp_r / w_r);
-  //  double entropy = e_l + e_r;
-
-  //  es_[i] = entropy;
-  //  ths_[i] = threshold_;
-  //}
 
   double entropy_min = numeric_limits<double>::max();
   for (int i = 0; i < feature_n; i++) {

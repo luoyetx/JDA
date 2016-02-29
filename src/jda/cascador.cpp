@@ -421,12 +421,18 @@ static vector<int> nms(const vector<Rect>& rects, const vector<double>& scores, 
 
 int JoinCascador::Detect(const Mat& img, vector<Rect>& rects, vector<double>& scores, \
                          vector<Mat_<double> >& shapes, DetectionStatisic& statisic) const {
+  const Config& c = Config::GetInstance();
   vector<Rect> rects_;
   vector<double> scores_;
   vector<Mat_<double> > shapes_;
-  detectMultiScale(*this, img, rects_, scores_, shapes_, statisic);
+
+  if (c.fddb_detect_method == 0) {
+    detectMultiScale(*this, img, rects_, scores_, shapes_, statisic);
+  }
+  else {
+    detectMultiScale1(*this, img, rects_, scores_, shapes_, statisic);
+  }
   
-  const Config& c = Config::GetInstance();
   //const double overlap = 0.3;
   const double overlap = c.fddb_overlap;
   vector<int> picked;

@@ -125,7 +125,7 @@ public:
   int mining_patch_minimum_size;
   int mining_queue_size;
   int mining_pool_size;
-  int mining_factor;
+  double mining_factor;
   /*! \breif a text file for train positive dataset */
   std::string face_txt;
   /*! \breif a text file for train negative dataset */
@@ -150,6 +150,7 @@ public:
   bool fddb_nms;
   bool fddb_draw_score;
   bool fddb_draw_shape;
+  int fddb_detect_method;
   /*! \breif restart of a cart */
   bool restart_on;
   int restart_times;
@@ -159,7 +160,6 @@ public:
   bool face_augment_on;
   int landmark_offset;
   std::vector<std::vector<int> > symmetric_landmarks;
-  int original_pos_size; // maximum original face size
   /*! \breif pupils for calculating regreesin error*/
   std::vector<int> left_pupils;
   std::vector<int> right_pupils;

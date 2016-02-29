@@ -101,6 +101,7 @@ void DataSet::RandomShape(const Mat_<double>& mean_shape, Mat_<double>& shape) {
   RNG rng = RNG(getTickCount());
   Mat_<double> shift(mean_shape.rows, mean_shape.cols);
   // we use a uniform distribution over [-shift_size, shift_size]
+  // shift_size should be small, or it will break the shape constraint
   rng.fill(shift, RNG::UNIFORM, -shift_size, shift_size);
   shape = mean_shape + shift;
 }
@@ -298,7 +299,7 @@ void DataSet::MoreNegSamples(int pos_size, double rate, double score_th) {
   vector<Mat_<double> > shapes_;
   const int extra_size = neg_generator.Generate(*c.joincascador, size_, \
                                                 imgs_, scores_, shapes_, score_th);
-  LOG("We have mined %d hard negative samples", extra_size);
+  LOG("We have mined %d hard negative samples, Total Reload Time: %d", extra_size, neg_generator.reload_time());
   const int expanded = imgs.size() + imgs_.size();
   imgs.reserve(expanded);
   imgs_half.reserve(expanded);
@@ -354,7 +355,7 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
   }
   fclose(file);
 
-  const int n = std::min(int(path.size()), c.original_pos_size);
+  const int n = path.size();
   size = c.face_augment_on ? 2 * n : n;
   imgs.resize(size);
   imgs_half.resize(size);
@@ -445,7 +446,9 @@ void DataSet::LoadDataSet(DataSet& pos, DataSet& neg) {
 }
 
 
-NegGenerator::NegGenerator() {}
+NegGenerator::NegGenerator()
+  : reload_time_(0) {
+}
 NegGenerator::~NegGenerator() {}
 
 int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
@@ -504,7 +507,8 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
     }
 
     if (size < ratio*size_o) {
-      LOG("We have mined %d%%", int((1. - ratio + 1e-6) * 100));
+      LOG("We have mined %d%%, current pool remain %d%%", int((1. - ratio + 1e-6) * 100), \
+          int(100. - 100.*double(current_count) / double(target_count)));
       ratio -= 0.1;
     }
   }
@@ -585,8 +589,9 @@ void NegGenerator::Reload() {
     }
     pool[i] = img;
 
-    target_count += c.mining_factor*img.cols*img.rows;
+    target_count += int(c.mining_factor*img.cols*img.rows);
   }
+  reload_time_++;
 }
 
 } // namespace jda
