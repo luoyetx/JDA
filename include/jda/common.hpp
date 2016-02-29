@@ -148,6 +148,8 @@ public:
   double fddb_minimum_size;
   bool fddb_result;
   bool fddb_nms;
+  bool fddb_draw_score;
+  bool fddb_draw_shape;
   /*! \breif restart of a cart */
   bool restart_on;
   int restart_times;

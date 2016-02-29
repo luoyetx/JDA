@@ -198,6 +198,8 @@ Config::Config() {
   fddb_step = fddb["step"].unwrap<Number>();
   fddb_scale_factor = fddb["scale"].unwrap<Number>();
   fddb_overlap = fddb["overlap"].unwrap<Number>();
+  fddb_draw_score = fddb["draw_score"].unwrap<Boolean>();
+  fddb_draw_shape = fddb["draw_shape"].unwrap<Boolean>();
 
   // cart
   jsmn::Object& cart = json_config["cart"].unwrap<Object>();

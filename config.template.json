@@ -32,6 +32,8 @@
         "dir": "../data/fddb",
         "out": false,
         "nms": true,
+        "draw_score": false,
+        "draw_shape": true,
         "minimum_size": 80,
         "step": 20,
         "scale": 1.1,

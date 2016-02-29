@@ -134,12 +134,23 @@ void DataSet::UpdateWeights(DataSet& pos, DataSet& neg) {
   double sum_pos_w = 0.;
   double sum_neg_w = 0.;
   double sum_w = 0.;
-  for (int i = 0; i < pos_n; i++) {
-    sum_pos_w += pos.weights[i];
+
+  #pragma omp parallel sections
+  {
+    #pragma omp section
+    {
+      for (int i = 0; i < pos_n; i++) {
+        sum_pos_w += pos.weights[i];
+      }
+    }
+    #pragma omp section
+    {
+      for (int i = 0; i < neg_n; i++) {
+        sum_neg_w += neg.weights[i];
+      }
+    }
   }
-  for (int i = 0; i < neg_n; i++) {
-    sum_neg_w += neg.weights[i];
-  }
+
   sum_w = sum_pos_w + sum_neg_w;
 
   #pragma omp parallel for
@@ -236,8 +247,18 @@ void DataSet::_QSort_(int left, int right) {
       i++; j--;
     }
   } while (i <= j);
-  if (left < j) _QSort_(left, j);
-  if (i < right) _QSort_(i, right);
+
+  #pragma omp parallel sections
+  {
+    #pragma omp section
+    {
+      if (left < j) _QSort_(left, j);
+    }
+    #pragma omp section
+    {
+      if (i < right) _QSort_(i, right);
+    }
+  }
 }
 
 void DataSet::ResetScores() {

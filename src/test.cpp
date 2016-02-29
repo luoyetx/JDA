@@ -137,7 +137,8 @@ void fddb() {
 #endif // WIN32
     JDA_Assert(fin, "Can not open fddb_out");
 
-
+    char buff[300];
+    char _buff[30];
     char path[300];
     int counter = 0;
     while (fscanf(fin, "%s", path) > 0) {
@@ -172,12 +173,8 @@ void fddb() {
         double score = scores[j];
         const Mat_<double> shape = shapes[j];
         fprintf(fout, "%d %d %d %d %lf\n", r.x, r.y, r.width, r.height, score);
-        cv::rectangle(img, r, Scalar(0, 0, 255), 3);
-        for (int k = 0; k < c.landmark_n; k++) {
-          cv::circle(img, Point(shape(0, 2 * k), shape(0, 2 * k + 1)), 3, Scalar(0, 255, 0), -1);
-        }
       }
-      char buff[300];
+
       if (c.fddb_result) {
         counter++;
         sprintf(buff, "%s/%02d_%03d_%03d_%02d.jpg", result_prefix.c_str(), i, counter, statisic_.face_patch_n, n);
@@ -194,6 +191,25 @@ void fddb() {
           angle = angle / 3.1415926*180.;
           cv::ellipse(img, Point2d(center_x, center_y), Size(major_axis_radius, minor_axis_radius), \
                       angle, 0., 360., Scalar(255, 0, 0), 2);
+        }
+
+        // draw result
+        for (int j = 0; j < n; j++) {
+          const Rect& r = rects[j];
+          double score = scores[j];
+          const Mat_<double> shape = shapes[j];
+          cv::rectangle(img, r, Scalar(0, 0, 255), 3);
+          // draw score
+          if (c.fddb_draw_score) {
+            sprintf(_buff, "%.4lf", score);
+            cv::putText(img, _buff, cv::Point(r.x, r.y), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 255, 0), 2);
+          }
+          // draw shape
+          if (c.fddb_draw_shape) {
+            for (int k = 0; k < c.landmark_n; k++) {
+              cv::circle(img, Point(shape(0, 2 * k), shape(0, 2 * k + 1)), 3, Scalar(0, 255, 0), -1);
+            }
+          }
         }
 
         cv::imwrite(buff, img);
