@@ -122,10 +122,10 @@ public:
   /*! \breif recall of each stage */
   std::vector<double> recall;
   /*! \breif hard negative mining parameters */
-  double scale_factor;
-  int x_step, y_step;
+  int mining_patch_minimum_size;
+  int mining_queue_size;
   int mining_pool_size;
-  int area_refine_factor; // resize original backgournd image size
+  int mining_factor;
   /*! \breif a text file for train positive dataset */
   std::string face_txt;
   /*! \breif a text file for train negative dataset */

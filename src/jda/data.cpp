@@ -435,46 +435,13 @@ void DataSet::LoadNegativeDataSet(const vector<string>& negative) {
 }
 void DataSet::LoadDataSet(DataSet& pos, DataSet& neg) {
   const Config& c = Config::GetInstance();
-  vector<string> bgs(c.bg_txts.begin() + 1, c.bg_txts.end());
   pos.LoadPositiveDataSet(c.face_txt);
-  neg.LoadNegativeDataSet(bgs);
+  neg.LoadNegativeDataSet(c.bg_txts);
   Mat_<double> mean_shape = pos.CalcMeanShape();
   // for current_shapes
   DataSet::RandomShapes(mean_shape, pos.current_shapes);
   // for negative generator
   neg.neg_generator.mean_shape = mean_shape;
-
-  // first bg_txts is hard negative already prepared
-  FILE* file = fopen(c.bg_txts[0].c_str(), "r");
-  JDA_Assert(file, "Can not open negative dataset file list");
-
-  char buff[256];
-  vector<string> list;
-  while (fscanf(file, "%s", buff) > 0) {
-    list.push_back(buff);
-  }
-
-  const int n = list.size();
-  neg.imgs.resize(n);
-  neg.imgs_half.resize(n);
-  neg.imgs_quarter.resize(n);
-  neg.current_shapes.resize(n);
-  neg.scores.resize(n);
-  neg.last_scores.resize(n);
-  neg.weights.resize(n);
-  std::fill(neg.weights.begin(), neg.weights.end(), 0);
-  std::fill(neg.scores.begin(), neg.scores.end(), 0);
-  std::fill(neg.last_scores.begin(), neg.last_scores.end(), 0);
-  neg.size = n;
-
-  #pragma omp parallel for
-  for (int i = 0; i < n; i++) {
-    neg.imgs[i] = cv::imread(list[i], CV_LOAD_IMAGE_GRAYSCALE);
-    cv::resize(neg.imgs[i], neg.imgs_half[i], Size(c.img_h_size, c.img_h_size));
-    cv::resize(neg.imgs[i], neg.imgs_quarter[i], Size(c.img_q_size, c.img_q_size));
-    cv::resize(neg.imgs[i], neg.imgs[i], Size(c.img_o_size, c.img_o_size));
-    DataSet::RandomShape(mean_shape, neg.current_shapes[i]);
-  }
 }
 
 
@@ -509,9 +476,7 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
   const double score_upper = std::abs(score_th) + 4;
   while (size > 0) {
     // We generate a negative sample pool for validation
-    for (int i = 0; i < pool_size; i++) {
-      region_pool[i] = NextImage();
-    }
+    region_pool = NextImage(c.mining_pool_size);
 
     #pragma omp parallel for
     for (int i = 0; i < pool_size; i++) {
@@ -539,8 +504,7 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
     }
 
     if (size < ratio*size_o) {
-      LOG("We have mined %d%%, bg image remains %d%%", int((1. - ratio + 1e-6) * 100), \
-          int(100. - double(current_idx) / list.size() * 100.));
+      LOG("We have mined %d%%", int((1. - ratio + 1e-6) * 100));
       ratio -= 0.1;
     }
   }
@@ -557,72 +521,32 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
   return imgs.size();
 }
 
-Mat NegGenerator::NextImage() {
+vector<Mat> NegGenerator::NextImage(int size) {
   const Config& c = Config::GetInstance();
-  const int w = c.img_o_size;
-  const int h = c.img_o_size;
+  vector<Mat> res(size);
+  RNG rng(cv::getTickCount());
 
-  NextState();
-
-  Mat region;
-  Rect roi(x, y, w, h);
-  region = img(roi).clone();
-
-  return region;
-}
-
-void NegGenerator::NextState() {
-  const Config& c = Config::GetInstance();
-  const double scale_factor = c.scale_factor;
-  const int x_step = c.x_step;
-  const int y_step = c.y_step;
-  const int w = c.img_o_size;
-  const int h = c.img_o_size;
-  const double scale = c.scale_factor;
-
-  const int width = img.cols;
-  const int height = img.rows;
-
-  x += x_step; // move x
-  if (x + w >= width) {
-    x = 0;
-    y += y_step; // move y
-    if (y + h >= height) {
-      x = y = 0;
-      int width_ = int(img.cols * scale_factor);
-      int height_ = int(img.rows * scale_factor);
-      cv::resize(img, img, Size(width_, height_)); // scale image
-      if (img.cols < w || img.rows < h) {
-        // next image
-        while (true) {
-          current_idx++; // next image
-          if (current_idx >= list.size()) {
-            // Add background image list online
-            LOG("Run out of Negative Samples! :-(");
-            SaveTheWorld();
-            continue;
-          }
-          //LOG("Use %d th Nega Image %s", current_idx + 1, list[current_idx].c_str());
-          img = cv::imread(list[current_idx], CV_LOAD_IMAGE_GRAYSCALE);
-          if (!img.data || img.cols <= w || img.rows <= h) {
-            if (!img.data) {
-              //LOG("Can not open image %s, Skip it", list[current_idx].c_str());
-            }
-            else {
-              //LOG("Image %s is too small, Skip it", list[current_idx].c_str());
-            }
-          }
-          else {
-            // successfully get another background image
-            break;
-          }
-        }
-      }
-    }
+  for (int i = 0; i < size; i++) {
+    int index = rng.uniform(0, pool.size());
+    int w = pool[index].cols;
+    int h = pool[index].rows;
+    int maximum_size = std::min(w, h);
+    int patch_size = rng.uniform(c.mining_patch_minimum_size, maximum_size);
+    int x = rng.uniform(0, w - patch_size);
+    int y = rng.uniform(0, h - patch_size);
+    res[i] = pool[index](Rect(x, y, patch_size, patch_size)).clone();
   }
+
+  current_count += size;
+  if (current_count > target_count) {
+    Reload();
+  }
+  return res;
 }
 
 void NegGenerator::Load(const vector<string>& path) {
+  const Config& c = Config::GetInstance();
+
   for (int i = 0; i < path.size(); i++) {
     FILE* file = fopen(path[i].c_str(), "r");
     JDA_Assert(file, "Can not open negative dataset file list");
@@ -633,62 +557,36 @@ void NegGenerator::Load(const vector<string>& path) {
       list.push_back(buff);
     }
   }
-
-  std::random_shuffle(list.begin(), list.end());
-
-  // initialize
-  x = y = 0;
-  current_idx = 0;
-  img = cv::imread(list[current_idx], CV_LOAD_IMAGE_GRAYSCALE);
-  if (!img.data) dieWithMsg("Can not open image, the path is %s", list[current_idx].c_str());
+  // malloc memory
+  pool.resize(c.mining_queue_size);
+  Reload();
 }
 
-void NegGenerator::SaveTheWorld() {
+void NegGenerator::Reload() {
   const Config& c = Config::GetInstance();
-  c.joincascador->Snapshot();
+  RNG rng(cv::getTickCount());
+  current_count = 0;
+  target_count = 0;
 
-  char buff1[256];
-  char buff2[256];
-  time_t t = time(NULL);
-  strftime(buff1, sizeof(buff1), "We now save all hard negative samples under"
-                                  "../data/hd/%Y%m%d-%H%M%S", localtime(&t));
-  LOG(buff1);
-  if (!EXISTS("../data/hd")) {
-    MKDIR("../data/hd");
-  }
-  strftime(buff1, sizeof(buff1), "../data/hd/%Y%m%d-%H%M%S", localtime(&t));
-  if (!EXISTS(buff1)) {
-    MKDIR(buff1);
-  }
+  for (int i = 0; i < c.mining_queue_size; i++) {
+    int index = rng.uniform(0, list.size());
+    Mat img = cv::imread(list[index], CV_LOAD_IMAGE_GRAYSCALE);
+    // possible to flip
+    if (rng.uniform(0., 1.) > 0.5) {
+      cv::flip(img, img, 1);
+    }
+    // possible to rotate
+    if (rng.uniform(0., 1.) > 0.5) {
+      double angle = rng.uniform(0., 360.);
+      int x = img.cols / 2;
+      int y = img.rows / 2;
+      Mat r = cv::getRotationMatrix2D(Point2f(x, y), angle, 1);
+      cv::warpAffine(img, img, r, Size(img.cols, img.rows));
+    }
+    pool[i] = img;
 
-  const int size = c.joincascador->neg->size;
-  LOG("We have %d images to save", size);
-  for (int i = 0; i < size; i++) {
-    sprintf(buff2, "%s/%05d.jpg", buff1, i + 1);
-    cv::imwrite(buff2, c.joincascador->neg->imgs[i]);
+    target_count += c.mining_factor*img.cols*img.rows;
   }
-
-  char path[256];
-  LOG("We need more background images, "
-      "Please input a text file which contains background image list: ");
-  std::scanf("%s", path);
-
-  FILE* file = fopen(path, "r");
-  while (!file) {
-    LOG("Can not open %s, Please Check it!", path);
-    dieWithMsg("Kill Self");
-    LOG("Please input a text file below:");
-    std::scanf("%s", path);
-    file = fopen(path, "r");
-  }
-
-  list.clear();
-  while (fscanf(file, "%s", path) > 0) {
-    list.push_back(path);
-  }
-  std::random_shuffle(list.begin(), list.end());
-  // reset current_idx
-  current_idx = -1;
 }
 
 } // namespace jda

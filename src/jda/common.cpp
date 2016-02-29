@@ -155,10 +155,9 @@ Config::Config() {
 
   // hard negative mining
   jsmn::Object& mining_config = json_config["hard_negative_mining"].unwrap<Object>();
-  x_step = mining_config["x_step"].unwrap<Number>();
-  y_step = mining_config["y_step"].unwrap<Number>();
-  scale_factor = mining_config["scale"].unwrap<Number>();
-  area_refine_factor = mining_config["area"].unwrap<Number>();
+  mining_patch_minimum_size = mining_config["minimum_size"].unwrap<Number>();
+  mining_queue_size = mining_config["pool"].unwrap<Number>();
+  mining_factor = mining_config["factor"].unwrap<Number>();
   mining_pool_size = omp_get_max_threads();
   esp = 2.2e-16;
 

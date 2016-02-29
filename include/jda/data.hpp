@@ -49,33 +49,35 @@ public:
    * \param path    background image file list
    */
   void Load(const std::vector<std::string>& path);
+  /*!
+   * \breif Update mining queue
+   */
+  void Reload();
 
 private:
   /*!
    * \breif Generate negative samples online for hard negative mining
    * \return    negative sample
    */
-  cv::Mat NextImage();
-  /*!
-   * \breif Next State, update parameters for next image
-   */
-  void NextState();
-  /*!
-   * \breif We will use this function to load more background images online
-   */
-  void SaveTheWorld();
+  std::vector<cv::Mat> NextImage(int size);
 
 public:
   /*! \breif mean shape of pos dataset for init_shape */
   cv::Mat_<double> mean_shape;
 
 private:
-  /*! \breif index of image current used */
-  int current_idx;
   /*! \breif negative file list */
   std::vector<std::string> list;
-  int x, y;
-  cv::Mat img;
+  /*!
+   * \breif hard negative mining strategy
+   *  function Reload() will randomly select `c.mining_queue_size` background images from `list` with
+   *  random flip and random rotation. When perform mining, we random select a background image and
+   *  select a random Roi to generate a negative patch. After generating too many patches from current
+   *  mining pool, a Reload() is needed to change the current background mining pool.
+   */
+  std::vector<cv::Mat> pool;
+  int target_count;
+  int current_count;
 };
 
 /*!

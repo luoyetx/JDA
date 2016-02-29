@@ -11,10 +11,9 @@
         "quarter_size": 40
     },
     "hard_negative_mining": {
-        "x_step": 20,
-        "y_step": 20,
-        "scale": 0.8,
-        "area": 10
+        "pool": 20,
+        "minimum_size": 10,
+        "factor": 5
     },
     "stages": {
         "feature_pool_size": [1000, 1000, 1000, 1000, 1000],
@@ -25,7 +24,7 @@
     },
     "data": {
         "face": "../data/face.txt",
-        "background": ["../data/hard_neg.txt", "../data/background1.txt", "../data/background1.txt"],
+        "background": ["../data/background1.txt", "../data/background1.txt"],
         "test": "../data/test.txt"
     },
     "fddb": {
