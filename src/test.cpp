@@ -154,7 +154,12 @@ void fddb() {
       vector<Rect> rects;
       vector<Mat_<double> > shapes;
       DetectionStatisic statisic_;
-      joincascador.Detect(gray, rects, scores, shapes, statisic_);
+
+      double fps = 0.;
+      TIMER_BEGIN
+        joincascador.Detect(gray, rects, scores, shapes, statisic_);
+        fps = 1. / TIMER_NOW;
+      TIMER_END
 
       statisic[i].patch_n += statisic_.patch_n;
       statisic[i].face_patch_n += statisic_.face_patch_n;
@@ -164,9 +169,10 @@ void fddb() {
       const int n = rects.size();
 
       fprintf(fout, "%s\n%d\n", path, n);
-      LOG("%s get %d faces", path, n);
-      LOG("Patch_n = %d, Non-Face Patch_n = %d, Face Patch_n = %d, Average Cart_N to Reject = %.4lf", \
-          statisic_.patch_n, statisic_.nonface_patch_n, statisic_.face_patch_n, statisic_.average_cart_n);
+      LOG("Patch_n = %d, Non-Face Patch_n = %d, Face Patch_n = %d, "
+          "Average Cart_N to Reject = %.4lf, FPS = %.4lf", \
+          statisic_.patch_n, statisic_.nonface_patch_n, statisic_.face_patch_n, \
+          statisic_.average_cart_n, fps);
 
       for (int j = 0; j < n; j++) {
         const Rect& r = rects[j];

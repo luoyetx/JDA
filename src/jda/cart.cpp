@@ -255,6 +255,26 @@ double calcVariance(const vector<double>& vec) {
   return variance;
 }
 
+template<typename T>
+static void _qsort(T* a, int l, int r) {
+  int i, j;
+  T t, tmp;
+  i = l; j = r;
+  t = a[(i + j) / 2];
+  do {
+    while (a[i] < t) i++;
+    while (a[j] > t) j--;
+    if (i <= j) {
+      tmp = a[i];
+      a[i] = a[j];
+      a[j] = tmp;
+      i++; j--;
+    }
+  } while (i <= j);
+  if (l < j) _qsort(a, l, j);
+  if (i < r) _qsort(a, i, r);
+}
+
 void Cart::SplitNodeWithRegression(const DataSet& pos, const std::vector<int>& pos_idx, \
                                    const DataSet& neg, const std::vector<int>& neg_idx, \
                                    const Mat_<int>& pos_feature, \
@@ -269,8 +289,8 @@ void Cart::SplitNodeWithRegression(const DataSet& pos, const std::vector<int>& p
     return;
   }
 
-  Mat_<int> pos_feature_sorted;
-  cv::sort(pos_feature, pos_feature_sorted, SORT_EVERY_ROW + SORT_ASCENDING);
+  //Mat_<int> pos_feature_sorted;
+  //cv::sort(pos_feature, pos_feature_sorted, SORT_EVERY_ROW + SORT_ASCENDING);
 
   // select a feature reduce maximum variance
   vector<double> vs_(feature_n);
@@ -280,10 +300,13 @@ void Cart::SplitNodeWithRegression(const DataSet& pos, const std::vector<int>& p
   for (int i = 0; i < feature_n; i++) {
     RNG rng(getTickCount());
 
+    Mat_<int> pos_feature_sorted = pos_feature.row(i).clone();
+    _qsort<int>(pos_feature_sorted.ptr<int>(0), 0, pos_n - 1);
+
     vector<double> left_x, left_y, right_x, right_y;
     left_x.reserve(pos_n); left_y.reserve(pos_n);
     right_x.reserve(pos_n); right_y.reserve(pos_n);
-    int threshold_ = pos_feature_sorted(i, int(pos_n*rng.uniform(0.05, 0.95)));
+    int threshold_ = pos_feature_sorted(0, int(pos_n*rng.uniform(0.05, 0.95)));
     for (int j = 0; j < pos_n; j++) {
       if (pos_feature(i, j) <= threshold_) {
         left_x.push_back(shape_residual(j, 0));

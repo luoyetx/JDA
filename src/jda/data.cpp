@@ -40,10 +40,11 @@ Mat_<int> DataSet::CalcFeatureValues(const vector<Feature>& feature_pool, \
 
   Mat_<int> features(n, m);
 
-  #pragma omp parallel for
   for (int i = 0; i < n; i++) {
     const Feature& feature = feature_pool[i];
     int* ptr = features.ptr<int>(i);
+
+    #pragma omp parallel for
     for (int j = 0; j < m; j++) {
       const Mat& img = imgs[idx[j]];
       const Mat& img_half = imgs_half[idx[j]];
@@ -153,15 +154,16 @@ void DataSet::UpdateWeights(DataSet& pos, DataSet& neg) {
   }
 
   sum_w = sum_pos_w + sum_neg_w;
+  double sum_w_ = 1. / sum_w;
 
   #pragma omp parallel for
   for (int i = 0; i < pos_n; i++) {
-    pos.weights[i] /= sum_w;
+    pos.weights[i] *= sum_w_;
   }
 
   #pragma omp parallel for
   for (int i = 0; i < neg_n; i++) {
-    neg.weights[i] /= sum_w;
+    neg.weights[i] *= sum_w_;
   }
 }
 
@@ -445,6 +447,32 @@ void DataSet::LoadDataSet(DataSet& pos, DataSet& neg) {
   neg.neg_generator.mean_shape = mean_shape;
 }
 
+void DataSet::Dump() const {
+  const Config& c = Config::GetInstance();
+  c.joincascador->Snapshot();
+
+  char buff1[256];
+  char buff2[256];
+  time_t t = time(NULL);
+  strftime(buff1, sizeof(buff1), "We now save all hard negative samples under"
+           "../data/dump/%Y%m%d-%H%M%S", localtime(&t));
+  LOG(buff1);
+  if (!EXISTS("../data/dump")) {
+    MKDIR("../data/dump");
+  }
+  strftime(buff1, sizeof(buff1), "../data/dump/%Y%m%d-%H%M%S", localtime(&t));
+  if (!EXISTS(buff1)) {
+    MKDIR(buff1);
+  }
+
+  const int size = c.joincascador->neg->size;
+  LOG("We have %d images to save", size);
+  for (int i = 0; i < size; i++) {
+    sprintf(buff2, "%s/%05d.jpg", buff1, i + 1);
+    imwrite(buff2, c.joincascador->neg->imgs[i]);
+  }
+}
+
 
 NegGenerator::NegGenerator()
   : reload_time_(0) {
@@ -476,7 +504,11 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
 
   const int size_o = size;
   double ratio = 0.9;
-  const double score_upper = std::abs(score_th) + 4;
+  const double score_upper = std::abs(score_th) + 2.3;
+
+  // reload every time
+  Reload();
+
   while (size > 0) {
     // We generate a negative sample pool for validation
     region_pool = NextImage(c.mining_pool_size);
@@ -563,7 +595,6 @@ void NegGenerator::Load(const vector<string>& path) {
   }
   // malloc memory
   pool.resize(c.mining_queue_size);
-  Reload();
 }
 
 void NegGenerator::Reload() {

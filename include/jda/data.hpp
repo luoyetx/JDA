@@ -201,6 +201,10 @@ public:
    * \breif Clear all
    */
   void Clear();
+  /*!
+   * \breif Dump images
+   */
+  void Dump() const;
 
 public:
   /*! \breif generator for more negative samples */
