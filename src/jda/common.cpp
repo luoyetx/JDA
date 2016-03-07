@@ -39,10 +39,10 @@ int Feature::CalcFeatureValue(const Mat& o, const Mat& h, const Mat& q, \
   y1 = (s(0, 2 * landmark_id1 + 1) + offset1_y)*height;
   x2 = (s(0, 2 * landmark_id2) + offset2_x)*width;
   y2 = (s(0, 2 * landmark_id2 + 1) + offset2_y)*height;
-  int x1_ = int(round(x1));
-  int y1_ = int(round(y1));
-  int x2_ = int(round(x2));
-  int y2_ = int(round(y2));
+  int x1_ = int(std::round(x1));
+  int y1_ = int(std::round(y1));
+  int x2_ = int(std::round(x2));
+  int y2_ = int(std::round(y2));
 
   checkBoundaryOfImage(width, height, x1_, y1_);
   checkBoundaryOfImage(width, height, x2_, y2_);
@@ -105,7 +105,7 @@ double calcMeanError(const vector<Mat_<double> >& gt_shapes, \
     double e_ = 0.;
     for (int j = 0; j < landmark_n; j++) {
       e_ += std::sqrt(std::pow(delta_shape(0, 2 * j), 2) + \
-                     std::pow(delta_shape(0, 2 * j + 1), 2));
+                      std::pow(delta_shape(0, 2 * j + 1), 2));
     }
     e += e_ / pupil_dis;
   }

@@ -187,7 +187,7 @@ public:
   /*! \breif boosted carts */
   std::vector<Cart> carts;
   /*! \breif weight of global regression */
-  cv::Mat_<double> w;
+  cv::Mat_<double> w; // stages x LBF_N x 2*landmark_n
 };
 
 } // namespace jda

@@ -299,9 +299,15 @@ void DataSet::MoreNegSamples(int pos_size, double rate, double score_th) {
   vector<Mat> imgs_;
   vector<double> scores_;
   vector<Mat_<double> > shapes_;
-  const int extra_size = neg_generator.Generate(*c.joincascador, size_, \
-                                                imgs_, scores_, shapes_, score_th);
-  LOG("We have mined %d hard negative samples, Total Reload Time: %d", extra_size, neg_generator.reload_time());
+  int extra_size;
+
+  TIMER_BEGIN
+    extra_size = neg_generator.Generate(*c.joincascador, size_, \
+                                        imgs_, scores_, shapes_, score_th);
+    LOG("We have mined %d hard negative samples, it costs %.2lf s. Total Reload Time: %d", \
+        extra_size, TIMER_NOW, neg_generator.reload_time());
+  TIMER_END
+
   const int expanded = imgs.size() + imgs_.size();
   imgs.reserve(expanded);
   imgs_half.reserve(expanded);
@@ -325,6 +331,39 @@ void DataSet::MoreNegSamples(int pos_size, double rate, double score_th) {
   }
   size = expanded;
   is_sorted = false;
+}
+
+/*!
+ * \breif get face from original image using bbox
+ * \note  if bbox out of range, fill the rest with black
+ *
+ * \param img     original image
+ * \param bbox    face bbox
+ * \return        face
+ */
+static Mat getFace(const Mat& img, const Rect& bbox) {
+  const int rows = img.rows;
+  const int cols = img.cols;
+  if ((bbox.x >= 0) && (bbox.y >= 0) && \
+      (bbox.x + bbox.width < cols) && (bbox.y + bbox.height < rows)) {
+    return img(bbox).clone();
+  }
+
+  // out of range, large origin image and fill with black
+  const int rows_ = 2 * img.rows;
+  const int cols_ = 2 * img.cols;
+  Mat img_(rows_, cols_, CV_8UC1);
+  img_.setTo(0);
+
+  const int x = cols / 2;
+  const int y = rows / 2;
+  const int w = cols;
+  const int h = rows;
+  Rect roi(x, y, w, h);
+  img_(roi) = img.clone();
+
+  Rect bbox_(bbox.x + x, bbox.y + y, bbox.width, bbox.height);
+  return img_(bbox_).clone();
 }
 
 void DataSet::LoadPositiveDataSet(const string& positive) {
@@ -367,14 +406,15 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
   #pragma omp parallel for
   for (int i = 0; i < n; i++) {
     // face image should be a sqaure
-    Mat origin = imread(path[i], CV_LOAD_IMAGE_GRAYSCALE);
+    Mat origin = imread(path[i]); // some jpeg file can not be loaded if using CV_LOAD_IMAGE_GRAYSCALE
+    cvtColor(origin, origin, CV_BGR2GRAY);
     if (!origin.data) {
       char msg[300];
       sprintf(msg, "Can not open %s", path[i].c_str());
       JDA_Assert(false, msg);
     }
     // get face
-    Mat face = origin(bboxes[i]);
+    Mat face = getFace(origin, bboxes[i]);
     // relocate landmarks
     for (int j = 0; j < landmark_n; j++) {
       gt_shapes[i](0, 2 * j) = (gt_shapes[i](0, 2 * j) - bboxes[i].x) / bboxes[i].width;
@@ -423,6 +463,7 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
   std::fill(scores.begin(), scores.end(), 0);
   std::fill(last_scores.begin(), last_scores.end(), 0);
 }
+
 void DataSet::LoadNegativeDataSet(const vector<string>& negative) {
   neg_generator.Load(negative);
   imgs.clear();
@@ -436,6 +477,7 @@ void DataSet::LoadNegativeDataSet(const vector<string>& negative) {
   size = 0;
   is_pos = false;
 }
+
 void DataSet::LoadDataSet(DataSet& pos, DataSet& neg) {
   const Config& c = Config::GetInstance();
   pos.LoadPositiveDataSet(c.face_txt);
@@ -447,32 +489,144 @@ void DataSet::LoadDataSet(DataSet& pos, DataSet& neg) {
   neg.neg_generator.mean_shape = mean_shape;
 }
 
-void DataSet::Dump() const {
-  const Config& c = Config::GetInstance();
-  c.joincascador->Snapshot();
+/*!
+ * \breif Write DataSet to binary file
+ * \param data    DataSet
+ * \param fout    binary file discriptor
+ */
+static void writeDataSet(const DataSet& data, FILE* fout) {
+  int flag;
+  if (data.is_pos) flag = 1;
+  else flag = 0;
 
-  char buff1[256];
-  char buff2[256];
-  time_t t = time(NULL);
-  strftime(buff1, sizeof(buff1), "We now save all hard negative samples under"
-           "../data/dump/%Y%m%d-%H%M%S", localtime(&t));
-  LOG(buff1);
-  if (!EXISTS("../data/dump")) {
-    MKDIR("../data/dump");
-  }
-  strftime(buff1, sizeof(buff1), "../data/dump/%Y%m%d-%H%M%S", localtime(&t));
-  if (!EXISTS(buff1)) {
-    MKDIR(buff1);
-  }
-
-  const int size = c.joincascador->neg->size;
-  LOG("We have %d images to save", size);
-  for (int i = 0; i < size; i++) {
-    sprintf(buff2, "%s/%05d.jpg", buff1, i + 1);
-    imwrite(buff2, c.joincascador->neg->imgs[i]);
+  fwrite(&flag, sizeof(int), 1, fout);
+  int n = data.size;
+  fwrite(&n, sizeof(int), 1, fout);
+  for (int i = 0; i < n; i++) {
+    // img
+    const Mat& img = data.imgs[i];
+    fwrite(&img.cols, sizeof(int), 1, fout);
+    fwrite(&img.rows, sizeof(int), 1, fout);
+    for (int j = 0; j < img.rows; j++) {
+      fwrite(img.ptr<uchar>(j), sizeof(uchar), img.cols, fout);
+    }
+    // gt_shape if positive samples
+    if (data.is_pos) {
+      const Mat_<double>& gt_shape = data.gt_shapes[i];
+      fwrite(gt_shape.ptr<double>(0), sizeof(double), gt_shape.cols, fout);
+    }
+    // current_shapes
+    const Mat_<double>& current_shape = data.current_shapes[i];
+    fwrite(current_shape.ptr<double>(0), sizeof(double), current_shape.cols, fout);
+    // score
+    double score = data.scores[i];
+    fwrite(&score, sizeof(double), 1, fout);
+    // weight
+    double weight = data.weights[i];
+    fwrite(&weight, sizeof(double), 1, fout);
   }
 }
 
+/*!
+ * \breif Read DataSet from a binary file and initialize all memory
+ * \note  nega_generator will be initialized in this function
+ *
+ * \param data    DataSet
+ * \param fin     binary file discriptor
+ */
+static void readDataSet(DataSet& data, FILE* fin) {
+  const Config& c = Config::GetInstance();
+
+  int flag = 0;
+  fread(&flag, sizeof(int), 1, fin);
+  if (flag == 1) data.is_pos = true;
+  else data.is_pos = false;
+
+  int n;
+  fread(&n, sizeof(int), 1, fin);
+
+  // malloc and initialize
+  data.imgs.resize(n);
+  data.imgs_half.resize(n);
+  data.imgs_quarter.resize(n);
+  if (data.is_pos) data.gt_shapes.resize(n);
+  data.current_shapes.resize(n);
+  data.scores.resize(n);
+  data.last_scores.resize(n);
+  data.weights.resize(n);
+  data.is_sorted = false;
+  data.size = n;
+
+  for (int i = 0; i < n; i++) {
+    // img
+    int rows, cols;
+    fread(&cols, sizeof(int), 1, fin);
+    fread(&rows, sizeof(int), 1, fin);
+    Mat img(rows, cols, CV_8UC1);
+    for (int j = 0; j < rows; j++) {
+      fread(img.ptr<uchar>(j), sizeof(uchar), cols, fin);
+    }
+    Mat img_half, img_quarter;
+    cv::resize(img, img, Size(c.img_o_size, c.img_o_size));
+    cv::resize(img, img_half, Size(c.img_h_size, c.img_h_size));
+    cv::resize(img, img_quarter, Size(c.img_q_size, c.img_q_size));
+    data.imgs[i] = img;
+    data.imgs_half[i] = img_half;
+    data.imgs_quarter[i] = img_quarter;
+    // gt_shape if positive samples
+    if (data.is_pos) {
+      Mat_<double>& gt_shape = data.gt_shapes[i];
+      gt_shape = Mat_<double>::zeros(1, 2 * c.landmark_n);
+      fread(gt_shape.ptr<double>(0), sizeof(double), gt_shape.cols, fin);
+    }
+    // current_shapes
+    Mat_<double>& current_shape = data.current_shapes[i];
+    current_shape = Mat_<double>::zeros(1, 2 * c.landmark_n);
+    fread(current_shape.ptr<double>(0), sizeof(double), current_shape.cols, fin);
+    // score
+    double& score = data.scores[i];
+    fread(&score, sizeof(double), 1, fin);
+    // weight
+    double& weight = data.weights[i];
+    fread(&weight, sizeof(double), 1, fin);
+
+    // init
+    data.last_scores[i] = 0;
+  }
+
+  // init nega_generator if data is negative dataset
+  if (!data.is_pos) data.neg_generator.Load(c.bg_txts);
+}
+
+void DataSet::Snapshot(const DataSet& pos, const DataSet& neg) {
+  const Config& c = Config::GetInstance();
+
+  int stage_idx = c.joincascador->current_stage_idx;
+  int cart_idx = c.joincascador->current_cart_idx;
+  char buff1[256];
+  char buff2[256];
+  time_t t = time(NULL);
+  strftime(buff1, sizeof(buff1), "%Y%m%d-%H%M%S", localtime(&t));
+  sprintf(buff2, "../data/dump/jda_data_%s_stage_%d_cart_%d.data", \
+          buff1, stage_idx + 1, cart_idx + 1);
+
+  if (!EXISTS("../data/dump")) {
+    MKDIR("../data/dump");
+  }
+
+  FILE* fout = fopen(buff2, "wb");
+  if (fout == NULL) {
+    LOG("Can not write to file, Skip DataSet::Snapshot()");
+  }
+  else{
+    LOG("DataSet Snapshot Begin");
+    LOG("Write all positive training samples");
+    writeDataSet(pos, fout);
+    LOG("Write all negative training samples");
+    writeDataSet(neg, fout);
+    LOG("DataSet Snapshot End");
+  }
+}
 
 NegGenerator::NegGenerator()
   : reload_time_(0) {
@@ -515,12 +669,13 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
 
     #pragma omp parallel for
     for (int i = 0; i < pool_size; i++) {
+      cv::resize(region_pool[i], region_pool[i], Size(c.img_o_size, c.img_o_size));
       cv::resize(region_pool[i], region_h_pool[i], Size(c.img_h_size, c.img_h_size));
       cv::resize(region_pool[i], region_q_pool[i], Size(c.img_q_size, c.img_q_size));
-      cv::resize(region_pool[i], region_pool[i], Size(c.img_o_size, c.img_o_size));
       bool is_face = joincascador.Validate(region_pool[i], region_h_pool[i], region_q_pool[i], \
                                            score_pool[i], shape_pool[i], carts_go_through[i]);
-      if (is_face && score_pool[i] < score_upper) used[i] = 1;
+      //if (is_face && score_pool[i] < score_upper) used[i] = 1;
+      if (is_face) used[i] = 1;
       else used[i] = 0;
     }
 
@@ -606,6 +761,10 @@ void NegGenerator::Reload() {
   for (int i = 0; i < c.mining_queue_size; i++) {
     int index = rng.uniform(0, list.size());
     Mat img = cv::imread(list[index], CV_LOAD_IMAGE_GRAYSCALE);
+    if (!img.data) {
+      i--;
+      continue;
+    }
     // possible to flip
     if (rng.uniform(0., 1.) > 0.5) {
       cv::flip(img, img, 1);

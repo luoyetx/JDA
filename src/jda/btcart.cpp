@@ -111,7 +111,7 @@ BoostCart::BoostCart(int stage) {
   }
   const int landmark_n = c.landmark_n;
   const int m = K*(1 << (c.tree_depth - 1)); // K * leafNume
-  w = Mat_<double>::zeros(2 * landmark_n, m);
+  w = Mat_<double>::zeros(m, 2 * landmark_n);
 }
 BoostCart::~BoostCart() {
 }
@@ -262,6 +262,10 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
   accept_rate = double(pos_n) / double(pos_original_size) * 100.;
   reject_rate = double(neg_rejected) / double(neg_rejected + neg_original_size) * 100.;
   LOG("Accept Rate = %.2lf%%", accept_rate);
+
+  // snapshot
+  DataSet::Snapshot(pos, neg);
+
   // Done
 }
 
@@ -319,13 +323,13 @@ void BoostCart::GlobalRegression(const vector<Mat_<int> >& lbf, const Mat_<doubl
     prob_.y = Y[2 * i];
     check_parameter(&prob_, &param);
     struct model *model = train(&prob_, &param);
-    for (int j = 0; j < f; j++) w(2 * i, j) = get_decfun_coef(model, j + 1, 0);
+    for (int j = 0; j < f; j++) w(j, 2 * i) = get_decfun_coef(model, j + 1, 0);
     freeModel(model);
 
     prob_.y = Y[2 * i + 1];
     check_parameter(&prob_, &param);
     model = train(&prob_, &param);
-    for (int j = 0; j < f; j++) w(2 * i + 1, j) = get_decfun_coef(model, j + 1, 0);
+    for (int j = 0; j < f; j++) w(j, 2 * i + 1) = get_decfun_coef(model, j + 1, 0);
     freeModel(model);
   }
 
@@ -353,25 +357,19 @@ Mat_<int> BoostCart::GenLBF(const Mat& img, const Mat_<double>& shape) const {
 }
 
 Mat_<double> BoostCart::GenDeltaShape(const Mat_<int>& lbf) const {
-  const int landmark_n = w.rows / 2;
+  const int landmark_dim = w.cols;
   const int m = lbf.cols;
-  Mat_<double> delta_shape(1, 2 * landmark_n);
+  Mat_<double> delta_shape = Mat_<double>::zeros(1, landmark_dim);
 
-  const double* w_ptr;
-  const int* lbf_ptr = lbf.ptr<int>(0);
   double* ds_ptr = delta_shape.ptr<double>(0);
-
-  for (int i = 0; i < landmark_n; i++) {
-    w_ptr = w.ptr<double>(2 * i);
-    double y = 0;
-    for (int j = 0; j < m; j++) y += w_ptr[lbf_ptr[j]];
-    ds_ptr[2 * i] = y;
-
-    w_ptr = w.ptr<double>(2 * i + 1);
-    y = 0;
-    for (int j = 0; j < m; j++) y += w_ptr[lbf_ptr[j]];
-    ds_ptr[2 * i + 1] = y;
+  const int* lbf_ptr = lbf.ptr<int>(0);
+  for (int i = 0; i < m; i++) {
+    const double* w_ptr = w.ptr<double>(lbf_ptr[i]);
+    for (int j = 0; j < landmark_dim; j++) {
+      ds_ptr[j] += w_ptr[j];
+    }
   }
+
   return delta_shape;
 }
 

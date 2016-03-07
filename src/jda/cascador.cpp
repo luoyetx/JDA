@@ -148,8 +148,8 @@ void JoinCascador::SerializeFrom(FILE* fd) {
     }
     // global regression parameters
     double* w_ptr;
-    const int w_rows = landmark_n * 2;
-    const int w_cols = K * (1 << (tree_depth - 1));
+    const int w_rows = K * (1 << (tree_depth - 1));
+    const int w_cols = 2 * landmark_n;
     for (int i = 0; i < w_rows; i++) {
       w_ptr = btcart.w.ptr<double>(i);
       fread(w_ptr, sizeof(double), w_cols, fd);

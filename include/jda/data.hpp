@@ -202,9 +202,11 @@ public:
    */
   void Clear();
   /*!
-   * \breif Dump images
+   * \breif Snapshot all data into a binary file for Resume() maybe
+   * \param   pos
+   * \param   neg
    */
-  void Dump() const;
+  static void Snapshot(const DataSet& pos, const DataSet& neg);
 
 public:
   /*! \breif generator for more negative samples */
