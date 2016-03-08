@@ -168,7 +168,7 @@ public:
   bool restart_on;
   int restart_times;
   int restart_stage;
-  double restart_th;
+  std::vector<double> restart_th;
   /*! \breif online augment parameters */
   bool face_augment_on;
   int landmark_offset;

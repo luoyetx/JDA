@@ -204,7 +204,11 @@ Config::Config() {
   // cart
   jsmn::Object& cart = json_config["cart"].unwrap<Object>();
   restart_on = cart["restart"]["on"].unwrap<Boolean>();
-  restart_th = cart["restart"]["th"].unwrap<Number>();
+  jsmn::Array& ths = cart["restart"]["th"].unwrap<Array>();
+  restart_th.resize(ths.size());
+  for (int i = 0; i < restart_th.size(); i++) {
+    restart_th[i] = ths[i].unwrap<Number>();
+  }
   restart_times = cart["restart"]["times"].unwrap<Number>();
 
   // face augment
