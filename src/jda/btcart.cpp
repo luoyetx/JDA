@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <liblinear/linear.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include "jda/data.hpp"
@@ -110,13 +111,13 @@ BoostCart::BoostCart(int stage) {
   }
   const int landmark_n = c.landmark_n;
   const int m = K*(1 << (c.tree_depth - 1)); // K * leafNume
-  w = Mat_<double>::zeros(2 * landmark_n, m);
+  w = Mat_<double>::zeros(m, 2 * landmark_n);
 }
 BoostCart::~BoostCart() {
 }
 
 void BoostCart::Train(DataSet& pos, DataSet& neg) {
-  const Config& c = Config::GetInstance();
+  Config& c = Config::GetInstance();
   JoinCascador& joincascador = *c.joincascador;
 
   // statistic parameters
@@ -126,14 +127,22 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
 
   const int landmark_n = c.landmark_n;
   RNG rng(getTickCount());
-  // Real Boost
+  int drop_n = (1. - c.recall[stage])*pos.size / K; // pos drop number per cart
+  if (drop_n <= 1) drop_n = 1;
+
   const int start_of_cart = joincascador.current_cart_idx + 1;
+  int restarts = 0;
+  double best_drop_rate = 0.;
+  Cart best_cart = carts[0];
+
+  // Real Boost
   for (int k = start_of_cart; k < K; k++) {
     Cart& cart = carts[k];
+    pos.QSort();
     // more neg if needed
-    neg.MoreNegSamples(pos.size, c.nps[stage]);
+    neg.MoreNegSamples(pos.size, c.nps[stage], pos.scores[pos.size - 1]);
     // print out data set status
-    pos.QSort(); neg.QSort();
+    neg.QSort();
     LOG("Pos max score = %.4lf, min score = %.4lf", pos.scores[0], pos.scores[pos.size - 1]);
     LOG("Neg max score = %.4lf, min score = %.4lf", neg.scores[0], neg.scores[neg.size - 1]);
     // draw scores desity graph
@@ -153,22 +162,60 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     pos.UpdateScores(cart);
     neg.UpdateScores(cart);
     // select th for pre-defined recall
-    cart.th = pos.CalcThresholdByRate(1 - c.recall[stage]);
+    pos.QSort();
+    neg.QSort();
+    //cart.th = pos.CalcThresholdByNumber(drop_n);
+    cart.th = pos.CalcThresholdByNumber(1);
     int pos_n = pos.size;
     int neg_n = neg.size;
+    int will_removed = neg.PreRemove(cart.th);
+    double tmp_drop_rate = double(will_removed) / neg_n;
+    int number_of_carts = joincascador.current_stage_idx*joincascador.K + joincascador.current_cart_idx;
+    if (c.restart_on && tmp_drop_rate < c.restart_th[joincascador.current_stage_idx] && number_of_carts > 10) {
+      restarts++;
+      LOG("***** Drop rate neg is %.4lf%%, Restart current Cart *****", tmp_drop_rate*100.);
+      LOG("***** Restart Time: %d *****", restarts);
+      // compare with best cart for now
+      if (tmp_drop_rate > best_drop_rate) {
+        best_drop_rate = tmp_drop_rate;
+        best_cart = cart;
+      }
+      // select the best cart for this cart
+      if (restarts >= c.restart_times) {
+        LOG("***** Select a cart which give us %.4lf drop rate *****", best_drop_rate);
+        cart = best_cart;
+        best_drop_rate = 0.;
+        pos.ResetScores();
+        neg.ResetScores();
+        pos.UpdateScores(cart);
+        neg.UpdateScores(cart);
+        pos.QSort();
+        neg.QSort();
+      }
+      else {
+        // recover data scores
+        pos.ResetScores();
+        neg.ResetScores();
+        k--;
+        continue;
+      }
+    }
+
+    restarts = 0;
     pos.Remove(cart.th);
     neg.Remove(cart.th);
-    double pos_drop_rate = double(pos_n - pos.size) / double(pos_n)* 100.;
-    double neg_drop_rate = double(neg_n - neg.size) / double(neg_n)* 100.;
-    LOG("Pos drop rate = %.2lf%%, Neg drop rate = %.2lf%%", pos_drop_rate, neg_drop_rate);
-    neg_rejected += neg_n - neg.size;
-    LOG("Current Negative DataSet Reject Size is %d", neg_rejected);
     // print cart info
     cart.PrintSelf();
     const int kk = k + 1;
-    if ((kk != K) && (kk%c.snapshot_iter == 0)) { // snapshot
+    if ((kk != K) && (kk%c.snapshot_iter == 0)) { // snapshot model and data
+      DataSet::Snapshot(pos, neg);
       c.joincascador->Snapshot();
     }
+
+    double pos_drop_rate = double(pos_n - pos.size) / double(pos_n)* 100.;
+    double neg_drop_rate = double(neg_n - neg.size) / double(neg_n)* 100.;
+    LOG("Pos drop = %d, Neg drop rate = %.2lf%%", pos_n - pos.size, neg_drop_rate);
+    neg_rejected += neg_n - neg.size;
   }
   // Global Regression with LBF
   // generate lbf
@@ -216,7 +263,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
   double reject_rate = 0.;
   accept_rate = double(pos_n) / double(pos_original_size) * 100.;
   reject_rate = double(neg_rejected) / double(neg_rejected + neg_original_size) * 100.;
-  LOG("Accept Rate = %.2lf%%, Reject Rate = %.2lf%%", accept_rate, reject_rate);
+  LOG("Accept Rate = %.2lf%%", accept_rate);
   // Done
 }
 
@@ -274,13 +321,13 @@ void BoostCart::GlobalRegression(const vector<Mat_<int> >& lbf, const Mat_<doubl
     prob_.y = Y[2 * i];
     check_parameter(&prob_, &param);
     struct model *model = train(&prob_, &param);
-    for (int j = 0; j < f; j++) w(2 * i, j) = get_decfun_coef(model, j + 1, 0);
+    for (int j = 0; j < f; j++) w(j, 2 * i) = get_decfun_coef(model, j + 1, 0);
     freeModel(model);
 
     prob_.y = Y[2 * i + 1];
     check_parameter(&prob_, &param);
     model = train(&prob_, &param);
-    for (int j = 0; j < f; j++) w(2 * i + 1, j) = get_decfun_coef(model, j + 1, 0);
+    for (int j = 0; j < f; j++) w(j, 2 * i + 1) = get_decfun_coef(model, j + 1, 0);
     freeModel(model);
   }
 
@@ -308,25 +355,19 @@ Mat_<int> BoostCart::GenLBF(const Mat& img, const Mat_<double>& shape) const {
 }
 
 Mat_<double> BoostCart::GenDeltaShape(const Mat_<int>& lbf) const {
-  const int landmark_n = w.rows / 2;
+  const int landmark_dim = w.cols;
   const int m = lbf.cols;
-  Mat_<double> delta_shape(1, 2 * landmark_n);
+  Mat_<double> delta_shape = Mat_<double>::zeros(1, landmark_dim);
 
-  const double* w_ptr;
-  const int* lbf_ptr = lbf.ptr<int>(0);
   double* ds_ptr = delta_shape.ptr<double>(0);
-
-  for (int i = 0; i < landmark_n; i++) {
-    w_ptr = w.ptr<double>(2 * i);
-    double y = 0;
-    for (int j = 0; j < m; j++) y += w_ptr[lbf_ptr[j]];
-    ds_ptr[2 * i] = y;
-
-    w_ptr = w.ptr<double>(2 * i + 1);
-    y = 0;
-    for (int j = 0; j < m; j++) y += w_ptr[lbf_ptr[j]];
-    ds_ptr[2 * i + 1] = y;
+  const int* lbf_ptr = lbf.ptr<int>(0);
+  for (int i = 0; i < m; i++) {
+    const double* w_ptr = w.ptr<double>(lbf_ptr[i]);
+    for (int j = 0; j < landmark_dim; j++) {
+      ds_ptr[j] += w_ptr[j];
+    }
   }
+
   return delta_shape;
 }
 

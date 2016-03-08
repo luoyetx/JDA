@@ -4,10 +4,23 @@
 #include <cassert>
 #include <opencv2/core/core.hpp>
 
+// system io
+#ifdef WIN32
+#include <io.h>
+#include <direct.h>
+#define EXISTS(path) (access(path, 0)!=-1)
+#define MKDIR(path) mkdir(path)
+#else
+#include <unistd.h>
+#include <sys/stat.h>
+#define EXISTS(path) (access(path, 0)!=-1)
+#define MKDIR(path) mkdir(path, 0775)
+#endif
+
 /*!
  * \breif Timer for evaluation
  *
- * usage:
+ * \usage
  *  TIMER_BEGIN
  *    ....
  *    TIMER_NOW # get delta time from TIMER_BEGIN
@@ -32,7 +45,11 @@
 #define TIMER_NOW   ((double(cv::getTickCount()) - __time__) / cv::getTickFrequency())
 #define TIMER_END   }
 
-#define JDA_Assert(expr, msg) do { if (!(expr)) jda::dieWithMsg(msg); } while(0)
+#define JDA_Assert(expr, msg) do { \
+  if (!(expr)) \
+    jda::dieWithMsg("JDA_Assert failed at LINE: %d, FILE: %s with message \"%s\"", \
+                    __LINE__, __FILE__, msg); \
+  } while(0)
 
 namespace jda {
 
@@ -45,6 +62,7 @@ class JoinCascador;
  */
 class Feature {
 public:
+  // scales
   static const int ORIGIN = 0;
   static const int HALF = 1;
   static const int QUARTER = 2;
@@ -106,8 +124,6 @@ public:
   int img_q_size;
   /*! \breif maximum random shift size on mean shape range [0, shift_size] */
   double shift_size;
-  /*! \breif method of split node when by classification */
-  bool use_gini;
   /*! \breif N(negative) / N(postive) */
   std::vector<double> nps;
   /*! \breif sample radius of feature points in each stages */
@@ -119,45 +135,51 @@ public:
   /*! \breif recall of each stage */
   std::vector<double> recall;
   /*! \breif hard negative mining parameters */
-  double scale_factor;
-  int x_step, y_step;
+  int mining_patch_minimum_size;
+  int mining_queue_size;
   int mining_pool_size;
+  double mining_factor;
   /*! \breif a text file for train positive dataset */
-  std::string train_pos_txt;
+  std::string face_txt;
   /*! \breif a text file for train negative dataset */
-  std::string train_neg_txt;
-  /*! \breif a text file for test positive dataset */
-  std::string test_pos_txt;
-  /*! \breif a text file for test negative dataset */
-  std::string test_neg_txt;
-  /*! \breif a text file for detection */
-  std::string detection_txt;
+  std::vector<std::string> bg_txts;
+  /*! \breif a text file for face detection test */
+  std::string test_txt;
   /*! \breif esp */
   double esp;
   /*! \breif global training join casacdor */
   JoinCascador* joincascador;
-  /*! \breif model snapshot by JDA, used for resume and test only */
-  std::string tmp_model;
   /*! \breif snapshot per iters */
   int snapshot_iter;
-  /*!
-   * \breif global status, train or test, 0 for train and 1 for test
-   *
-   * \note    when test the model, you should give `current_stage_idx`
-   *          and `current_cart_idx` to point out the model
-   */
-  int phase;
+  /*! \breif resume model */
+  std::string resume_model;
   /*! \breif detection parameters */
-  int fddb_x_step, fdbb_y_step;
+  std::string fddb_dir;
+  int fddb_step;
   double fddb_scale_factor;
   double fddb_overlap;
   double fddb_minimum_size;
   bool fddb_result;
   bool fddb_nms;
+  bool fddb_draw_score;
+  bool fddb_draw_shape;
+  int fddb_detect_method;
+  /*! \breif restart of a cart */
+  bool restart_on;
+  int restart_times;
+  int restart_stage;
+  std::vector<double> restart_th;
+  /*! \breif online augment parameters */
+  bool face_augment_on;
+  int landmark_offset;
+  std::vector<std::vector<int> > symmetric_landmarks;
+  /*! \breif pupils for calculating regreesin error*/
+  std::vector<int> left_pupils;
+  std::vector<int> right_pupils;
 
 private:
   Config();
-  ~Config() {}
+  ~Config();
   Config(const Config& other);
   Config& operator=(const Config& other);
 };

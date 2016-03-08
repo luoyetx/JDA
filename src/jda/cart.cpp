@@ -13,6 +13,12 @@ using namespace std;
 
 namespace jda {
 
+/*! \breif is zeros */
+static inline bool isZero(double num) {
+  if (std::abs(num) < 1e-9) return true;
+  else return false;
+}
+
 Cart::Cart(int stage, int landmark_id) {
   const Config& c = Config::GetInstance();
   this->stage = stage;
@@ -22,7 +28,6 @@ Cart::Cart(int stage, int landmark_id) {
   nodes_n = 1 << depth;
   featNum = c.feats[stage];
   radius = c.radius[stage];
-  p = c.probs[stage];
   features.resize(nodes_n / 2); // all 0
   thresholds.resize(nodes_n / 2); // all 0
   scores.resize(nodes_n / 2); // all 0
@@ -32,22 +37,18 @@ Cart::~Cart() {
 
 void Cart::Train(const DataSet& pos, const DataSet& neg) {
   vector<int> pos_idx, neg_idx;
-  int n = pos.size;
-  pos_idx.resize(n);
-  for (int i = 0; i < n; i++) pos_idx[i] = i;
-  n = neg.size;
-  neg_idx.resize(n);
-  for (int i = 0; i < n; i++) neg_idx[i] = i;
+  int pos_n = pos.size;
+  int neg_n = neg.size;
+  pos_idx.resize(pos_n);
+  neg_idx.resize(neg_n);
+
+  #pragma omp parallel for
+  for (int i = 0; i < pos_n; i++) pos_idx[i] = i;
+  #pragma omp parallel for
+  for (int i = 0; i < neg_n; i++) neg_idx[i] = i;
+
   // split node from root with idx = 1, why 1? see binary tree in sequence
   SplitNode(pos, pos_idx, neg, neg_idx, 1);
-  //// normalize score
-  //double score_m = std::numeric_limits<double>::min();
-  //for (int i = 0; i < leafNum; i++) {
-  //  if (std::abs(scores[i]) > score_m) score_m = std::abs(scores[i]);
-  //}
-  //for (int i = 0; i < leafNum; i++) {
-  //  scores[i] /= score_m;
-  //}
 }
 
 void Cart::SplitNode(const DataSet& pos, const vector<int>& pos_idx, \
@@ -61,17 +62,29 @@ void Cart::SplitNode(const DataSet& pos, const vector<int>& pos_idx, \
     const int idx = node_idx - nodes_n / 2;
     double pos_w, neg_w;
     pos_w = neg_w = c.esp;
-    for (int i = 0; i < pos_n; i++) {
-      pos_w += pos.weights[pos_idx[i]];
+
+    #pragma omp parallel sections
+    {
+      #pragma omp section
+      {
+        for (int i = 0; i < pos_n; i++) {
+          pos_w += pos.weights[pos_idx[i]];
+        }
+      }
+      #pragma omp section
+      {
+        for (int i = 0; i < neg_n; i++) {
+          neg_w += neg.weights[neg_idx[i]];
+        }
+      }
     }
-    for (int i = 0; i < neg_n; i++) {
-      neg_w += neg.weights[neg_idx[i]];
-    }
-    scores[idx] = 0.5 * log(pos_w / neg_w);
+
+    scores[idx] = 0.5*(log(pos_w) - log(neg_w));
+    printf("Leaf % 3d has % 6d pos and % 6d neg. Score is %.2lf\n", node_idx, pos_n, neg_n, scores[idx]);
     return;
   }
 
-  printf("Node %d has % 6d pos and % 6d neg.", node_idx, pos_n, neg_n);
+  printf("Node % 3d has % 6d pos and % 6d neg.", node_idx, pos_n, neg_n);
 
   // feature pool
   vector<Feature> feature_pool;
@@ -81,7 +94,7 @@ void Cart::SplitNode(const DataSet& pos, const vector<int>& pos_idx, \
   neg_feature = neg.CalcFeatureValues(feature_pool, neg_idx);
   // classification or regression
   RNG rng(getTickCount());
-  bool is_classification = (rng.uniform(0., 1.) < p) ? true : false;
+  bool is_classification = (rng.uniform(0., 1.) < c.probs[stage]) ? true : false;
   int feature_idx, threshold;
   if (is_classification) {
     printf("\tSplit by Classification\n");
@@ -99,27 +112,39 @@ void Cart::SplitNode(const DataSet& pos, const vector<int>& pos_idx, \
   // split training data into left and right if any more
   vector<int> left_pos_idx, left_neg_idx;
   vector<int> right_pos_idx, right_neg_idx;
-  left_pos_idx.reserve(pos_n);
-  right_pos_idx.reserve(pos_n);
-  left_neg_idx.reserve(neg_n);
-  right_neg_idx.reserve(neg_n);
 
-  for (int i = 0; i < pos_n; i++) {
-    if (pos_feature(feature_idx, i) <= threshold) {
-      left_pos_idx.push_back(pos_idx[i]);
+  #pragma omp parallel sections
+  {
+    // pos
+    #pragma omp section
+    {
+      left_pos_idx.reserve(pos_n);
+      right_pos_idx.reserve(pos_n);
+      for (int i = 0; i < pos_n; i++) {
+        if (pos_feature(feature_idx, i) <= threshold) {
+          left_pos_idx.push_back(pos_idx[i]);
+        }
+        else {
+          right_pos_idx.push_back(pos_idx[i]);
+        }
+      }
     }
-    else {
-      right_pos_idx.push_back(pos_idx[i]);
+    // neg
+    #pragma omp section
+    {
+      left_neg_idx.reserve(neg_n);
+      right_neg_idx.reserve(neg_n);
+      for (int i = 0; i < neg_n; i++) {
+        if (neg_feature(feature_idx, i) <= threshold) {
+          left_neg_idx.push_back(neg_idx[i]);
+        }
+        else {
+          right_neg_idx.push_back(neg_idx[i]);
+        }
+      }
     }
   }
-  for (int i = 0; i < neg_n; i++) {
-    if (neg_feature(feature_idx, i) <= threshold) {
-      left_neg_idx.push_back(neg_idx[i]);
-    }
-    else {
-      right_neg_idx.push_back(neg_idx[i]);
-    }
-  }
+
   // save parameters on this node
   features[node_idx] = feature_pool[feature_idx];
   thresholds[node_idx] = threshold;
@@ -129,21 +154,14 @@ void Cart::SplitNode(const DataSet& pos, const vector<int>& pos_idx, \
 }
 
 /*!
- * \breif Calculate Gini `gini = 2*p*(1-p)`
- * \param p   p
- * \return    gini
- */
-static inline double calcGini(double p) {
-  double gini = 2 * p * (1 - p);
-  return gini;
-}
-/*!
  * \breif Calculate Entropy
  * \param p   p
  * \return    entropy
  */
 static inline double calcEntropy(double p) {
-  double entropy = -p*std::log(p) - (1 - p)*std::log(1 - p);
+  if (isZero(p) || isZero(1. - p)) return 0;
+  double entropy = -(p)*std::log(p) - (1. - p)*std::log(1. - p);
+  entropy /= std::log(2.);
   return entropy;
 }
 
@@ -156,67 +174,68 @@ void Cart::SplitNodeWithClassification(const DataSet& pos, const vector<int>& po
   const int feature_n = pos_feature.rows;
   const int pos_n = pos_feature.cols;
   const int neg_n = neg_feature.cols;
-  RNG rng(getTickCount());
+  const int total_n = pos_n + neg_n;
   feature_idx = 0;
   threshold = -256; // all data will go to right child tree
 
-  // select a feature that has minimum gini
-  vector<double> gs_(feature_n);
+  // select a feature that has minimum entropy
+  vector<double> es_(feature_n);
   vector<int> ths_(feature_n);
 
   #pragma omp parallel for
   for (int i = 0; i < feature_n; i++) {
-    double wp_l, wp_r, wn_l, wn_r, w;
-    wp_l = wp_r = wn_l = wn_r = w = 0;
+    double wp_l, wp_r, wn_l, wn_r;
+    wp_l = wp_r = wn_l = wn_r = 0;
     vector<double> wp(511, 0), wn(511, 0);
+    vector<int> p_n(511, 0), n_n(511, 0);
     for (int j = 0; j < pos_n; j++) {
       wp[pos_feature(i, j) + 255] += pos.weights[pos_idx[j]];
       wp_r += pos.weights[pos_idx[j]];
+      p_n[pos_feature(i, j) + 255]++;
     }
     for (int j = 0; j < neg_n; j++) {
       wn[neg_feature(i, j) + 255] += neg.weights[neg_idx[j]];
       wn_r += neg.weights[neg_idx[j]];
+      n_n[neg_feature(i, j) + 255]++;
     }
-    w = wp_r + wn_r;
+
+    int current_p = 0;
+    int current_n = 0;
+    double w = wp_r + wn_r;
 
     int threshold_ = -256;
-    double gini = 0.;
-    if (c.use_gini) {
-      gini = calcGini(wp_r / w);
-    }
-    else {
-      gini = calcEntropy(wp_r / w);
-    }
+    double entropy = calcEntropy(wp_r / w);
     for (int th = -255; th <= 255; th++) {
       const int idx = th + 255;
       wp_l += wp[idx];
       wn_l += wn[idx];
       wp_r -= wp[idx];
       wn_r -= wn[idx];
-      double w_l = wp_l + wn_l + c.esp;
-      double w_r = wp_r + wn_r + c.esp;
-      double g = 0.;
-      if (c.use_gini) {
-        g = (w_l / w) * calcGini(wp_l / w_l) + \
-            (w_r / w) * calcGini(wp_r / w_r);
-      }
-      else {
-        g = (w_l / w) * calcEntropy(wp_l / w_l) + \
-            (w_r / w) * calcEntropy(wp_r / w_r);
-      }
-      if (g < gini) {
-        gini = g;
+      current_p += p_n[idx];
+      current_n += n_n[idx];
+
+      const double p_ratio = double(current_p) / pos_n;
+      const double n_ratio = double(current_n) / neg_n;
+      if (p_ratio < 0.05 || p_ratio > 0.95) continue;
+      if (n_ratio < 0.05 || n_ratio > 0.95) continue;
+
+      double w_l = wp_l + wn_l;
+      double w_r = wp_r + wn_r;
+      double e = (w_l / w)*calcEntropy(wp_l / w_l) + \
+                 (w_r / w)*calcEntropy(wp_r / w_r);
+      if (e < entropy) {
+        entropy = e;
         threshold_ = th;
       }
     }
-    gs_[i] = gini;
+    es_[i] = entropy;
     ths_[i] = threshold_;
   }
 
-  double gini_min = numeric_limits<double>::max();
+  double entropy_min = numeric_limits<double>::max();
   for (int i = 0; i < feature_n; i++) {
-    if (gs_[i] < gini_min) {
-      gini_min = gs_[i];
+    if (es_[i] < entropy_min) {
+      entropy_min = es_[i];
       threshold = ths_[i];
       feature_idx = i;
     }
@@ -227,12 +246,6 @@ void Cart::SplitNodeWithClassification(const DataSet& pos, const vector<int>& po
 /*!
  * \breif Calculate Variance of vector
  */
-double calcVariance(const Mat_<double>& vec) {
-  double m1 = cv::mean(vec)[0];
-  double m2 = cv::mean(vec.mul(vec))[0];
-  double variance = m2 - m1*m1;
-  return variance;
-}
 double calcVariance(const vector<double>& vec) {
   if (vec.size() == 0) return 0.;
   Mat_<double> vec_(vec);
@@ -242,6 +255,26 @@ double calcVariance(const vector<double>& vec) {
   return variance;
 }
 
+template<typename T>
+static void _qsort(T* a, int l, int r) {
+  int i, j;
+  T t, tmp;
+  i = l; j = r;
+  t = a[(i + j) / 2];
+  do {
+    while (a[i] < t) i++;
+    while (a[j] > t) j--;
+    if (i <= j) {
+      tmp = a[i];
+      a[i] = a[j];
+      a[j] = tmp;
+      i++; j--;
+    }
+  } while (i <= j);
+  if (l < j) _qsort(a, l, j);
+  if (i < r) _qsort(a, i, r);
+}
+
 void Cart::SplitNodeWithRegression(const DataSet& pos, const std::vector<int>& pos_idx, \
                                    const DataSet& neg, const std::vector<int>& neg_idx, \
                                    const Mat_<int>& pos_feature, \
@@ -249,12 +282,6 @@ void Cart::SplitNodeWithRegression(const DataSet& pos, const std::vector<int>& p
                                    int& feature_idx, int& threshold) {
   const int feature_n = pos_feature.rows;
   const int pos_n = pos_feature.cols;
-  Mat_<int> pos_feature_sorted;
-  cv::sort(pos_feature, pos_feature_sorted, SORT_EVERY_ROW + SORT_ASCENDING);
-  // total variance
-  double variance_all = (calcVariance(shape_residual.col(0)) + \
-                         calcVariance(shape_residual.col(1))) * pos_n;
-  RNG rng(getTickCount());
   feature_idx = 0;
   threshold = -256; // all data will go to right child tree
 
@@ -262,16 +289,24 @@ void Cart::SplitNodeWithRegression(const DataSet& pos, const std::vector<int>& p
     return;
   }
 
+  //Mat_<int> pos_feature_sorted;
+  //cv::sort(pos_feature, pos_feature_sorted, SORT_EVERY_ROW + SORT_ASCENDING);
+
   // select a feature reduce maximum variance
   vector<double> vs_(feature_n);
   vector<int> ths_(feature_n);
 
   #pragma omp parallel for
   for (int i = 0; i < feature_n; i++) {
+    RNG rng(getTickCount());
+
+    Mat_<int> pos_feature_sorted = pos_feature.row(i).clone();
+    _qsort<int>(pos_feature_sorted.ptr<int>(0), 0, pos_n - 1);
+
     vector<double> left_x, left_y, right_x, right_y;
     left_x.reserve(pos_n); left_y.reserve(pos_n);
     right_x.reserve(pos_n); right_y.reserve(pos_n);
-    int threshold_ = pos_feature_sorted(i, int(pos_n*rng.uniform(0.05, 0.95)));
+    int threshold_ = pos_feature_sorted(0, int(pos_n*rng.uniform(0.05, 0.95)));
     for (int j = 0; j < pos_n; j++) {
       if (pos_feature(i, j) <= threshold_) {
         left_x.push_back(shape_residual(j, 0));
@@ -284,15 +319,14 @@ void Cart::SplitNodeWithRegression(const DataSet& pos, const std::vector<int>& p
     }
     double variance_ = (calcVariance(left_x) + calcVariance(left_y))*left_x.size() + \
                        (calcVariance(right_x) + calcVariance(right_y))*right_x.size();
-    double variance_reduce = variance_all - variance_;
-    vs_[i] = variance_reduce;
+    vs_[i] = variance_;
     ths_[i] = threshold_;
   }
 
-  double variance_reduce_max = std::numeric_limits<double>::min();
+  double variance_min = std::numeric_limits<double>::max();
   for (int i = 0; i < feature_n; i++) {
-    if (vs_[i] > variance_reduce_max) {
-      variance_reduce_max = vs_[i];
+    if (vs_[i] < variance_min) {
+      variance_min = vs_[i];
       threshold = ths_[i];
       feature_idx = i;
     }
@@ -395,19 +429,20 @@ void Cart::SerializeTo(FILE* fd) const {
 }
 
 void Cart::PrintSelf() {
+  const Config& c = Config::GetInstance();
   printf("\nSummary of this Cart\n");
   printf("node parameters\n");
   for (int i = 1; i < nodes_n / 2; i++) {
     const Feature& f = features[i];
     const int threshold = thresholds[i];
     printf("  node %d: [scale = %d, th = %d, landmark_1 = (%d, %.4lf, %.4lf), "
-           "landmark_2 = (%d, %.4lf, %.4lf)]\n", \
-           i, f.scale, threshold, f.landmark_id1, f.offset1_x, f.offset1_y, \
-           f.landmark_id2, f.offset2_x, f.offset2_y);
+           "landmark_2 = (%d, %.4lf, %.4lf)]\n", i, f.scale, threshold, \
+           f.landmark_id1 + c.landmark_offset, f.offset1_x, f.offset1_y, \
+           f.landmark_id2 + c.landmark_offset, f.offset2_x, f.offset2_y);
   }
   printf("leaf scores\n[");
   for (int i = 0; i < leafNum; i++) {
-    printf("%0.4lf, ", scores[i]);
+    printf("%.4lf, ", scores[i]);
   }
   printf("]\n");
   printf("threshold = %.4lf\n\n", th);

@@ -1,13 +1,9 @@
 {
     "T": 5,
-    "K": 1080,
+    "K": 200,
     "landmark_n": 5,
     "tree_depth": 4,
     "random_shift": 0.0375,
-    "classification": {
-        "gini": true,
-        "entropy": false
-    },
     "image_size": {
         "multi_scale": true,
         "origin_size": 80,
@@ -15,32 +11,54 @@
         "quarter_size": 40
     },
     "hard_negative_mining": {
-        "x_step": 20,
-        "y_step": 20,
-        "scale": 0.8
+        "pool": 20,
+        "minimum_size": 10,
+        "factor": 5
     },
     "stages": {
         "feature_pool_size": [1000, 1000, 1000, 1000, 1000],
         "random_sample_radius": [0.4, 0.3, 0.2, 0.15, 0.1],
         "classification_p": [0.9, 0.8, 0.7, 0.6, 0.5],
-        "recall": [0.9999, 0.9999, 0.9999, 0.9999, 0.9999],
+        "recall": [0.99, 0.99, 0.99, 0.99, 0.99],
         "neg_pos_ratio": [1.0, 1.0, 1.0, 1.0, 1.0]
     },
     "data": {
         "face": "../data/face.txt",
-        "background": "../data/background.txt"
+        "background": ["../data/background1.txt", "../data/background1.txt"],
+        "test": "../data/test.txt"
     },
     "fddb": {
+        "dir": "../data/fddb",
         "out": false,
         "nms": true,
+        "draw_score": false,
+        "draw_shape": true,
         "minimum_size": 80,
-        "x_step": 20,
-        "y_step": 20,
+        "step": 20,
         "scale": 1.1,
-        "overlap": 0.3
+        "overlap": 0.3,
+        "method": 0
     },
-
-    "phase": "train",
-    "tmp_model": "../model/jda_xxx.model",
-    "snapshot_iter": 20
+    "cart": {
+        "restart": {
+            "on": true,
+            "th": [0.01, 0.01, 0.01, 0.01, 0.01],
+            "times": 5
+        }
+    },
+    "face": {
+        "online_augment": false,
+        "symmetric_landmarks": {
+            "offset": 1,
+            "left": [1, 4],
+            "right": [2, 5]
+        },
+        "pupils": {
+            "offset": 1,
+            "left": [1],
+            "right": [2]
+        }
+    },
+    "resume_model": "../model/jda_xxx.model",
+    "snapshot_iter": 100
 }

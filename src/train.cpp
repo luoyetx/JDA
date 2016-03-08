@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <opencv2/core/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include "jda/data.hpp"
 #include "jda/common.hpp"
 #include "jda/cascador.hpp"
@@ -14,15 +15,27 @@ using namespace jda;
 void train() {
   Config& c = Config::GetInstance();
 
-  DataSet pos, neg;
-  LOG("Load Positive And Negative DataSet");
-  DataSet::LoadDataSet(pos, neg);
+  // can we load training data from a binary file
+  bool flag = false;
 
   JoinCascador joincascador;
   joincascador.current_stage_idx = 0;
   joincascador.current_cart_idx = -1;
   c.joincascador = &joincascador; // set global joincascador
-  joincascador.mean_shape = pos.CalcMeanShape();
+
+  DataSet pos, neg;
+  char data_file[] = "../data/jda_train_data.data";
+  if (EXISTS(data_file)) {
+    LOG("Load Positive And Negative DataSet from %s", data_file);
+    DataSet::Resume(data_file, pos, neg);
+  }
+  else {
+    LOG("Load Positive And Negative DataSet");
+    DataSet::LoadDataSet(pos, neg);
+    DataSet::Snapshot(pos, neg);
+  }
+
+  joincascador.mean_shape = pos.mean_shape;
   LOG("Start training JoinCascador");
   joincascador.Train(pos, neg);
   LOG("End of JoinCascador Training");
@@ -41,7 +54,7 @@ void train() {
 void resume() {
   Config& c = Config::GetInstance();
 
-  FILE* fd = fopen(c.tmp_model.c_str(), "rb");
+  FILE* fd = fopen(c.resume_model.c_str(), "rb");
   JDA_Assert(fd, "Can not open model file");
 
   JoinCascador joincascador;
@@ -64,10 +77,13 @@ void resume() {
   pos_remain.gt_shapes.reserve(pos_size);
   pos_remain.current_shapes.reserve(pos_size);
   pos_remain.scores.reserve(pos_size);
+  pos_remain.last_scores.reserve(pos_size);
   pos_remain.weights.reserve(pos_size);
   // remove tf data points, update score and shape
   for (int i = 0; i < pos_size; i++) {
-    bool is_face = joincascador.Validate(pos.imgs[i], pos.scores[i], pos.current_shapes[i]);
+    int not_used;
+    bool is_face = joincascador.Validate(pos.imgs[i], pos.imgs_half[i], pos.imgs_quarter[i], \
+                                         pos.scores[i], pos.current_shapes[i], not_used);
     if (is_face) {
       pos_remain.imgs.push_back(pos.imgs[i]);
       pos_remain.imgs_half.push_back(pos.imgs_half[i]);
@@ -75,12 +91,14 @@ void resume() {
       pos_remain.gt_shapes.push_back(pos.gt_shapes[i]);
       pos_remain.current_shapes.push_back(pos.current_shapes[i]);
       pos_remain.scores.push_back(pos.scores[i]);
+      pos_remain.last_scores.push_back(0);
       pos_remain.weights.push_back(pos.weights[i]);
     }
   }
   pos_remain.is_pos = true;
   pos_remain.is_sorted = false;
   pos_remain.size = pos_remain.imgs.size();
+  neg.Clear();
 
   LOG("Start Resume Training Status from %dth stage", joincascador.current_stage_idx);
   joincascador.Train(pos_remain, neg);

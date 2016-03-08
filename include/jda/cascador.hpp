@@ -2,12 +2,27 @@
 #define CASCADOR_HPP_
 
 #include <vector>
+#include <opencv2/core/core.hpp>
 
 namespace jda {
 
 // forward declaration
 class DataSet;
 class BoostCart;
+
+/*! \breif statisic of Detection */
+class DetectionStatisic {
+public:
+  DetectionStatisic()
+    : patch_n(0), face_patch_n(0), nonface_patch_n(0), cart_gothrough_n(0) {
+  }
+
+  int patch_n;
+  int face_patch_n;
+  int nonface_patch_n;
+  int cart_gothrough_n;
+  double average_cart_n; // nonface patch reject length
+};
 
 /*!
  * \breif JoinCascador for face classification and landmark regression
@@ -16,7 +31,7 @@ class JoinCascador {
 public:
   /*!
    * \breif default constructor
-   * This will establish the whole model with parameters from config
+   *  This will establish the whole model with parameters from config
    */
   JoinCascador();
   ~JoinCascador();
@@ -66,11 +81,15 @@ public:
    *  and `current_cart_idx`.
    *
    * \param img     img
+   * \param img_h   half img
+   * \param img_q   quarter img
    * \param score   classification score of this image
    * \param shape   shape on this image
+   * \param n       number of carts the image go through
    * \return        whether a face or not
    */
-  bool Validate(const cv::Mat& img, double& score, cv::Mat_<double>& shape) const;
+  bool Validate(const cv::Mat& img, const cv::Mat& img_h, const cv::Mat& img_q, \
+                double& score, cv::Mat_<double>& shape, int& n) const;
   /*!
    * \breif Detect faces in a gray image
    *  Currently using Sliding Window to search face regions and Non-Maximum Suppression
@@ -83,10 +102,11 @@ public:
    * \param rects     face locations
    * \param scores    score of faces
    * \param shapes    shape of faces
+   * \param statisic  statisic of detection
    * \return          number of faces
    */
   int Detect(const cv::Mat& img, std::vector<cv::Rect>& rects, std::vector<double>& scores, \
-             std::vector<cv::Mat_<double> >& shapes) const;
+             std::vector<cv::Mat_<double> >& shapes, DetectionStatisic& statisic) const;
 
 public:
   /*! \breif number of stages */

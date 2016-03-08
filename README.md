@@ -38,16 +38,16 @@ We use `config.json` for configuration. `config.template.json` is a template, pl
 
 ### Data
 
-You should prepare your own data. You need two kinds of data, face with landmarks and background images. You also need to create two text file `face.txt` and `background.txt` which can be changed in `config.json`. Every line of `face.txt` indicates a face image's path with its landmarks. The number of landmarks can be changed in `config.json` and the order of landmarks does not matter.
+You should prepare your own data. You need two kinds of data, face with landmarks and background images. You also need to create two text file `face.txt` and `background.txt` which can be changed in `config.json`. Every line of `face.txt` indicates a face image's path with its landmarks and face bounding box. The number of landmarks can be changed in `config.json` and the order of landmarks does not matter.
 
 ```
-../data/face/00001.jpg x1 y1 x2 y2 ........
-../data/face/00002.jpg x1 y1 x2 y2 ........
+../data/face/00001.jpg bbox_x bbox_y bbox_w bbox_h x1 y1 x2 y2 ........
+../data/face/00002.jpg bbox_x bbox_y bbox_w bbox_h x1 y1 x2 y2 ........
 ....
 ....
 ```
 
-The face images should be resized to the pre-defined size and you should do any data augmentation by yourself, the code will exactly use the face images you provide. `background.txt` is much more simpler. Every line indicates where the background image in the file system.
+`background.txt` is much more simpler. Every line indicates where the background image in the file system.
 
 ```
 ../data/bg/000001.jpg
@@ -57,7 +57,7 @@ The face images should be resized to the pre-defined size and you should do any 
 ....
 ```
 
-Background images should have no face and we will do data augmentation during the hard negative mining. Of course, you can use absolute path to indicate where is your face images and background images.
+Background images should have no face and we will do data augmentation during the hard negative mining. Of course, you can use absolute path to indicate where is your face images and background images. However, don't use any space character in your image path or non ASCII characters.
 
 ### Train
 
