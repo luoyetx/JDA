@@ -45,6 +45,8 @@ void JoinCascador::Train(DataSet& pos, DataSet& neg) {
       LOG("End of train %d th stages, costs %.4lf s", t + 1, TIMER_NOW);
     TIMER_END
     LOG("Snapshot current Training Status");
+    // snapshot
+    DataSet::Snapshot(pos, neg);
     Snapshot();
   }
 }

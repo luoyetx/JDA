@@ -47,7 +47,6 @@
         }
     },
     "face": {
-        "size": 10000,
         "online_augment": false,
         "symmetric_landmarks": {
             "offset": 1,
@@ -61,5 +60,5 @@
         }
     },
     "resume_model": "../model/jda_xxx.model",
-    "snapshot_iter": 20
+    "snapshot_iter": 100
 }

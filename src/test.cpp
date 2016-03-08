@@ -1,15 +1,3 @@
-#ifdef WIN32
-#include <io.h>
-#include <direct.h>
-#define EXISTS(path) (access(path, 0)!=-1)
-#define MKDIR(path) mkdir(path)
-#else
-#include <unistd.h>
-#include <sys/stat.h>
-#define EXISTS(path) (access(path, 0)!=-1)
-#define MKDIR(path) mkdir(path, 0775)
-#endif
-
 #include <ctime>
 #include <cstdio>
 #include <opencv2/core/core.hpp>

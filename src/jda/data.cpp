@@ -1,15 +1,3 @@
-#ifdef WIN32
-#include <io.h>
-#include <direct.h>
-#define EXISTS(path) (access(path, 0)!=-1)
-#define MKDIR(path) mkdir(path)
-#else
-#include <unistd.h>
-#include <sys/stat.h>
-#define EXISTS(path) (access(path, 0)!=-1)
-#define MKDIR(path) mkdir(path, 0775)
-#endif
-
 #include <cmath>
 #include <ctime>
 #include <cstdio>
@@ -86,8 +74,8 @@ Mat_<double> DataSet::CalcShapeResidual(const vector<int>& idx, int landmark_id)
   return shape_residual;
 }
 
-Mat_<double> DataSet::CalcMeanShape() const {
-  Mat_<double> mean_shape = gt_shapes[0].clone();
+Mat_<double> DataSet::CalcMeanShape() {
+  mean_shape = gt_shapes[0].clone();
   const int n = gt_shapes.size();
   for (int i = 1; i < n; i++) {
     mean_shape += gt_shapes[i];
@@ -502,13 +490,28 @@ static void writeDataSet(const DataSet& data, FILE* fout) {
   fwrite(&flag, sizeof(int), 1, fout);
   int n = data.size;
   fwrite(&n, sizeof(int), 1, fout);
+  if (data.is_pos) {
+    fwrite(data.mean_shape.ptr<double>(0), sizeof(double), data.mean_shape.cols, fout);
+  }
   for (int i = 0; i < n; i++) {
     // img
-    const Mat& img = data.imgs[i];
-    fwrite(&img.cols, sizeof(int), 1, fout);
-    fwrite(&img.rows, sizeof(int), 1, fout);
-    for (int j = 0; j < img.rows; j++) {
-      fwrite(img.ptr<uchar>(j), sizeof(uchar), img.cols, fout);
+    const Mat& img_o = data.imgs[i];
+    fwrite(&img_o.cols, sizeof(int), 1, fout);
+    fwrite(&img_o.rows, sizeof(int), 1, fout);
+    for (int j = 0; j < img_o.rows; j++) {
+      fwrite(img_o.ptr<uchar>(j), sizeof(uchar), img_o.cols, fout);
+    }
+    const Mat& img_h = data.imgs_half[i];
+    fwrite(&img_h.cols, sizeof(int), 1, fout);
+    fwrite(&img_h.rows, sizeof(int), 1, fout);
+    for (int j = 0; j < img_h.rows; j++) {
+      fwrite(img_h.ptr<uchar>(j), sizeof(uchar), img_h.cols, fout);
+    }
+    const Mat& img_q = data.imgs_quarter[i];
+    fwrite(&img_q.cols, sizeof(int), 1, fout);
+    fwrite(&img_q.rows, sizeof(int), 1, fout);
+    for (int j = 0; j < img_q.rows; j++) {
+      fwrite(img_q.ptr<uchar>(j), sizeof(uchar), img_q.cols, fout);
     }
     // gt_shape if positive samples
     if (data.is_pos) {
@@ -544,7 +547,10 @@ static void readDataSet(DataSet& data, FILE* fin) {
 
   int n;
   fread(&n, sizeof(int), 1, fin);
-
+  if (data.is_pos) {
+    data.mean_shape = Mat_<double>(1, 2 * c.landmark_n);
+    fread(data.mean_shape.ptr<double>(0), sizeof(double), data.mean_shape.cols, fin);
+  }
   // malloc and initialize
   data.imgs.resize(n);
   data.imgs_half.resize(n);
@@ -562,17 +568,22 @@ static void readDataSet(DataSet& data, FILE* fin) {
     int rows, cols;
     fread(&cols, sizeof(int), 1, fin);
     fread(&rows, sizeof(int), 1, fin);
-    Mat img(rows, cols, CV_8UC1);
+    data.imgs[i] = Mat(rows, cols, CV_8UC1);
     for (int j = 0; j < rows; j++) {
-      fread(img.ptr<uchar>(j), sizeof(uchar), cols, fin);
+      fread(data.imgs[i].ptr<uchar>(j), sizeof(uchar), cols, fin);
     }
-    Mat img_half, img_quarter;
-    cv::resize(img, img, Size(c.img_o_size, c.img_o_size));
-    cv::resize(img, img_half, Size(c.img_h_size, c.img_h_size));
-    cv::resize(img, img_quarter, Size(c.img_q_size, c.img_q_size));
-    data.imgs[i] = img;
-    data.imgs_half[i] = img_half;
-    data.imgs_quarter[i] = img_quarter;
+    fread(&cols, sizeof(int), 1, fin);
+    fread(&rows, sizeof(int), 1, fin);
+    data.imgs_half[i] = Mat(rows, cols, CV_8UC1);
+    for (int j = 0; j < rows; j++) {
+      fread(data.imgs_half[i].ptr<uchar>(j), sizeof(uchar), cols, fin);
+    }
+    fread(&cols, sizeof(int), 1, fin);
+    fread(&rows, sizeof(int), 1, fin);
+    data.imgs_quarter[i] = Mat(rows, cols, CV_8UC1);
+    for (int j = 0; j < rows; j++) {
+      fread(data.imgs_quarter[i].ptr<uchar>(j), sizeof(uchar), cols, fin);
+    }
     // gt_shape if positive samples
     if (data.is_pos) {
       Mat_<double>& gt_shape = data.gt_shapes[i];
@@ -626,6 +637,18 @@ void DataSet::Snapshot(const DataSet& pos, const DataSet& neg) {
     writeDataSet(neg, fout);
     LOG("DataSet Snapshot End");
   }
+  fclose(fout);
+}
+
+void DataSet::Resume(const string& data_file, DataSet& pos, DataSet& neg) {
+  JDA_Assert(EXISTS(data_file.c_str()), "No Data File, Please Check It");
+  FILE* fin = fopen(data_file.c_str(), "rb");
+  JDA_Assert(fin, "Can not open data file");
+
+  readDataSet(pos, fin);
+  readDataSet(neg, fin);
+
+  fclose(fin);
 }
 
 NegGenerator::NegGenerator()

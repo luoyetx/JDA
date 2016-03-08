@@ -15,15 +15,27 @@ using namespace jda;
 void train() {
   Config& c = Config::GetInstance();
 
-  DataSet pos, neg;
-  LOG("Load Positive And Negative DataSet");
-  DataSet::LoadDataSet(pos, neg);
+  // can we load training data from a binary file
+  bool flag = false;
 
   JoinCascador joincascador;
   joincascador.current_stage_idx = 0;
   joincascador.current_cart_idx = -1;
   c.joincascador = &joincascador; // set global joincascador
-  joincascador.mean_shape = pos.CalcMeanShape();
+
+  DataSet pos, neg;
+  char data_file[] = "../data/jda_train_data.data";
+  if (EXISTS(data_file)) {
+    LOG("Load Positive And Negative DataSet from %s", data_file);
+    DataSet::Resume(data_file, pos, neg);
+  }
+  else {
+    LOG("Load Positive And Negative DataSet");
+    DataSet::LoadDataSet(pos, neg);
+    DataSet::Snapshot(pos, neg);
+  }
+
+  joincascador.mean_shape = pos.mean_shape;
   LOG("Start training JoinCascador");
   joincascador.Train(pos, neg);
   LOG("End of JoinCascador Training");

@@ -207,9 +207,11 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     // print cart info
     cart.PrintSelf();
     const int kk = k + 1;
-    if ((kk != K) && (kk%c.snapshot_iter == 0)) { // snapshot
+    if ((kk != K) && (kk%c.snapshot_iter == 0)) { // snapshot model and data
+      DataSet::Snapshot(pos, neg);
       c.joincascador->Snapshot();
     }
+
     double pos_drop_rate = double(pos_n - pos.size) / double(pos_n)* 100.;
     double neg_drop_rate = double(neg_n - neg.size) / double(neg_n)* 100.;
     LOG("Pos drop = %d, Neg drop rate = %.2lf%%", pos_n - pos.size, neg_drop_rate);
@@ -262,10 +264,6 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
   accept_rate = double(pos_n) / double(pos_original_size) * 100.;
   reject_rate = double(neg_rejected) / double(neg_rejected + neg_original_size) * 100.;
   LOG("Accept Rate = %.2lf%%", accept_rate);
-
-  // snapshot
-  DataSet::Snapshot(pos, neg);
-
   // Done
 }
 
