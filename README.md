@@ -38,7 +38,7 @@ We use `config.json` for configuration. `config.template.json` is a template, pl
 
 ### Data
 
-You should prepare your own data. You need two kinds of data, face with landmarks and background images. You also need to create two text file `face.txt` and `background.txt` which can be changed in `config.json`. Every line of `face.txt` indicates a face image's path with its landmarks and face bounding box. The number of landmarks can be changed in `config.json` and the order of landmarks does not matter.
+You should prepare your own data. You need two kinds of data, face with landmarks and background images. You also need to create a text file `face.txt` and  some `background.txt` text files which can be changed in `config.json`. Every line of `face.txt` indicates a face image's path with its landmarks and face bounding box. The number of landmarks can be changed in `config.json` and the order of landmarks does not matter.
 
 ```
 ../data/face/00001.jpg bbox_x bbox_y bbox_w bbox_h x1 y1 x2 y2 ........
@@ -46,6 +46,8 @@ You should prepare your own data. You need two kinds of data, face with landmark
 ....
 ....
 ```
+
+bbox in `face.txt` indicate the face region. You can turn on data augment which will flip the face, but you also need to give symmetric landmarks index for flip operation. If bbox is out of range of the original image, the program will fill the rest region with black.
 
 `background.txt` is much more simpler. Every line indicates where the background image in the file system.
 
@@ -57,7 +59,7 @@ You should prepare your own data. You need two kinds of data, face with landmark
 ....
 ```
 
-Background images should have no face and we will do data augmentation during the hard negative mining. Of course, you can use absolute path to indicate where is your face images and background images. However, don't use any space character in your image path or non ASCII characters.
+Background images should have no face and we will do data augment during the hard negative mining. Of course, you can use absolute path to indicate where is your face images and background images. However, don't use any space character in your image path or non ASCII characters.
 
 ### Train
 
@@ -113,7 +115,7 @@ For more details of the model file layout, please refer to `cascador.cpp` and `c
 |         |-- result
 ```
 
-prepare your data and model file, you also need to set `current_stage_idx` and `current_cart_idx` correctly in `config.json`. All result text file used by [npinto/fddb-evaluation][npinto/fddb-evaluation] is under `result` directory.
+You should prepare fddb data and model file. All result text file used by [npinto/fddb-evaluation][npinto/fddb-evaluation] is under `result` directory.
 
 ```
 $ ./jda fddb
