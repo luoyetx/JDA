@@ -273,6 +273,17 @@ void DataSet::Clear() {
   size = 0;
 }
 
+void DataSet::Dump(const string& dir) const {
+  const int n = size;
+
+  #pragma omp parallel for
+  for (int i = 0; i < size; i++) {
+    char buff[300];
+    sprintf(buff, "%s/%06d.jpg", dir.c_str(), i);
+    cv::imwrite(buff, imgs[i]);
+  }
+}
+
 void DataSet::MoreNegSamples(int pos_size, double rate, double score_th) {
   JDA_Assert(is_pos == false, "Positive Dataset can not use `MoreNegSamples`");
   const Config& c = Config::GetInstance();
@@ -348,7 +359,7 @@ static Mat getFace(const Mat& img, const Rect& bbox) {
   const int w = cols;
   const int h = rows;
   Rect roi(x, y, w, h);
-  img_(roi) = img.clone();
+  img.copyTo(img_(roi));
 
   Rect bbox_(bbox.x + x, bbox.y + y, bbox.width, bbox.height);
   return img_(bbox_).clone();

@@ -217,6 +217,10 @@ public:
    * \param neg         negative dataset
    */
   static void Resume(const std::string& data_file, DataSet& pos, DataSet& neg);
+  /*!
+   * \breif Dump images to file system
+   */
+  void Dump(const std::string& dir) const;
 
 public:
   /*! \breif generator for more negative samples */

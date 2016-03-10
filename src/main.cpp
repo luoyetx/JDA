@@ -8,6 +8,7 @@ void test();
 void resume();
 void live();
 void fddb();
+void dump();
 
 /*! \breif command help */
 static const char help[] = "Joint Cascade Face Detection and Alignment\n\n"
@@ -39,6 +40,9 @@ int main(int argc, char* argv[]) {
   }
   else if (strcmp(argv[1], "fddb") == 0) {
     fddb();
+  }
+  else if (strcmp(argv[1], "dump") == 0) {
+    dump();
   }
   else {
     printf(help);

@@ -110,3 +110,14 @@ void resume() {
   joincascador.SerializeTo(fd);
   fclose(fd);
 }
+
+void dump() {
+  DataSet pos, neg;
+  char data_file[] = "../data/jda_train_data.data";
+  if (EXISTS(data_file)) {
+    LOG("Load Positive And Negative DataSet from %s", data_file);
+    DataSet::Resume(data_file, pos, neg);
+  }
+  pos.Dump("../data/dump/pos");
+  neg.Dump("../data/dump/neg");
+}
