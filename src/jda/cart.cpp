@@ -1,3 +1,4 @@
+#include <omp.h>
 #include <cmath>
 #include <cstdio>
 #include <climits>
@@ -54,7 +55,7 @@ void Cart::Train(const DataSet& pos, const DataSet& neg) {
 void Cart::SplitNode(const DataSet& pos, const vector<int>& pos_idx, \
                      const DataSet& neg, const vector<int>& neg_idx, \
                      int node_idx) {
-  const Config& c = Config::GetInstance();
+  Config& c = Config::GetInstance();
   const int pos_n = pos_idx.size();
   const int neg_n = neg_idx.size();
   if (node_idx >= nodes_n / 2) {
@@ -80,11 +81,11 @@ void Cart::SplitNode(const DataSet& pos, const vector<int>& pos_idx, \
     }
 
     scores[idx] = 0.5*(log(pos_w) - log(neg_w));
-    printf("Leaf % 3d has % 6d pos and % 6d neg. Score is %.2lf\n", node_idx, pos_n, neg_n, scores[idx]);
+    printf("Leaf % 3d has % 7d pos and % 7d neg. Score is %.2lf\n", node_idx, pos_n, neg_n, scores[idx]);
     return;
   }
 
-  printf("Node % 3d has % 6d pos and % 6d neg.", node_idx, pos_n, neg_n);
+  printf("Node % 3d has % 7d pos and % 7d neg.", node_idx, pos_n, neg_n);
 
   // feature pool
   vector<Feature> feature_pool;
@@ -93,17 +94,17 @@ void Cart::SplitNode(const DataSet& pos, const vector<int>& pos_idx, \
   pos_feature = pos.CalcFeatureValues(feature_pool, pos_idx);
   neg_feature = neg.CalcFeatureValues(feature_pool, neg_idx);
   // classification or regression
-  RNG rng(getTickCount());
+  RNG rng(cv::getTickCount());
   bool is_classification = (rng.uniform(0., 1.) < c.probs[stage]) ? true : false;
   int feature_idx, threshold;
   if (is_classification) {
-    printf("\tSplit by Classification\n");
+    printf(" Split by Classification\n");
     SplitNodeWithClassification(pos, pos_idx, neg, neg_idx, \
                                 pos_feature, neg_feature, \
                                 feature_idx, threshold);
   }
   else {
-    printf("\tSplit by Regression\n");
+    printf(" Split by Regression\n");
     Mat_<double> shape_residual = pos.CalcShapeResidual(pos_idx, landmark_id);
     SplitNodeWithRegression(pos, pos_idx, neg, neg_idx, \
                             pos_feature, shape_residual, \
@@ -280,6 +281,7 @@ void Cart::SplitNodeWithRegression(const DataSet& pos, const std::vector<int>& p
                                    const Mat_<int>& pos_feature, \
                                    const Mat_<double>& shape_residual, \
                                    int& feature_idx, int& threshold) {
+  Config& c = Config::GetInstance();
   const int feature_n = pos_feature.rows;
   const int pos_n = pos_feature.cols;
   feature_idx = 0;
@@ -298,7 +300,7 @@ void Cart::SplitNodeWithRegression(const DataSet& pos, const std::vector<int>& p
 
   #pragma omp parallel for
   for (int i = 0; i < feature_n; i++) {
-    RNG rng(getTickCount());
+    RNG& rng = c.rng_pool[omp_get_thread_num() + 1];
 
     Mat_<int> pos_feature_sorted = pos_feature.row(i).clone();
     _qsort<int>(pos_feature_sorted.ptr<int>(0), 0, pos_n - 1);
@@ -335,12 +337,14 @@ void Cart::SplitNodeWithRegression(const DataSet& pos, const std::vector<int>& p
 }
 
 void Cart::GenFeaturePool(vector<Feature>& feature_pool) {
-  const Config& c = Config::GetInstance();
+  Config& c = Config::GetInstance();
   const int landmark_n = c.landmark_n;
-  RNG rng(getTickCount());
   feature_pool.resize(featNum);
 
+  #pragma omp parallel for
   for (int i = 0; i < featNum; i++) {
+    RNG& rng = c.rng_pool[omp_get_thread_num() + 1];
+
     double x1, y1, x2, y2;
     x1 = y1 = x2 = y2 = 1.;
     // needs to be in a circle

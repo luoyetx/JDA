@@ -1,26 +1,35 @@
 {
     "T": 5,
-    "K": 200,
-    "landmark_n": 5,
+    "K": 1080,
+    "landmark_n": 27,
     "tree_depth": 4,
-    "random_shift": 0.0375,
+    "random_shift": 0.02,
     "image_size": {
         "multi_scale": true,
-        "origin_size": 80,
-        "half_size": 56,
-        "quarter_size": 40
+        "origin_size": 64,
+        "half_size": 46,
+        "quarter_size": 32
     },
     "hard_negative_mining": {
-        "pool": 20,
-        "minimum_size": 10,
-        "factor": 5
+        "mining_th": 0.5,
+        "mining_type": "Random",
+        "Random": {
+            "pool": 100,
+            "minimum_size": 10,
+            "factor": 0.5
+        },
+        "Scan": {
+            "x_step": 5,
+            "y_step": 5,
+            "scale_factor": 0.9
+        }
     },
     "stages": {
-        "feature_pool_size": [1000, 1000, 1000, 1000, 1000],
-        "random_sample_radius": [0.4, 0.3, 0.2, 0.15, 0.1],
+        "feature_pool_size": [2000, 2000, 2000, 2000, 2000],
+        "random_sample_radius": [0.3, 0.2, 0.15, 0.12, 0.1],
         "classification_p": [0.9, 0.8, 0.7, 0.6, 0.5],
         "recall": [0.99, 0.99, 0.99, 0.99, 0.99],
-        "neg_pos_ratio": [1.0, 1.0, 1.0, 1.0, 1.0]
+        "neg_pos_ratio": [2.0, 2.0, 2.0, 2.0, 2.0]
     },
     "data": {
         "face": "../data/face.txt",
@@ -31,34 +40,34 @@
         "dir": "../data/fddb",
         "out": false,
         "nms": true,
-        "draw_score": false,
+        "draw_score": true,
         "draw_shape": true,
-        "minimum_size": 80,
-        "step": 20,
-        "scale": 1.1,
+        "minimum_size": 20,
+        "step": 5,
+        "scale": 1.3,
         "overlap": 0.3,
         "method": 0
     },
     "cart": {
         "restart": {
-            "on": true,
-            "th": [0.01, 0.01, 0.01, 0.01, 0.01],
+            "on": false,
+            "th": [0.0025, 0.0025, 0.0025, 0.0025, 0.0025],
             "times": 5
         }
     },
     "face": {
-        "online_augment": false,
+        "online_augment": true,
         "symmetric_landmarks": {
             "offset": 1,
-            "left": [1, 4],
-            "right": [2, 5]
+            "left": [1, 2, 5, 6, 7, 8, 9, 19, 22],
+            "right": [4, 3, 12, 11, 10, 13, 14, 21, 23]
         },
         "pupils": {
             "offset": 1,
-            "left": [1],
-            "right": [2]
+            "left": [9],
+            "right": [14]
         }
     },
     "resume_model": "../model/jda_xxx.model",
-    "snapshot_iter": 100
+    "snapshot_iter": 300,
 }

@@ -12,6 +12,30 @@ class DataSet;
 class Feature;
 class JoinCascador;
 
+class Miner {
+public:
+  /*!
+   * \breif Load nagetive image file list from path
+   * \param path    background image file list
+   */
+  virtual void Load(const std::vector<std::string>& path) = 0;
+  /*!
+   * \breif Generate negative samples online for hard negative mining
+   * \param size  number of patches needed
+   * \return      negative sample
+   */
+  virtual std::vector<cv::Mat> NextImage(int size) = 0;
+  /*!
+   * \breif report mining status
+   * \return  mining status
+   */
+  virtual double Report() = 0;
+  /*!
+   * \breif do something if need before every mining start
+   */
+  virtual void BeforeMining() = 0;
+};
+
 /*!
  * \breif Negative Training Sample Generator
  *  hard negative training sample will be needed if less negative alives
@@ -43,45 +67,17 @@ public:
   int Generate(const JoinCascador& joincascador, int size, \
                std::vector<cv::Mat>& imgs, std::vector<double>& scores, \
                std::vector<cv::Mat_<double> >& shapes, double score_th);
-
   /*!
    * \breif Load nagetive image file list from path
    * \param path    background image file list
    */
   void Load(const std::vector<std::string>& path);
-  /*!
-   * \breif Update mining queue
-   */
-  void Reload();
-  int inline reload_time() {
-    return reload_time_;
-  }
-
-private:
-  /*!
-   * \breif Generate negative samples online for hard negative mining
-   * \return    negative sample
-   */
-  std::vector<cv::Mat> NextImage(int size);
 
 public:
   /*! \breif mean shape of pos dataset for init_shape */
   cv::Mat_<double> mean_shape;
-
-private:
-  /*! \breif negative file list */
-  std::vector<std::string> list;
-  /*!
-   * \breif hard negative mining strategy
-   *  function Reload() will randomly select `c.mining_queue_size` background images from `list` with
-   *  random flip and random rotation. When perform mining, we random select a background image and
-   *  select a random Roi to generate a negative patch. After generating too many patches from current
-   *  mining pool, a Reload() is needed to change the current background mining pool.
-   */
-  std::vector<cv::Mat> pool;
-  int target_count;
-  int current_count;
-  int reload_time_;
+  /*! \breif miner */
+  Miner* miner;
 };
 
 /*!

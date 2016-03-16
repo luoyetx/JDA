@@ -126,7 +126,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
   int neg_rejected = 0;
 
   const int landmark_n = c.landmark_n;
-  RNG rng(getTickCount());
+  RNG& rng = c.rng_pool[0];
   int drop_n = (1. - c.recall[stage])*pos.size / K; // pos drop number per cart
   if (drop_n <= 1) drop_n = 1;
 
@@ -136,11 +136,19 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
   Cart best_cart = carts[0];
 
   // Real Boost
+
+  neg.MoreNegSamples(pos.size, c.nps[stage], pos.scores[pos.size - 1]);
+  // if neg.size < neg_th, mining starts
+  int neg_th = int(neg.size * c.mining_th);
   for (int k = start_of_cart; k < K; k++) {
+    const int kk = k + 1;
     Cart& cart = carts[k];
     pos.QSort();
     // more neg if needed
-    neg.MoreNegSamples(pos.size, c.nps[stage], pos.scores[pos.size - 1]);
+    if (neg.size < neg_th || neg.size < pos.size) {
+      neg.MoreNegSamples(pos.size, c.nps[stage], pos.scores[pos.size - 1]);
+      neg_th = int(neg.size * c.mining_th);
+    }
     // print out data set status
     neg.QSort();
     LOG("Pos max score = %.4lf, min score = %.4lf", pos.scores[0], pos.scores[pos.size - 1]);
@@ -204,17 +212,19 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     restarts = 0;
     pos.Remove(cart.th);
     neg.Remove(cart.th);
+
     // print cart info
     cart.PrintSelf();
-    const int kk = k + 1;
     if ((kk != K) && (kk%c.snapshot_iter == 0)) { // snapshot model and data
       DataSet::Snapshot(pos, neg);
       c.joincascador->Snapshot();
     }
 
-    double pos_drop_rate = double(pos_n - pos.size) / double(pos_n)* 100.;
-    double neg_drop_rate = double(neg_n - neg.size) / double(neg_n)* 100.;
-    LOG("Pos drop = %d, Neg drop rate = %.2lf%%", pos_n - pos.size, neg_drop_rate);
+    int pos_drop = pos_n - pos.size;
+    int neg_drop = neg_n - neg.size;
+    double pos_drop_rate = double(pos_drop) / double(pos_n)* 100.;
+    double neg_drop_rate = double(neg_drop) / double(neg_n)* 100.;
+    LOG("Pos drop = %d, Neg drop = %d, drop rate = %.2lf%%", pos_drop, neg_drop, neg_drop_rate);
     neg_rejected += neg_n - neg.size;
   }
   // Global Regression with LBF

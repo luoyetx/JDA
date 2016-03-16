@@ -1,3 +1,4 @@
+#include <omp.h>
 #include <cmath>
 #include <ctime>
 #include <cstdio>
@@ -86,23 +87,24 @@ Mat_<double> DataSet::CalcMeanShape() {
 
 void DataSet::RandomShape(const Mat_<double>& mean_shape, Mat_<double>& shape) {
   const Config& c = Config::GetInstance();
-  const double shift_size = c.shift_size;
   RNG rng = RNG(getTickCount());
+  double shift_size = rng.uniform(-c.shift_size, c.shift_size);
   Mat_<double> shift(mean_shape.rows, mean_shape.cols);
-  // we use a uniform distribution over [-shift_size, shift_size]
-  // shift_size should be small, or it will break the shape constraint
-  rng.fill(shift, RNG::UNIFORM, -shift_size, shift_size);
+  // only apply a global shift
+  shift.setTo(shift_size);
   shape = mean_shape + shift;
 }
 void DataSet::RandomShapes(const Mat_<double>& mean_shape, vector<Mat_<double> >& shapes) {
-  const Config& c = Config::GetInstance();
-  const double shift_size = c.shift_size;
+  Config& c = Config::GetInstance();
   const int n = shapes.size();
-  RNG rng = RNG(getTickCount());
   Mat_<double> shift(mean_shape.rows, mean_shape.cols);
+
+  #pragma omp parallel for
   for (int i = 0; i < n; i++) {
-    // we use a uniform distribution over [-shift_size, shift_size]
-    rng.fill(shift, RNG::UNIFORM, -shift_size, shift_size);
+    RNG& rng = c.rng_pool[omp_get_thread_num() + 1];
+    double shift_size = rng.uniform(-c.shift_size, c.shift_size);
+    // only apply a global shift
+    shift.setTo(shift_size);
     shapes[i] = mean_shape + shift;
   }
 }
@@ -303,8 +305,8 @@ void DataSet::MoreNegSamples(int pos_size, double rate, double score_th) {
   TIMER_BEGIN
     extra_size = neg_generator.Generate(*c.joincascador, size_, \
                                         imgs_, scores_, shapes_, score_th);
-    LOG("We have mined %d hard negative samples, it costs %.2lf s. Total Reload Time: %d", \
-        extra_size, TIMER_NOW, neg_generator.reload_time());
+    LOG("We have mined %d hard negative samples, it costs %.2lf s", \
+        extra_size, TIMER_NOW);
   TIMER_END
 
   const int expanded = imgs.size() + imgs_.size();
@@ -662,10 +664,308 @@ void DataSet::Resume(const string& data_file, DataSet& pos, DataSet& neg) {
   fclose(fin);
 }
 
-NegGenerator::NegGenerator()
-  : reload_time_(0) {
+// Different Miner
+
+#define DECLARE_MINER_BASE(Type) \
+  public: \
+    Type##Miner(); \
+    ~Type##Miner(); \
+    virtual void Load(const vector<string>& path); \
+    virtual vector<Mat> NextImage(int size); \
+    virtual double Report(); \
+    virtual void BeforeMining();
+
+/*! \breif Random Miner */
+class RandomMiner : public Miner {
+  DECLARE_MINER_BASE(Random)
+
+public:
+  /*! \breif Update mining queue */
+  void Reload();
+
+public:
+  /*! \breif negative file list */
+  std::vector<std::string> list;
+  /*!
+   * \breif hard negative mining strategy
+   *  function Reload() will randomly select `c.mining_queue_size` background images from `list` with
+   *  random flip and random rotation. When perform mining, we random select a background image and
+   *  select a random Roi to generate a negative patch. After generating too many patches from current
+   *  mining pool, a Reload() is needed to change the current background mining pool.
+   */
+  std::vector<cv::Mat> pool;
+  int target_count;
+  int current_count;
+  int reload_time_;
+  int current_idx;
+};
+
+RandomMiner::RandomMiner() {
 }
-NegGenerator::~NegGenerator() {}
+RandomMiner::~RandomMiner() {
+}
+
+void RandomMiner::Load(const vector<string>& path) {
+  const Config& c = Config::GetInstance();
+
+  for (int i = 0; i < path.size(); i++) {
+    FILE* file = fopen(path[i].c_str(), "r");
+    JDA_Assert(file, "Can not open negative dataset file list");
+
+    char buff[256];
+    list.clear();
+    while (fscanf(file, "%s", buff) > 0) {
+      list.push_back(buff);
+    }
+  }
+  std::random_shuffle(list.begin(), list.end());
+  // malloc memory
+  pool.resize(c.mining_queue_size);
+
+  current_idx = 0;
+}
+
+vector<Mat> RandomMiner::NextImage(int size) {
+  Config& c = Config::GetInstance();
+  vector<Mat> res(size);
+
+  #pragma omp parallel for
+  for (int i = 0; i < size; i++) {
+    RNG& rng = c.rng_pool[omp_get_thread_num() + 1];
+
+    int w = pool[i].cols;
+    int h = pool[i].rows;
+    int maximum_size = std::min(w, h);
+    int patch_size = rng.uniform(c.mining_patch_minimum_size, maximum_size);
+    int x = rng.uniform(0, w - patch_size);
+    int y = rng.uniform(0, h - patch_size);
+    res[i] = pool[i](Rect(x, y, patch_size, patch_size)).clone();
+  }
+
+  current_count += size;
+  if (current_count > target_count) {
+    Reload();
+  }
+  return res;
+}
+
+double RandomMiner::Report() {
+  return (100. - 100.*double(current_count) / double(target_count));
+}
+
+void RandomMiner::Reload() {
+  Config& c = Config::GetInstance();
+  current_count = 0;
+  target_count = 0;
+
+  #pragma omp parallel for
+  for (int i = 0; i < c.mining_queue_size; i++) {
+    RNG& rng = c.rng_pool[omp_get_thread_num() + 1];
+    int index = current_idx + i;
+    if (index >= list.size()) index -= list.size();
+    Mat img;
+    while (!img.data) {
+      img = cv::imread(list[index], CV_LOAD_IMAGE_GRAYSCALE);
+      index += c.mining_queue_size;
+      if (index >= list.size()) index -= list.size();
+    }
+    // possible to flip
+    if (rng.uniform(0., 1.) > 0.5) {
+      cv::flip(img, img, 1);
+    }
+    // possible to rotate
+    if (rng.uniform(0., 1.) > 0.5) {
+      double angle;
+      switch (rng.uniform(0, 3)) {
+      case 0:
+        angle = 90.; break;
+      case 1:
+        angle = 180.; break;
+      case 2:
+        angle = 270.; break;
+      default:
+        angle = 0; break;
+      }
+      int x = img.cols / 2;
+      int y = img.rows / 2;
+      Mat r = cv::getRotationMatrix2D(Point2f(x, y), angle, 1);
+      cv::warpAffine(img, img, r, Size(img.cols, img.rows));
+    }
+    pool[i] = img;
+  }
+
+  current_idx += c.mining_queue_size;
+  if (current_idx >= list.size()) current_idx -= list.size();
+  target_count = 5000 * c.mining_queue_size;
+  reload_time_++;
+}
+
+void RandomMiner::BeforeMining() {
+  Reload();
+}
+
+// Scan Miner
+
+/*! \breif Scan Miner */
+class ScanMiner : public Miner {
+  DECLARE_MINER_BASE(Scan)
+
+public:
+  /*!
+   * \breif Next State, update parameters for next image
+   */
+  void NextState();
+
+public:
+  /*! \breif index of image current used */
+  int current_idx;
+  /*! \breif negative file list */
+  std::vector<std::string> list;
+  int x, y, w, h;
+  cv::Mat img;
+};
+
+ScanMiner::ScanMiner() {
+}
+ScanMiner::~ScanMiner() {
+}
+
+void ScanMiner::Load(const vector<string>& path) {
+  for (int i = 0; i < path.size(); i++) {
+    FILE* file = fopen(path[i].c_str(), "r");
+    JDA_Assert(file, "Can not open negative dataset file list");
+
+    char buff[256];
+    list.clear();
+    while (fscanf(file, "%s", buff) > 0) {
+      list.push_back(buff);
+    }
+  }
+  std::random_shuffle(list.begin(), list.end());
+  // initialize
+  x = y = 0;
+  current_idx = 0;
+  img = cv::imread(list[current_idx], CV_LOAD_IMAGE_GRAYSCALE);
+  if (!img.data) dieWithMsg("Can not open image, the path is %s", list[current_idx].c_str());
+}
+
+vector<Mat> ScanMiner::NextImage(int size) {
+  const Config& c = Config::GetInstance();
+  vector<Mat> res(size);
+  for (int i = 0; i < size; i++) {
+    NextState();
+    res[i] = img(Rect(x, y, c.img_o_size, c.img_o_size)).clone();
+  }
+  return res;
+}
+
+double ScanMiner::Report() {
+  return 100. - double(current_idx) / list.size() * 100.;
+}
+
+void ScanMiner::BeforeMining() {
+}
+
+void ScanMiner::NextState() {
+  const Config& c = Config::GetInstance();
+  const double scale_factor = c.scale_factor;
+  const int x_step = c.x_step;
+  const int y_step = c.y_step;
+  const int w = c.img_o_size;
+  const int h = c.img_o_size;
+  const double scale = c.scale_factor;
+
+  const int width = img.cols;
+  const int height = img.rows;
+
+  x += x_step; // move x
+  if (x + w >= width) {
+    x = 0;
+    y += y_step; // move y
+    if (y + h >= height) {
+      x = y = 0;
+      int width_ = int(img.cols * scale_factor);
+      int height_ = int(img.rows * scale_factor);
+
+      cv::resize(img, img, Size(width_, height_)); // scale image
+      if (img.cols < w || img.rows < h) {
+        // next image
+        while (true) {
+          current_idx++; // next image
+          if (current_idx >= list.size()) {
+            // Add background image list online
+            LOG("Run out of Negative Samples! :-(");
+            // Snapshot all and die
+            LOG("Snapshot all");
+            DataSet& pos = *c.joincascador->pos;
+            DataSet& neg = *c.joincascador->neg;
+            DataSet::Snapshot(pos, neg);
+            c.joincascador->Snapshot();
+
+            LOG("Reset current_idx to 0 and restart");
+            current_idx = 0;
+            continue;
+          }
+          //LOG("Use %d th Nega Image %s", current_idx + 1, list[current_idx].c_str());
+          img = cv::imread(list[current_idx], CV_LOAD_IMAGE_GRAYSCALE);
+          if (!img.data || img.cols <= w || img.rows <= h) {
+            if (!img.data) {
+              //LOG("Can not open image %s, Skip it", list[current_idx].c_str());
+            }
+            else {
+              //LOG("Image %s is too small, Skip it", list[current_idx].c_str());
+            }
+          }
+          else {
+            // successfully get another background image
+            // possible for augment
+            RNG rng(cv::getTickCount());
+            if (rng.uniform(0., 1.) > 0.5) {
+              cv::flip(img, img, 1);
+            }
+            // possible to rotate
+            if (rng.uniform(0., 1.) > 0.5) {
+              double angle;
+              switch (rng.uniform(0, 3)) {
+              case 0:
+                angle = 90.; break;
+              case 1:
+                angle = 180.; break;
+              case 2:
+                angle = 270.; break;
+              default:
+                angle = 0; break;
+              }
+              int x = img.cols / 2;
+              int y = img.rows / 2;
+              Mat r = cv::getRotationMatrix2D(Point2f(x, y), angle, 1);
+              cv::warpAffine(img, img, r, Size(img.cols, img.rows));
+            }
+            break;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Negative Generator
+
+NegGenerator::NegGenerator() {
+  const Config& c = Config::GetInstance();
+  if (c.mining_type == "Random") {
+    miner = new RandomMiner;
+  }
+  else if (c.mining_type == "Scan") {
+    miner = new ScanMiner;
+  }
+  else {
+    dieWithMsg("Mining Type %s is not support", c.mining_type.c_str());
+  }
+}
+NegGenerator::~NegGenerator() {
+  if (miner) delete miner;
+}
 
 int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
                            vector<Mat>& imgs, vector<double>& scores, \
@@ -694,12 +994,11 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
   double ratio = 0.9;
   const double score_upper = std::abs(score_th) + 2.3;
 
-  // reload every time
-  Reload();
+  miner->BeforeMining();
 
   while (size > 0) {
     // We generate a negative sample pool for validation
-    region_pool = NextImage(c.mining_pool_size);
+    region_pool = miner->NextImage(pool_size);
 
     #pragma omp parallel for
     for (int i = 0; i < pool_size; i++) {
@@ -728,8 +1027,7 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
     }
 
     if (size < ratio*size_o) {
-      LOG("We have mined %d%%, current pool remain %d%%", int((1. - ratio + 1e-6) * 100), \
-          int(100. - 100.*double(current_count) / double(target_count)));
+      LOG("We have mined %d%%, remain %d%%", int((1. - ratio + 1e-6) * 100), int(miner->Report()));
       ratio -= 0.1;
     }
   }
@@ -746,76 +1044,8 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
   return imgs.size();
 }
 
-vector<Mat> NegGenerator::NextImage(int size) {
-  const Config& c = Config::GetInstance();
-  vector<Mat> res(size);
-  RNG rng(cv::getTickCount());
-
-  for (int i = 0; i < size; i++) {
-    int index = rng.uniform(0, pool.size());
-    int w = pool[index].cols;
-    int h = pool[index].rows;
-    int maximum_size = std::min(w, h);
-    int patch_size = rng.uniform(c.mining_patch_minimum_size, maximum_size);
-    int x = rng.uniform(0, w - patch_size);
-    int y = rng.uniform(0, h - patch_size);
-    res[i] = pool[index](Rect(x, y, patch_size, patch_size)).clone();
-  }
-
-  current_count += size;
-  if (current_count > target_count) {
-    Reload();
-  }
-  return res;
-}
-
 void NegGenerator::Load(const vector<string>& path) {
-  const Config& c = Config::GetInstance();
-
-  for (int i = 0; i < path.size(); i++) {
-    FILE* file = fopen(path[i].c_str(), "r");
-    JDA_Assert(file, "Can not open negative dataset file list");
-
-    char buff[256];
-    list.clear();
-    while (fscanf(file, "%s", buff) > 0) {
-      list.push_back(buff);
-    }
-  }
-  // malloc memory
-  pool.resize(c.mining_queue_size);
-}
-
-void NegGenerator::Reload() {
-  const Config& c = Config::GetInstance();
-  RNG rng(cv::getTickCount());
-  current_count = 0;
-  target_count = 0;
-
-  for (int i = 0; i < c.mining_queue_size; i++) {
-    int index = rng.uniform(0, list.size());
-    Mat img = cv::imread(list[index], CV_LOAD_IMAGE_GRAYSCALE);
-    if (!img.data) {
-      i--;
-      continue;
-    }
-    // possible to flip
-    if (rng.uniform(0., 1.) > 0.5) {
-      cv::flip(img, img, 1);
-    }
-    // possible to rotate
-    if (rng.uniform(0., 1.) > 0.5) {
-      double angle = rng.uniform(0., 360.);
-      int x = img.cols / 2;
-      int y = img.rows / 2;
-      Mat r = cv::getRotationMatrix2D(Point2f(x, y), angle, 1);
-      cv::warpAffine(img, img, r, Size(img.cols, img.rows));
-    }
-    pool[i] = img;
-
-    target_count += int(c.mining_factor*img.cols*img.rows);
-  }
-  reload_time_++;
+  miner->Load(path);
 }
 
 } // namespace jda

@@ -135,10 +135,17 @@ public:
   /*! \breif recall of each stage */
   std::vector<double> recall;
   /*! \breif hard negative mining parameters */
+  std::string mining_type;
+  double mining_th;
+  // scan miner parameters
+  int x_step, y_step;
+  double scale_factor;
+  // random miner parameters
   int mining_patch_minimum_size;
   int mining_queue_size;
-  int mining_pool_size;
   double mining_factor;
+  /*! \breif parallel mining validate numer */
+  int mining_pool_size;
   /*! \breif a text file for train positive dataset */
   std::string face_txt;
   /*! \breif a text file for train negative dataset */
@@ -176,6 +183,8 @@ public:
   /*! \breif pupils for calculating regreesin error*/
   std::vector<int> left_pupils;
   std::vector<int> right_pupils;
+  /*! \breif random generator pool */
+  std::vector<cv::RNG> rng_pool;
 
 private:
   Config();

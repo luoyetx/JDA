@@ -155,9 +155,20 @@ Config::Config() {
 
   // hard negative mining
   jsmn::Object& mining_config = json_config["hard_negative_mining"].unwrap<Object>();
-  mining_patch_minimum_size = mining_config["minimum_size"].unwrap<Number>();
-  mining_queue_size = mining_config["pool"].unwrap<Number>();
-  mining_factor = mining_config["factor"].unwrap<Number>();
+  mining_th = mining_config["mining_th"].unwrap<Number>();
+  mining_type = mining_config["mining_type"].unwrap<jsmn::String>();
+  if (mining_type != "Random" && mining_type != "Scan") {
+    dieWithMsg("Mining Type %s is not supported", mining_type.c_str());
+  }
+  jsmn::Object& random_miner = mining_config["Random"].unwrap<Object>();
+  mining_patch_minimum_size = random_miner["minimum_size"].unwrap<Number>();
+  mining_queue_size = random_miner["pool"].unwrap<Number>();
+  mining_factor = random_miner["factor"].unwrap<Number>();
+  jsmn::Object& scan_miner = mining_config["Scan"].unwrap<Object>();
+  x_step = scan_miner["x_step"].unwrap<Number>();
+  y_step = scan_miner["y_step"].unwrap<Number>();
+  scale_factor = scan_miner["scale_factor"].unwrap<Number>();
+
   mining_pool_size = omp_get_max_threads();
   esp = 2.2e-16;
 
@@ -238,6 +249,13 @@ Config::Config() {
   }
   for (int i = 0; i < pupils_right.size(); i++) {
     right_pupils[i] = pupils_right[i].unwrap<Number>() - offset;
+  }
+
+  // random generator pool
+  int rng_size = 2 * omp_get_max_threads();
+  rng_pool.reserve(rng_size);
+  for (int i = 0; i < rng_size; i++) {
+    rng_pool.push_back(RNG(cv::getTickCount()));
   }
 }
 
