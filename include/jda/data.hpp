@@ -12,30 +12,6 @@ class DataSet;
 class Feature;
 class JoinCascador;
 
-class Miner {
-public:
-  /*!
-   * \breif Load nagetive image file list from path
-   * \param path    background image file list
-   */
-  virtual void Load(const std::vector<std::string>& path) = 0;
-  /*!
-   * \breif Generate negative samples online for hard negative mining
-   * \param size  number of patches needed
-   * \return      negative sample
-   */
-  virtual std::vector<cv::Mat> NextImage(int size) = 0;
-  /*!
-   * \breif report mining status
-   * \return  mining status
-   */
-  virtual double Report() = 0;
-  /*!
-   * \breif do something if need before every mining start
-   */
-  virtual void BeforeMining() = 0;
-};
-
 /*!
  * \breif Negative Training Sample Generator
  *  hard negative training sample will be needed if less negative alives
@@ -61,12 +37,11 @@ public:
    * \param imgs            negative samples
    * \param scores          scores of negative samples
    * \param shapes          shapes of samples, for training
-   * \param score_th        minimum score of positive dataset
    * \return                real size
    */
   int Generate(const JoinCascador& joincascador, int size, \
                std::vector<cv::Mat>& imgs, std::vector<double>& scores, \
-               std::vector<cv::Mat_<double> >& shapes, double score_th);
+               std::vector<cv::Mat_<double> >& shapes);
   /*!
    * \breif Load nagetive image file list from path
    * \param path    background image file list
@@ -74,10 +49,9 @@ public:
   void Load(const std::vector<std::string>& path);
 
 public:
-  /*! \breif mean shape of pos dataset for init_shape */
-  cv::Mat_<double> mean_shape;
-  /*! \breif miner */
-  Miner* miner;
+  /*! \breif background image list */
+  std::vector<std::string> list;
+  int current_idx;
 };
 
 /*!
@@ -181,9 +155,8 @@ public:
    * \breif More Negative Samples if needed (only neg dataset needs)
    * \param pos_size    positive dataset size, reference for generating
    * \param rate        N(negative) / N(positive)
-   * \param score_th    minimum score of positive dataset
    */
-  void MoreNegSamples(int pos_size, double rate, double score_th);
+  void MoreNegSamples(int pos_size, double rate);
   /*!
    * \breif Quick Sort by scores descending
    */

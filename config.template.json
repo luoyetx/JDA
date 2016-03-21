@@ -12,17 +12,9 @@
     },
     "hard_negative_mining": {
         "mining_th": 0.5,
-        "mining_type": "Random",
-        "Random": {
-            "pool": 100,
-            "minimum_size": 10,
-            "factor": 0.5
-        },
-        "Scan": {
-            "x_step": 5,
-            "y_step": 5,
-            "scale_factor": 0.9
-        }
+        "min_size": 20,
+        "factor": 1.3,
+        "step_ratio": 0.5
     },
     "stages": {
         "feature_pool_size": [2000, 2000, 2000, 2000, 2000],

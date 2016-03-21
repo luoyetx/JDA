@@ -137,7 +137,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
 
   // Real Boost
 
-  neg.MoreNegSamples(pos.size, c.nps[stage], pos.scores[pos.size - 1]);
+  neg.MoreNegSamples(pos.size, c.nps[stage]);
   // if neg.size < neg_th, mining starts
   int neg_th = int(neg.size * c.mining_th);
   for (int k = start_of_cart; k < K; k++) {
@@ -150,7 +150,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     //  neg_th = int(neg.size * c.mining_th);
     //}
     if (neg.size < neg_th) {
-      neg.MoreNegSamples(pos.size, c.nps[stage], pos.scores[pos.size - 1]);
+      neg.MoreNegSamples(pos.size, c.nps[stage]);
       neg_th = int(neg.size * c.mining_th);
     }
     // print out data set status
