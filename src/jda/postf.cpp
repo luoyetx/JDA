@@ -140,7 +140,7 @@ vector<int> PostFilter::Filter(const vector<Mat>& imgs, const vector<Mat_<double
     Mat_<double> f = SiftFeature(imgs[i], shapes[i]);
     double* f_ptr = f.ptr<double>(0);
     double y = 0;
-    for (int j = 0; j = m; j++) {
+    for (int j = 0; j < m; j++) {
       y += w[j] * f_ptr[j];
     }
     if (y > 0) res[i] = 1;

@@ -14,13 +14,13 @@ class BoostCart;
 class DetectionStatisic {
 public:
   DetectionStatisic()
-    : patch_n(0), face_patch_n(0), nonface_patch_n(0), cart_gothrough_n(0) {
+    : patch_n(0), face_patch_n(0), nonface_patch_n(0), cart_gothrough_n(0.) {
   }
 
   int patch_n;
   int face_patch_n;
   int nonface_patch_n;
-  int cart_gothrough_n;
+  double cart_gothrough_n;
   double average_cart_n; // nonface patch reject length
 };
 

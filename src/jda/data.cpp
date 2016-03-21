@@ -88,24 +88,30 @@ Mat_<double> DataSet::CalcMeanShape() {
 void DataSet::RandomShape(const Mat_<double>& mean_shape, Mat_<double>& shape) {
   const Config& c = Config::GetInstance();
   RNG rng = RNG(getTickCount());
-  double shift_size = rng.uniform(-c.shift_size, c.shift_size);
-  Mat_<double> shift(mean_shape.rows, mean_shape.cols);
+  double x = rng.uniform(-c.shift_size, c.shift_size);
+  double y = rng.uniform(-c.shift_size, c.shift_size);
+  shape.create(mean_shape.rows, mean_shape.cols);
   // only apply a global shift
-  shift.setTo(shift_size);
-  shape = mean_shape + shift;
+  for (int j = 0; j < c.landmark_n; j++) {
+    shape(0, 2 * j) = mean_shape(0, 2 * j) + x;
+    shape(0, 2 * j + 1) = mean_shape(0, 2 * j + 1) + x;
+  }
 }
 void DataSet::RandomShapes(const Mat_<double>& mean_shape, vector<Mat_<double> >& shapes) {
   Config& c = Config::GetInstance();
   const int n = shapes.size();
-  Mat_<double> shift(mean_shape.rows, mean_shape.cols);
-
+  const int landmark_n = c.landmark_n;
   #pragma omp parallel for
   for (int i = 0; i < n; i++) {
     RNG& rng = c.rng_pool[omp_get_thread_num() + 1];
-    double shift_size = rng.uniform(-c.shift_size, c.shift_size);
+    double x = rng.uniform(-c.shift_size, c.shift_size);
+    double y = rng.uniform(-c.shift_size, c.shift_size);
+    shapes[i].create(mean_shape.rows, mean_shape.cols);
     // only apply a global shift
-    shift.setTo(shift_size);
-    shapes[i] = mean_shape + shift;
+    for (int j = 0; j < landmark_n; j++) {
+      shapes[i](0, 2 * j) = mean_shape(0, 2 * j) + x;
+      shapes[i](0, 2 * j + 1) = mean_shape(0, 2 * j + 1) + y;
+    }
   }
 }
 
@@ -466,16 +472,41 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
 }
 
 void DataSet::LoadNegativeDataSet(const vector<string>& negative) {
-  neg_generator.Load(negative);
-  imgs.clear();
-  imgs_half.clear();
-  imgs_quarter.clear();
-  gt_shapes.clear();
-  current_shapes.clear();
-  weights.clear();
-  scores.clear();
-  last_scores.clear();
-  size = 0;
+  const Config& c = Config::GetInstance();
+  vector<string> bg(negative.begin() + 1, negative.end());
+  neg_generator.Load(bg);
+
+  FILE* file = fopen(negative[0].c_str(), "r");
+  JDA_Assert(file, "Can not open negative dataset file list");
+
+  char buff[256];
+  vector<string> list;
+  while (fscanf(file, "%s", buff) > 0) {
+    list.push_back(buff);
+  }
+
+  const int n = list.size();
+  imgs.resize(n);
+  imgs_half.resize(n);
+  imgs_quarter.resize(n);
+  current_shapes.resize(n);
+  scores.resize(n);
+  last_scores.resize(n);
+  weights.resize(n);
+  std::fill(weights.begin(), weights.end(), 0);
+  std::fill(scores.begin(), scores.end(), 0);
+  std::fill(last_scores.begin(), last_scores.end(), 0);
+  size = n;
+
+  #pragma omp parallel for
+  for (int i = 0; i < n; i++) {
+    imgs[i] = cv::imread(list[i], CV_LOAD_IMAGE_GRAYSCALE);
+    JDA_Assert(imgs[i].data, "Can not open %s", list[i].c_str());
+    cv::resize(imgs[i], imgs_half[i], Size(c.img_h_size, c.img_h_size));
+    cv::resize(imgs[i], imgs_quarter[i], Size(c.img_q_size, c.img_q_size));
+    cv::resize(imgs[i], imgs[i], Size(c.img_o_size, c.img_o_size));
+    DataSet::RandomShape(mean_shape, current_shapes[i]);
+  }
   is_pos = false;
 }
 
@@ -988,7 +1019,7 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
   vector<int> used(pool_size);
   vector<int> carts_go_through(pool_size);
   int nega_n = 0; // not hard nega
-  int carts_n = 0; // number of carts go through by all not hard nega
+  double carts_n = 0.; // number of carts go through by all not hard nega
 
   const int size_o = size;
   double ratio = 0.9;
@@ -1034,7 +1065,7 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
   if (nega_n != 0) {
     const int patch_n = imgs.size() + nega_n;
     const double fp_rate = double(imgs.size()) / patch_n*100.;
-    const double average_cart = double(carts_n) / nega_n;
+    const double average_cart = carts_n / nega_n;
     LOG("Done with mining, number of not hard enough is %d", nega_n);
     LOG("Average number of cart to reject is %.2lf, FP = %.4lf%%", average_cart, fp_rate);
   }

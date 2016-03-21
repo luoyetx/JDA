@@ -145,7 +145,11 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     Cart& cart = carts[k];
     pos.QSort();
     // more neg if needed
-    if (neg.size < neg_th || neg.size < pos.size) {
+    //if (neg.size < neg_th || neg.size < pos.size) {
+    //  neg.MoreNegSamples(pos.size, c.nps[stage], pos.scores[pos.size - 1]);
+    //  neg_th = int(neg.size * c.mining_th);
+    //}
+    if (neg.size < neg_th) {
       neg.MoreNegSamples(pos.size, c.nps[stage], pos.scores[pos.size - 1]);
       neg_th = int(neg.size * c.mining_th);
     }

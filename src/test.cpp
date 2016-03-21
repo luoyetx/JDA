@@ -208,10 +208,11 @@ void fddb() {
       }
     }
 
-    statisic[i].average_cart_n = double(statisic[i].cart_gothrough_n) / statisic[i].nonface_patch_n;
+    statisic[i].average_cart_n = statisic[i].cart_gothrough_n / statisic[i].nonface_patch_n;
     LOG("Summary of Test-%02d", i);
     LOG("Patch_n = %d, Non-Face Patch_n = %d, Face Patch_n = %d, Average Cart_N to Reject = %.4lf", \
-        statisic[i].patch_n, statisic[i].nonface_patch_n, statisic[i].face_patch_n, statisic[i].average_cart_n);
+        statisic[i].patch_n, statisic[i].nonface_patch_n, statisic[i].face_patch_n, \
+        statisic[i].average_cart_n);
 
     fclose(fin);
     fclose(fout);
@@ -226,7 +227,7 @@ void fddb() {
     statisic_final.cart_gothrough_n += statisic[i].cart_gothrough_n;
   }
 
-  statisic_final.average_cart_n = double(statisic_final.cart_gothrough_n) / statisic_final.nonface_patch_n;
+  statisic_final.average_cart_n = statisic_final.cart_gothrough_n / statisic_final.nonface_patch_n;
   LOG("Summary of ALL");
   LOG("Patch_n = %d, Non-Face Patch_n = %d, Face Patch_n = %d, Average Cart_N to Reject = %.4lf", \
       statisic_final.patch_n, statisic_final.nonface_patch_n, \

@@ -33,7 +33,7 @@
     },
     "data": {
         "face": "../data/face.txt",
-        "background": ["../data/background1.txt", "../data/background1.txt"],
+        "background": ["../data/hd.txt", "../data/background1.txt", "../data/background1.txt"],
         "test": "../data/test.txt"
     },
     "fddb": {

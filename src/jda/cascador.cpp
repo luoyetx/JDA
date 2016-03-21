@@ -297,7 +297,7 @@ static void detectMultiScale(const JoinCascador& joincascador, const Mat& img, \
   }
   // statisic
   statisic.patch_n = statisic.face_patch_n + statisic.nonface_patch_n;
-  statisic.average_cart_n = double(statisic.cart_gothrough_n) / statisic.nonface_patch_n;
+  statisic.average_cart_n = statisic.cart_gothrough_n / statisic.nonface_patch_n;
 }
 
 static void detectMultiScale1(const JoinCascador& joincascador, const Mat& img, \
@@ -365,7 +365,7 @@ static void detectMultiScale1(const JoinCascador& joincascador, const Mat& img, 
   }
   // statisic
   statisic.patch_n = statisic.face_patch_n + statisic.nonface_patch_n;
-  statisic.average_cart_n = double(statisic.cart_gothrough_n) / statisic.nonface_patch_n;
+  statisic.average_cart_n = statisic.cart_gothrough_n / statisic.nonface_patch_n;
 }
 
 /*!
