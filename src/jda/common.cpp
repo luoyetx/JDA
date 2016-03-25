@@ -176,6 +176,7 @@ Config::Config() {
 
   // data
   jsmn::Object& data = json_config["data"].unwrap<Object>();
+  use_hard = data["use_hard"].unwrap<Boolean>();
   face_txt = data["face"].unwrap<jsmn::String>();
   test_txt = data["test"].unwrap<jsmn::String>();
   jsmn::Array& neg_list = data["background"].unwrap<jsmn::Array>();

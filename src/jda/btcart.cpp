@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstdlib>
 #include <liblinear/linear.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include "jda/data.hpp"
@@ -13,7 +14,7 @@ namespace jda {
 
 /*!
  * \breif draw the distribution of scores
- * \note scores should be in order
+ * \note  scores should be in order
  */
 static void draw_density_graph(vector<double>& pos_scores, vector<double>& neg_scores, \
                                const int n = 100, const int rows = 20) {
@@ -137,24 +138,17 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
 
   // Real Boost
 
-  neg.MoreNegSamples(pos.size, c.nps[stage]);
   // if neg.size < neg_th, mining starts
-  int neg_th = int(neg.size * c.mining_th);
+  int neg_th = int(pos.size*c.nps[c.joincascador->current_stage_idx] * c.mining_th);
   for (int k = start_of_cart; k < K; k++) {
     const int kk = k + 1;
     Cart& cart = carts[k];
-    pos.QSort();
-    // more neg if needed
-    //if (neg.size < neg_th || neg.size < pos.size) {
-    //  neg.MoreNegSamples(pos.size, c.nps[stage], pos.scores[pos.size - 1]);
-    //  neg_th = int(neg.size * c.mining_th);
-    //}
     if (neg.size < neg_th) {
       neg.MoreNegSamples(pos.size, c.nps[stage]);
       neg_th = int(neg.size * c.mining_th);
     }
     // print out data set status
-    neg.QSort();
+    pos.QSort(); neg.QSort();
     LOG("Pos max score = %.4lf, min score = %.4lf", pos.scores[0], pos.scores[pos.size - 1]);
     LOG("Neg max score = %.4lf, min score = %.4lf", neg.scores[0], neg.scores[neg.size - 1]);
     // draw scores desity graph

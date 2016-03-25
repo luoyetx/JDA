@@ -38,7 +38,7 @@ We use `config.json` for configuration. `config.template.json` is a template, pl
 
 ### Data
 
-You should prepare your own data. You need two kinds of data, face with landmarks and background images. You also need to create a text file `face.txt` and  some `background.txt` text files which can be changed in `config.json`. Every line of `face.txt` indicates a face image's path with its landmarks and face bounding box. The number of landmarks can be changed in `config.json` and the order of landmarks does not matter.
+You should prepare your own data. You need two kinds of data, face with landmarks and background images. You also need to create a text file `face.txt` and  some `background.txt` text files which can be changed in `config.json`. Every line of `face.txt` indicates a face image's path with its landmarks and face bounding box, all points are aligned to the left top of the image. The number of landmarks can be changed in `config.json` and the order of landmarks does not matter.
 
 ```
 ../data/face/00001.jpg bbox_x bbox_y bbox_w bbox_h x1 y1 x2 y2 ........

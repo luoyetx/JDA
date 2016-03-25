@@ -4,17 +4,21 @@
 #include <cassert>
 #include <opencv2/core/core.hpp>
 
-// system io
+// system
 #ifdef WIN32
+#define NOMINMAX
 #include <io.h>
 #include <direct.h>
+#include <Windows.h>
 #define EXISTS(path) (access(path, 0)!=-1)
 #define MKDIR(path) mkdir(path)
+#define SLEEP(ms) Sleep(ms)
 #else
 #include <unistd.h>
 #include <sys/stat.h>
 #define EXISTS(path) (access(path, 0)!=-1)
 #define MKDIR(path) mkdir(path, 0775)
+#define SLEEP(ms) usleep(ms)
 #endif
 
 /*!
@@ -143,6 +147,7 @@ public:
   std::string face_txt;
   /*! \breif a text file for train negative dataset */
   std::vector<std::string> bg_txts;
+  bool use_hard;
   /*! \breif a text file for face detection test */
   std::string test_txt;
   /*! \breif esp */

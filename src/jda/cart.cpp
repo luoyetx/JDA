@@ -81,7 +81,8 @@ void Cart::SplitNode(const DataSet& pos, const vector<int>& pos_idx, \
     }
 
     scores[idx] = 0.5*(log(pos_w) - log(neg_w));
-    printf("Leaf % 3d has % 7d pos and % 7d neg. Score is %.4lf\n", node_idx, pos_n, neg_n, scores[idx]);
+    printf("Leaf % 3d has % 7d pos and % 7d neg. Score is %.4lf\n", \
+           node_idx, pos_n, neg_n, scores[idx]);
     return;
   }
 
@@ -217,8 +218,8 @@ void Cart::SplitNodeWithClassification(const DataSet& pos, const vector<int>& po
 
       const double p_ratio = double(current_p) / pos_n;
       const double n_ratio = double(current_n) / neg_n;
-      if (p_ratio < 0.05 || p_ratio > 0.95) continue;
-      if (n_ratio < 0.05 || n_ratio > 0.95) continue;
+      if (p_ratio < 0.1 || p_ratio > 0.9) continue;
+      if (n_ratio < 0.1 || n_ratio > 0.9) continue;
 
       double w_l = wp_l + wn_l;
       double w_r = wp_r + wn_r;
@@ -247,7 +248,7 @@ void Cart::SplitNodeWithClassification(const DataSet& pos, const vector<int>& po
 /*!
  * \breif Calculate Variance of vector
  */
-double calcVariance(const vector<double>& vec) {
+static double calcVariance(const vector<double>& vec) {
   if (vec.size() == 0) return 0.;
   Mat_<double> vec_(vec);
   double m1 = cv::mean(vec_)[0];
@@ -276,8 +277,8 @@ static void _qsort(T* a, int l, int r) {
   if (i < r) _qsort(a, i, r);
 }
 
-void Cart::SplitNodeWithRegression(const DataSet& pos, const std::vector<int>& pos_idx, \
-                                   const DataSet& neg, const std::vector<int>& neg_idx, \
+void Cart::SplitNodeWithRegression(const DataSet& pos, const vector<int>& pos_idx, \
+                                   const DataSet& neg, const vector<int>& neg_idx, \
                                    const Mat_<int>& pos_feature, \
                                    const Mat_<double>& shape_residual, \
                                    int& feature_idx, int& threshold) {
@@ -308,7 +309,7 @@ void Cart::SplitNodeWithRegression(const DataSet& pos, const std::vector<int>& p
     vector<double> left_x, left_y, right_x, right_y;
     left_x.reserve(pos_n); left_y.reserve(pos_n);
     right_x.reserve(pos_n); right_y.reserve(pos_n);
-    int threshold_ = pos_feature_sorted(0, int(pos_n*rng.uniform(0.05, 0.95)));
+    int threshold_ = pos_feature_sorted(0, int(pos_n*rng.uniform(0.1, 0.9)));
     for (int j = 0; j < pos_n; j++) {
       if (pos_feature(i, j) <= threshold_) {
         left_x.push_back(shape_residual(j, 0));

@@ -52,6 +52,10 @@ public:
   /*! \breif background image list */
   std::vector<std::string> list;
   int current_idx;
+  /*! \breif hard negative list */
+  std::vector<cv::Mat> hds;
+  int current_hd_idx;
+  int times;
 };
 
 /*!

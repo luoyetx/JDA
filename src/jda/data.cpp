@@ -288,7 +288,8 @@ void DataSet::Dump(const string& dir) const {
   for (int i = 0; i < size; i++) {
     char buff[300];
     sprintf(buff, "%s/%06d.jpg", dir.c_str(), i);
-    cv::imwrite(buff, imgs[i]);
+    Mat img = drawShape(imgs[i], current_shapes[i]);
+    cv::imwrite(buff, img);
   }
 }
 
@@ -414,12 +415,10 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
   for (int i = 0; i < n; i++) {
     // face image should be a sqaure
     Mat origin = imread(path[i]); // some jpeg file can not be loaded if using CV_LOAD_IMAGE_GRAYSCALE
-    cvtColor(origin, origin, CV_BGR2GRAY);
     if (!origin.data) {
-      char msg[300];
-      sprintf(msg, "Can not open %s", path[i].c_str());
-      JDA_Assert(false, msg);
+      dieWithMsg("Can not open %s", path[i].c_str());
     }
+    cvtColor(origin, origin, CV_BGR2GRAY);
     // get face
     Mat face = getFace(origin, bboxes[i]);
     // relocate landmarks
@@ -469,6 +468,9 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
   std::fill(weights.begin(), weights.end(), 0);
   std::fill(scores.begin(), scores.end(), 0);
   std::fill(last_scores.begin(), last_scores.end(), 0);
+
+  CalcMeanShape();
+  DataSet::RandomShapes(mean_shape, current_shapes);
 }
 
 void DataSet::LoadNegativeDataSet(const vector<string>& negative) {
@@ -480,46 +482,8 @@ void DataSet::LoadNegativeDataSet(const vector<string>& negative) {
 
 void DataSet::LoadDataSet(DataSet& pos, DataSet& neg) {
   const Config& c = Config::GetInstance();
-  vector<string> bg(c.bg_txts.begin() + 1, c.bg_txts.end());
   pos.LoadPositiveDataSet(c.face_txt);
-  neg.LoadNegativeDataSet(bg);
-  Mat_<double> mean_shape = pos.CalcMeanShape();
-  // for current_shapes
-  DataSet::RandomShapes(mean_shape, pos.current_shapes);
-
-  // load hard negative
-  FILE* file = fopen(c.bg_txts[0].c_str(), "r");
-  JDA_Assert(file, "Can not open negative dataset file list");
-
-  char buff[256];
-  vector<string> list;
-  while (fscanf(file, "%s", buff) > 0) {
-    list.push_back(buff);
-  }
-  fclose(file);
-
-  const int n = list.size();
-  neg.imgs.resize(n);
-  neg.imgs_half.resize(n);
-  neg.imgs_quarter.resize(n);
-  neg.current_shapes.resize(n);
-  neg.scores.resize(n);
-  neg.last_scores.resize(n);
-  neg.weights.resize(n);
-  std::fill(neg.weights.begin(), neg.weights.end(), 0);
-  std::fill(neg.scores.begin(), neg.scores.end(), 0);
-  std::fill(neg.last_scores.begin(), neg.last_scores.end(), 0);
-  neg.size = n;
-
-  #pragma omp parallel for
-  for (int i = 0; i < n; i++) {
-    neg.imgs[i] = cv::imread(list[i], CV_LOAD_IMAGE_GRAYSCALE);
-    JDA_Assert(neg.imgs[i].data, "Can not open %s", list[i].c_str());
-    cv::resize(neg.imgs[i], neg.imgs[i], Size(c.img_o_size, c.img_o_size));
-    cv::resize(neg.imgs[i], neg.imgs_half[i], Size(c.img_h_size, c.img_h_size));
-    cv::resize(neg.imgs[i], neg.imgs_quarter[i], Size(c.img_q_size, c.img_q_size));
-    DataSet::RandomShape(mean_shape, neg.current_shapes[i]);
-  }
+  neg.LoadNegativeDataSet(c.bg_txts);
 }
 
 /*!
@@ -651,7 +615,9 @@ static void readDataSet(DataSet& data, FILE* fin) {
   }
 
   // init nega_generator if data is negative dataset
-  if (!data.is_pos) data.neg_generator.Load(c.bg_txts);
+  if (!data.is_pos) {
+    data.neg_generator.Load(c.bg_txts);
+  }
 }
 
 void DataSet::Snapshot(const DataSet& pos, const DataSet& neg) {
@@ -698,7 +664,8 @@ void DataSet::Resume(const string& data_file, DataSet& pos, DataSet& neg) {
 
 // Negative Generator
 
-NegGenerator::NegGenerator() {
+NegGenerator::NegGenerator()
+  : times(0), current_idx(0), current_hd_idx(0) {
 }
 NegGenerator::~NegGenerator() {
 }
@@ -770,56 +737,81 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
   shapes.reserve(overflow_ratio*size);
 
   int nega_n = 0; // not hard nega
-  double carts_n = 0.; // number of carts go through by all not hard nega
-  double ratio = 0.;
+  double ratio = 0.1;
+
+  while (current_hd_idx < hds.size() && imgs.size() < size) {
+    // we still have hard negative samples to roll
+    Mat img = hds[current_hd_idx++];
+    if (!img.data) continue;
+    Mat img_h, img_q;
+    cv::resize(img, img_h, Size(c.img_h_size, c.img_h_size));
+    cv::resize(img, img_q, Size(c.img_q_size, c.img_q_size));
+    double score;
+    Mat_<double> shape;
+    int n;
+    bool is_face = joincascador.Validate(img, img_h, img_q, score, shape, n);
+    if (is_face) {
+      imgs.push_back(img);
+      scores.push_back(score);
+      shapes.push_back(shape);
+    }
+
+    if (imgs.size() >= ratio*size) {
+      LOG("We have mined %d%%, hard negative remain %d%%", int(ratio * 100), \
+          int(100. - double(current_hd_idx) / hds.size() * 100.));
+      ratio += 0.1;
+    }
+    if (current_hd_idx == hds.size()) {
+      // run out of hard negative samples
+      hds.clear();
+    }
+    nega_n++;
+  }
 
   // while not enough
   RNG rng(cv::getTickCount());
   while (imgs.size() < size) {
-    Mat img;
-    while (!img.data) {
-      img = cv::imread(list[current_idx], CV_LOAD_IMAGE_GRAYSCALE);
-      current_idx++;
-      if (current_idx == list.size()) {
-        LOG("Run out of background images");
-        LOG("Snapshot All");
-        DataSet::Snapshot(*joincascador.pos, *joincascador.neg);
-        joincascador.Snapshot();
-        LOG("Reset current_idx to 0 and Restart");
-        current_idx = 0;
-      }
+    Mat img = cv::imread(list[current_idx++], CV_LOAD_IMAGE_GRAYSCALE);
+    if (current_idx == list.size()) {
+      LOG("Run out of background images");
+      LOG("Snapshot All");
+      DataSet::Snapshot(*joincascador.pos, *joincascador.neg);
+      joincascador.Snapshot();
+      dieWithMsg("Run out of background images. :(");
     }
 
-    // possible for augment
-    RNG rng(cv::getTickCount());
-    if (rng.uniform(0., 1.) > 0.5) {
-      cv::flip(img, img, 1);
-    }
-    // possible to rotate
-    if (rng.uniform(0., 1.) > 0.5) {
-      double angle;
-      switch (rng.uniform(0, 3)) {
-      case 0:
-        angle = 90.; break;
-      case 1:
-        angle = 180.; break;
-      case 2:
-        angle = 270.; break;
-      default:
-        angle = 0; break;
-      }
-      int x = img.cols / 2;
-      int y = img.rows / 2;
-      Mat r = cv::getRotationMatrix2D(Point2f(x, y), angle, 1);
-      cv::warpAffine(img, img, r, Size(img.cols, img.rows));
-    }
+    if (!img.data) continue;
+
+    //// possible for augment
+    //RNG rng(cv::getTickCount());
+    //if (rng.uniform(0., 1.) > 0.5) {
+    //  cv::flip(img, img, 1);
+    //}
+    //// possible to rotate
+    //if (rng.uniform(0., 1.) > 0.5) {
+    //  double angle;
+    //  switch (rng.uniform(0, 3)) {
+    //  case 0:
+    //    angle = 90.; break;
+    //  case 1:
+    //    angle = 180.; break;
+    //  case 2:
+    //    angle = 270.; break;
+    //  default:
+    //    angle = 0.; break;
+    //  }
+    //  int x = img.cols / 2;
+    //  int y = img.rows / 2;
+    //  Mat r = cv::getRotationMatrix2D(Point2f(x, y), angle, 1);
+    //  cv::warpAffine(img, img, r, Size(img.cols, img.rows));
+    //}
 
     nega_n += hardNegaMining(joincascador, img, imgs, scores, shapes);
 
     if (imgs.size() >= ratio*size) {
-      ratio += 0.1;
-      LOG("We have mined %d%%, remain %d%%", int(ratio * 100), \
+      LOG("We have mined %d%%, remain %d%%", int(ratio * 100.), \
           int(100. - double(current_idx) / list.size() * 100.));
+      ratio += 0.1;
     }
   }
   nega_n -= imgs.size();
@@ -832,18 +824,17 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
     rng.state = state;
     std::random_shuffle(scores.begin(), scores.end(), rng);
     rng.state = state;
-    std::random_shuffle(scores.begin(), scores.end(), rng);
+    std::random_shuffle(shapes.begin(), shapes.end(), rng);
     imgs.resize(size);
     scores.resize(size);
     shapes.resize(size);
   }
 
+  times++;
   if (nega_n > 0) {
     const int patch_n = imgs.size() + nega_n;
-    const double fp_rate = double(imgs.size()) / patch_n*100.;
-    const double average_cart = carts_n / nega_n;
-    LOG("Done with mining, number of not hard enough is %d", nega_n);
-    LOG("Average number of cart to reject is %.2lf, FP = %.4lf%%", average_cart, fp_rate);
+    const double fp_rate = double(imgs.size()) / patch_n;
+    LOG("Done with mining, number of not hard enough is %d, FP = %.8lf", nega_n, fp_rate);
   }
   else {
     LOG("Done with mining, all nega is hard enough");
@@ -852,20 +843,117 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
 }
 
 void NegGenerator::Load(const vector<string>& path) {
-  for (int i = 0; i < path.size(); i++) {
-    FILE* file = fopen(path[i].c_str(), "r");
-    JDA_Assert(file, "Can not open negative dataset file list");
-
-    char buff[256];
+  const Config& c = Config::GetInstance();
+  char buff[300];
+  FILE* file;
+  // background images
+  current_idx = 1;
+  for (int i = 1; i < path.size(); i++) {
+    file = fopen(path[i].c_str(), "r");
+    sprintf(buff, "Can not open negative dataset file list, %s", path[i].c_str());
+    JDA_Assert(file, buff);
     list.clear();
     while (fscanf(file, "%s", buff) > 0) {
       list.push_back(buff);
     }
+    fclose(file);
   }
   RNG rng(cv::getTickCount());
   std::random_shuffle(list.begin(), list.end(), rng);
-  // initialize
-  current_idx = 0;
+
+  // load all hard negative samples
+  hds.clear();
+  current_hd_idx = 0;
+  if (!c.use_hard) return;
+
+  string hard = path[0];
+  if (hard.substr(hard.length() - 3, hard.length()) == "txt") {
+    // text hard negative
+    FILE* file = fopen(path[0].c_str(), "r");
+    sprintf(buff, "Can not open negative dataset file list, %s", path[0].c_str());
+    JDA_Assert(file, buff);
+
+    vector<string> hd_list;
+    while (fscanf(file, "%s", buff) > 0) {
+      hd_list.push_back(buff);
+    }
+    fclose(file);
+
+    const int n = hd_list.size();
+    hds.resize(2 * n);
+
+    int threads_n = omp_get_max_threads();
+    omp_set_num_threads(3 * threads_n);
+    cv::waitKey(1000);
+    LOG("Load All Hard Negative Samples from text file");
+
+    #pragma omp parallel for
+    for (int i = 0; i < n; i++) {
+      Mat img = cv::imread(hd_list[i], CV_LOAD_IMAGE_GRAYSCALE);
+      if (!img.data) {
+        LOG("Can not open hard negative file %s, Skip it", hd_list[i].c_str());
+        continue;
+      }
+      cv::resize(img, img, Size(c.img_o_size, c.img_o_size));
+      Mat img_flip;
+      cv::flip(img, img_flip, 1);
+      hds[i] = img;
+      hds[i + n] = img_flip;
+    }
+
+    omp_set_num_threads(threads_n);
+    SLEEP(1000);
+    LOG("All hard negative samples Done");
+
+    LOG("Snapshot hard negative");
+    FILE* data = fopen("../data/dump/hard.data", "wb");
+    int n2 = 2 * n;
+    fwrite(&n2, sizeof(int), 1, data);
+    for (int i = 0; i < hds.size(); i++) {
+      Mat& img = hds[i];
+      if (!img.data) {
+        int t4 = 0;
+        fwrite(&t4, sizeof(int), 1, data);
+        fwrite(&t4, sizeof(int), 1, data);
+        continue;
+      }
+      fwrite(&img.cols, sizeof(int), 1, data);
+      fwrite(&img.rows, sizeof(int), 1, data);
+      for (int r = 0; r < img.rows; r++) {
+        fwrite(img.ptr<uchar>(r), sizeof(uchar), img.cols, data);
+      }
+    }
+    fclose(data);
+  }
+  else {
+    // binary hard negative
+    LOG("Load hard negative data from binary file");
+    FILE* data = fopen(hard.c_str(), "rb");
+    if (!data) {
+      dieWithMsg("Can not open hard negative data, %s", hard.c_str());
+    }
+    int n = 0;
+    fread(&n, sizeof(int), 1, data);
+    hds.resize(n);
+    for (int i = 0; i < n; i++) {
+      int rows, cols;
+      Mat img;
+      fread(&cols, sizeof(int), 1, data);
+      fread(&rows, sizeof(int), 1, data);
+      if (rows == 0 || cols == 0) {
+        hds.push_back(img);
+        continue;
+      }
+      img = Mat(rows, cols, CV_8UC1);
+      for (int r = 0; r < rows; r++) {
+        fread(img.ptr<uchar>(r), sizeof(uchar), img.cols, data);
+      }
+      hds.push_back(img);
+    }
+    fclose(data);
+  }
+
+  std::random_shuffle(hds.begin(), hds.end(), rng);
 }
 
 } // namespace jda
