@@ -56,6 +56,9 @@ public:
   std::vector<cv::Mat> hds;
   int current_hd_idx;
   int times;
+  /*! \breif augment */
+  int should_flip;
+  int rotation_angle;
 };
 
 /*!

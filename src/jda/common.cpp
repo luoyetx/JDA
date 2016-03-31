@@ -116,8 +116,15 @@ double calcMeanError(const vector<Mat_<double> >& gt_shapes, \
 Mat drawShape(const Mat& img, const Mat_<double>& shape) {
   Mat img_ = img.clone();
   const int landmark_n = shape.cols / 2;
+  Scalar color;
+  if (img_.type() == CV_8UC1) {
+    color = Scalar(255, 255, 255);
+  }
+  else {
+    color = Scalar(0, 255, 0);
+  }
   for (int i = 0; i < landmark_n; i++) {
-    circle(img_, Point(shape(0, 2 * i), shape(0, 2 * i + 1)), 1, Scalar(0, 255, 0), -1);
+    circle(img_, Point(shape(0, 2 * i), shape(0, 2 * i + 1)), 1, color, -1);
   }
   return img_;
 }
@@ -125,8 +132,15 @@ Mat drawShape(const Mat& img, const Mat_<double>& shape, const Rect& bbox) {
   Mat img_ = img.clone();
   const int landmark_n = shape.cols / 2;
   rectangle(img_, bbox, Scalar(0, 0, 255), 2);
+  Scalar color;
+  if (img_.type() == CV_8UC1) {
+    color = Scalar(255, 255, 255);
+  }
+  else {
+    color = Scalar(0, 255, 0);
+  }
   for (int i = 0; i < landmark_n; i++) {
-    circle(img_, Point(shape(0, 2 * i), shape(0, 2 * i + 1)), 1, Scalar(0, 255, 0), -1);
+    circle(img_, Point(shape(0, 2 * i), shape(0, 2 * i + 1)), 1, color, -1);
   }
   return img_;
 }

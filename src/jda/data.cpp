@@ -288,7 +288,7 @@ void DataSet::Dump(const string& dir) const {
   for (int i = 0; i < size; i++) {
     char buff[300];
     sprintf(buff, "%s/%06d.jpg", dir.c_str(), i);
-    Mat img = drawShape(imgs[i], current_shapes[i]);
+    Mat img = drawShape(imgs[i], current_shapes[i] * Config::GetInstance().img_o_size);
     cv::imwrite(buff, img);
   }
 }
@@ -327,6 +327,7 @@ void DataSet::MoreNegSamples(int pos_size, double rate) {
   weights.reserve(expanded);
   for (int i = 0; i < extra_size; i++) {
     Mat half, quarter;
+    cv::resize(imgs_[i], imgs_[i], Size(c.img_o_size, c.img_o_size));
     cv::resize(imgs_[i], half, Size(c.img_h_size, c.img_h_size));
     cv::resize(imgs_[i], quarter, Size(c.img_q_size, c.img_q_size));
     imgs.push_back(imgs_[i]);
@@ -358,8 +359,8 @@ static Mat getFace(const Mat& img, const Rect& bbox) {
   }
 
   // out of range, large origin image and fill with black
-  const int rows_ = 2 * img.rows;
-  const int cols_ = 2 * img.cols;
+  const int rows_ = 3 * img.rows;
+  const int cols_ = 3 * img.cols;
   Mat img_(rows_, cols_, CV_8UC1);
   img_.setTo(0);
 
@@ -665,7 +666,8 @@ void DataSet::Resume(const string& data_file, DataSet& pos, DataSet& neg) {
 // Negative Generator
 
 NegGenerator::NegGenerator()
-  : times(0), current_idx(0), current_hd_idx(0) {
+  : times(0), current_idx(0), current_hd_idx(0),
+    should_flip(0), rotation_angle(0) {
 }
 NegGenerator::~NegGenerator() {
 }
@@ -691,7 +693,7 @@ static int hardNegaMining(const JoinCascador& joincascador, Mat& img, \
 
   int win_size_max = std::min(img.cols, img.rows);
   for (int win_size = c.mining_min_size; win_size <= win_size_max; win_size *= c.mining_factor) {
-    int step = int(win_size*c.mining_step_ratio);
+    int step = std::min(c.mining_min_size, int(win_size*c.mining_step_ratio));
     int x_max = img.cols - win_size;
     int y_max = img.rows - win_size;
     int win_h_size = int(win_size / sqrt_2);
@@ -777,41 +779,34 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
       LOG("Snapshot All");
       DataSet::Snapshot(*joincascador.pos, *joincascador.neg);
       joincascador.Snapshot();
-      dieWithMsg("Run out of background images. :(");
+      LOG("Reset current_idx and restart");
+      rotation_angle += 90;
+      if (rotation_angle == 360) {
+        should_flip = 1;
+        rotation_angle = 0;
+      }
+      LOG("Current augment parameters, should flip = %d, rotation angle = ", should_flip, rotation_angle);
     }
 
     if (!img.data) continue;
 
-    //// possible for augment
-    //RNG rng(cv::getTickCount());
-    //if (rng.uniform(0., 1.) > 0.5) {
-    //  cv::flip(img, img, 1);
-    //}
-    //// possible to rotate
-    //if (rng.uniform(0., 1.) > 0.5) {
-    //  double angle;
-    //  switch (rng.uniform(0, 3)) {
-    //  case 0:
-    //    angle = 90.; break;
-    //  case 1:
-    //    angle = 180.; break;
-    //  case 2:
-    //    angle = 270.; break;
-    //  default:
-    //    angle = 0.; break;
-    //  }
-    //  int x = img.cols / 2;
-    //  int y = img.rows / 2;
-    //  Mat r = cv::getRotationMatrix2D(Point2f(x, y), angle, 1);
-    //  cv::warpAffine(img, img, r, Size(img.cols, img.rows));
-    //}
+    // augment
+    // flip
+    if (should_flip == 1) {
+      cv::flip(img, img, 1);
+    }
+    // rotate
+    int x = img.cols / 2;
+    int y = img.rows / 2;
+    Mat r = cv::getRotationMatrix2D(Point2f(x, y), rotation_angle, 1);
+    cv::warpAffine(img, img, r, Size(img.cols, img.rows));
 
     nega_n += hardNegaMining(joincascador, img, imgs, scores, shapes);
 
     if (imgs.size() >= ratio*size) {
-      LOG("We have mined %d%%, remain %d%%", int(ratio * 100.), \
+      while (imgs.size() >= ratio*size) ratio += 0.1;
+      LOG("We have mined %d%%, remain %d%%", int((ratio - 0.1) * 100.), \
           int(100. - double(current_idx) / list.size() * 100.));
-      ratio += 0.1;
     }
   }
   nega_n -= imgs.size();
