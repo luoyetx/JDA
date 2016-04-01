@@ -188,7 +188,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
       }
       // select the best cart for this cart
       if (restarts >= c.restart_times) {
-        LOG("***** Select a cart which give us %.4lf drop rate *****", best_drop_rate);
+        LOG("***** Select a cart which give us %.4lf%% drop rate *****", best_drop_rate*100.);
         cart = best_cart;
         best_drop_rate = 0.;
         pos.ResetScores();
@@ -207,7 +207,10 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
       }
     }
 
+    // update restart parameters
+    best_drop_rate = 0.;
     restarts = 0;
+
     pos.Remove(cart.th);
     neg.Remove(cart.th);
 
