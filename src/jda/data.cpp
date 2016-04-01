@@ -94,7 +94,7 @@ void DataSet::RandomShape(const Mat_<double>& mean_shape, Mat_<double>& shape) {
   // only apply a global shift
   for (int j = 0; j < c.landmark_n; j++) {
     shape(0, 2 * j) = mean_shape(0, 2 * j) + x;
-    shape(0, 2 * j + 1) = mean_shape(0, 2 * j + 1) + x;
+    shape(0, 2 * j + 1) = mean_shape(0, 2 * j + 1) + y;
   }
 }
 void DataSet::RandomShapes(const Mat_<double>& mean_shape, vector<Mat_<double> >& shapes) {

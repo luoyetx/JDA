@@ -26,7 +26,7 @@
     "data": {
         "use_hard": false,
         "face": "../data/face.txt",
-        "background": ["../data/hd.txt", "../data/background1.txt", "../data/background1.txt"],
+        "background": ["../data/hd.txt", "../data/background1.txt", "../data/background2.txt"],
         "test": "../data/test.txt"
     },
     "fddb": {
