@@ -785,7 +785,7 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
         should_flip = 1;
         rotation_angle = 0;
       }
-      LOG("Current augment parameters, should flip = %d, rotation angle = ", should_flip, rotation_angle);
+      LOG("Current augment parameters, should flip = %d, rotation angle = %d", should_flip, rotation_angle);
     }
 
     if (!img.data) continue;
