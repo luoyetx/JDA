@@ -59,6 +59,7 @@ public:
   /*! \breif augment */
   int should_flip;
   int rotation_angle;
+  int reset_times;
 };
 
 /*!

@@ -667,7 +667,7 @@ void DataSet::Resume(const string& data_file, DataSet& pos, DataSet& neg) {
 
 NegGenerator::NegGenerator()
   : times(0), current_idx(0), current_hd_idx(0),
-    should_flip(0), rotation_angle(0) {
+    should_flip(0), rotation_angle(0), reset_times(0) {
 }
 NegGenerator::~NegGenerator() {
 }
@@ -741,6 +741,8 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
   int nega_n = 0; // not hard nega
   double ratio = 0.1;
 
+  LOG("current_idx = %d, total background images = %d", current_idx, list.size());
+
   while (current_hd_idx < hds.size() && imgs.size() < size) {
     // we still have hard negative samples to roll
     Mat img = hds[current_hd_idx++];
@@ -779,10 +781,12 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
       LOG("Snapshot All");
       DataSet::Snapshot(*joincascador.pos, *joincascador.neg);
       joincascador.Snapshot();
-      LOG("Reset current_idx and restart");
+      reset_times++;
+      LOG("Reset current_idx and restart, reset times = %d", reset_times);
+      current_idx = 0;
       rotation_angle += 90;
       if (rotation_angle == 360) {
-        should_flip = 1;
+        should_flip = 1 - should_flip;
         rotation_angle = 0;
       }
       LOG("Current augment parameters, should flip = %d, rotation angle = %d", should_flip, rotation_angle);
@@ -842,12 +846,12 @@ void NegGenerator::Load(const vector<string>& path) {
   char buff[300];
   FILE* file;
   // background images
-  current_idx = 1;
+  current_idx = 0;
+  list.clear();
   for (int i = 1; i < path.size(); i++) {
     file = fopen(path[i].c_str(), "r");
     sprintf(buff, "Can not open negative dataset file list, %s", path[i].c_str());
     JDA_Assert(file, buff);
-    list.clear();
     while (fscanf(file, "%s", buff) > 0) {
       list.push_back(buff);
     }
