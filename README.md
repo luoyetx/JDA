@@ -61,6 +61,12 @@ bbox in `face.txt` indicate the face region. You can turn on data augment which 
 
 Background images should have no face and we will do data augment during the hard negative mining. Of course, you can use absolute path to indicate where is your face images and background images. However, don't use any space character in your image path or non ASCII characters.
 
+After loading the face images, the code will snapshot a binary data under `data/dump` with file name like `jda_data_%s_stage_1_cart_1080.data`, you can copy the data file to `data/jda_train_data.data`. Next time you start the training, it will load data directly from this binary data file.
+
+##### Optional Init negative samples
+
+It's a good idea to prepare the initial negative samples by yourself rather than scan from the background images. You can turn on the optional hard negative in `config.json` and provide a text file like `background.txt`, every line indicts a negative patch and will be loaded and resized. The initial negative samples will also be snapshotted to a binary file `data/dump/hard.data`. The config `config.data.background[0]` should be `hard.txt` or `hard.data` even if you turn off `use_hard`.
+
 ### Train
 
 ```
