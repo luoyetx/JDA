@@ -878,13 +878,13 @@ void NegGenerator::Load(const vector<string>& path) {
     }
     fclose(file);
 
-    const int n = hd_list.size();
-    hds.resize(2 * n);
-
     int threads_n = omp_get_max_threads();
     omp_set_num_threads(3 * threads_n);
-    cv::waitKey(1000);
+    SLEEP(1000);
     LOG("Load All Hard Negative Samples from text file");
+
+    const int n = hd_list.size();
+    hds.resize(n);
 
     #pragma omp parallel for
     for (int i = 0; i < n; i++) {
@@ -894,21 +894,25 @@ void NegGenerator::Load(const vector<string>& path) {
         continue;
       }
       cv::resize(img, img, Size(c.img_o_size, c.img_o_size));
-      Mat img_flip;
-      cv::flip(img, img_flip, 1);
       hds[i] = img;
-      hds[i + n] = img_flip;
     }
 
     omp_set_num_threads(threads_n);
     SLEEP(1000);
     LOG("All hard negative samples Done");
 
+    if (false) {
+      hds.resize(2 * n);
+      for (int i = 0; i < n; i++) {
+        if (hds[i].data) cv::flip(hds[i], hds[i + n], 1);
+      }
+    }
+
     LOG("Snapshot hard negative");
     FILE* data = fopen("../data/dump/hard.data", "wb");
-    int n2 = 2 * n;
+    int n2 = hds.size();
     fwrite(&n2, sizeof(int), 1, data);
-    for (int i = 0; i < hds.size(); i++) {
+    for (int i = 0; i < n2; i++) {
       Mat& img = hds[i];
       if (!img.data) {
         int t4 = 0;
