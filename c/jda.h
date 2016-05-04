@@ -1,7 +1,11 @@
 #pragma once
 
 #ifdef _MSC_VER
+#ifdef JDA_EXPORTS
 #define JDA_API __declspec(dllexport)
+#else
+#define JDA_API __declspec(dllimport)
+#endif
 #else
 #define JDA_API
 #endif

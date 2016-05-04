@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h> // C11 needed
+#include <stdbool.h> // C99 needed
 #include "jda.h"
 
 #ifdef _MSC_VER
