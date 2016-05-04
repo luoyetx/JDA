@@ -772,15 +772,20 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
     nega_n++;
   }
 
+  bool snapshoted = false; // only snapshot once
+
   // while not enough
   RNG rng(cv::getTickCount());
   while (imgs.size() < size) {
     Mat img = cv::imread(list[current_idx++], CV_LOAD_IMAGE_GRAYSCALE);
     if (current_idx == list.size()) {
       LOG("Run out of background images");
-      LOG("Snapshot All");
-      DataSet::Snapshot(*joincascador.pos, *joincascador.neg);
-      joincascador.Snapshot();
+      if (!snapshoted) {
+        LOG("Snapshot All");
+        DataSet::Snapshot(*joincascador.pos, *joincascador.neg);
+        joincascador.Snapshot();
+        snapshoted = true;
+      }
       reset_times++;
       LOG("Reset current_idx and restart, reset times = %d", reset_times);
       current_idx = 0;
