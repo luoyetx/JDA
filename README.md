@@ -67,6 +67,8 @@ After loading the face images, the code will snapshot a binary data under `data/
 
 It's a good idea to prepare the initial negative samples by yourself rather than scan from the background images. You can turn on the optional hard negative in `config.json` and provide a text file like `background.txt`, every line indicts a negative patch and will be loaded and resized. The initial negative samples will also be snapshotted to a binary file `data/dump/hard.data`. The config `config.data.background[0]` should be `hard.txt` or `hard.data` even if you turn off `use_hard`.
 
+**UPDATE** I have shared the data I have collected. For more details, see this [issue][jda-data].
+
 ### Train
 
 ```
@@ -129,7 +131,7 @@ $ ./jda fddb
 
 ### Attention
 
-It's a shame that I still not get a fully trained model now. There is many detailed problems of JDA algorithm which need to be discussed. My code may have some hidden bugs. Welcome any bug report and any question or idea through the [issues](https://github.com/luoyetx/JDA/issues).
+Welcome any bug report and any question or idea through the [issues](https://github.com/luoyetx/JDA/issues).
 
 ### QQ Group
 
@@ -158,3 +160,4 @@ BSD 3-Clause
 [qq]: http://im.qq.com/
 [fddb]: http://vis-www.cs.umass.edu/fddb/
 [npinto/fddb-evaluation]: https://github.com/npinto/fddb-evaluation
+[jda-data]: https://github.com/luoyetx/JDA/issues/22
