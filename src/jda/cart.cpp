@@ -150,6 +150,10 @@ void Cart::SplitNode(const DataSet& pos, const vector<int>& pos_idx, \
   // save parameters on this node
   features[node_idx] = feature_pool[feature_idx];
   thresholds[node_idx] = threshold;
+  // manually release to reduce memory usage
+  feature_pool.clear();
+  pos_feature.release();
+  neg_feature.release();
   // split node in DFS way
   SplitNode(pos, left_pos_idx, neg, left_neg_idx, 2 * node_idx);
   SplitNode(pos, right_pos_idx, neg, right_neg_idx, 2 * node_idx + 1);

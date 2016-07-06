@@ -679,11 +679,12 @@ NegGenerator::~NegGenerator() {
  * \param imgs          hard negative images
  * \param scores        hard negative scores
  * \param shapes        hard negative shapes
+ * \param max_size      max size of hard negative images
  * \return              patches of this image
  */
-static int hardNegaMining(const JoinCascador& joincascador, Mat& img, \
-                           vector<Mat>& imgs, vector<double>& scores, \
-                           vector<Mat_<double> >& shapes) {
+static int hardNegaMining(const JoinCascador& joincascador, const Mat& img, \
+                          vector<Mat>& imgs, vector<double>& scores, \
+                          vector<Mat_<double> >& shapes, int max_size) {
   const Config& c = Config::GetInstance();
   int patches = 0;
   Mat img_h, img_q;
@@ -714,13 +715,17 @@ static int hardNegaMining(const JoinCascador& joincascador, Mat& img, \
         if (is_face) {
           #pragma omp critical
           {
-            imgs.push_back(img(o).clone());
-            scores.push_back(score);
-            shapes.push_back(shape);
+            if (imgs.size() < max_size) { // not enough
+              imgs.push_back(img(o).clone());
+              scores.push_back(score);
+              shapes.push_back(shape);
+            }
           }
         }
       }
     }
+
+    if (imgs.size() >= max_size) break; // enough
   }
   return patches;
 }
@@ -810,7 +815,7 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
     Mat r = cv::getRotationMatrix2D(Point2f(x, y), rotation_angle, 1);
     cv::warpAffine(img, img, r, Size(img.cols, img.rows));
 
-    nega_n += hardNegaMining(joincascador, img, imgs, scores, shapes);
+    nega_n += hardNegaMining(joincascador, img, imgs, scores, shapes, size);
 
     if (imgs.size() >= ratio*size) {
       while (imgs.size() >= ratio*size) ratio += 0.1;
@@ -821,14 +826,6 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
   nega_n -= imgs.size();
 
   if (imgs.size() > size) {
-    double state = cv::getTickCount();
-    RNG rng;
-    rng.state = state;
-    std::random_shuffle(imgs.begin(), imgs.end(), rng);
-    rng.state = state;
-    std::random_shuffle(scores.begin(), scores.end(), rng);
-    rng.state = state;
-    std::random_shuffle(shapes.begin(), shapes.end(), rng);
     imgs.resize(size);
     scores.resize(size);
     shapes.resize(size);
