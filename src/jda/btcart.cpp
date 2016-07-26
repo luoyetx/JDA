@@ -139,13 +139,14 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
   // Real Boost
 
   // if neg.size < neg_th, mining starts
-  int neg_th = int(pos.size*c.nps[c.joincascador->current_stage_idx] * c.mining_th);
+  int current_stage_idx = c.joincascador->current_stage_idx;
+  int neg_th = int(pos.size*c.nps[current_stage_idx] * c.mining_th[current_stage_idx]);
   for (int k = start_of_cart; k < K; k++) {
     const int kk = k + 1;
     Cart& cart = carts[k];
     if (neg.size < neg_th) {
       neg.MoreNegSamples(pos.size, c.nps[stage]);
-      neg_th = int(neg.size * c.mining_th);
+      neg_th = int(neg.size * c.mining_th[current_stage_idx]); // update neg_th
     }
     // print out data set status
     pos.QSort(); neg.QSort();
@@ -179,7 +180,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     int number_of_carts = joincascador.current_stage_idx*joincascador.K + joincascador.current_cart_idx;
     if (c.restart_on && tmp_drop_rate < c.restart_th[joincascador.current_stage_idx] && number_of_carts > 10) {
       restarts++;
-      LOG("***** Drop rate neg is %.4lf%%, Restart current Cart *****", tmp_drop_rate*100.);
+      LOG("***** Drop %d, Drop rate neg is %.4lf%%, Restart current Cart *****", will_removed, tmp_drop_rate*100.);
       LOG("***** Restart Time: %d *****", restarts);
       // compare with best cart for now
       if (tmp_drop_rate > best_drop_rate) {

@@ -117,7 +117,7 @@ void fddb() {
 #else
     FILE* fout = fopen(fddb_out, "w");
 #endif // WIN32
-    JDA_Assert(fin, "Can not open fddb_out");
+    JDA_Assert(fout, "Can not open fddb_out");
 
     char buff[300];
     char _buff[30];

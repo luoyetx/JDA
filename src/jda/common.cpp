@@ -172,7 +172,11 @@ Config::Config() {
   mining_factor = mining_config["factor"].unwrap<Number>();
   mining_min_size = mining_config["min_size"].unwrap<Number>();
   mining_step_ratio = mining_config["step_ratio"].unwrap<Number>();
-  mining_th = mining_config["mining_th"].unwrap<Number>();
+  jsmn::Array& mining_ths = mining_config["mining_th"].unwrap<Array>();
+  mining_th.resize(mining_ths.size());
+  for (int i = 0; i < mining_ths.size(); i++) {
+    mining_th[i] = mining_ths[i].unwrap<Number>();
+  }
   esp = 2.2e-16;
 
   // stage parameters
@@ -255,8 +259,11 @@ Config::Config() {
     right_pupils[i] = pupils_right[i].unwrap<Number>() - offset;
   }
 
+  // thread_n
+  thread_n = omp_get_max_threads();
+
   // random generator pool
-  int rng_size = 2 * omp_get_max_threads();
+  int rng_size = 2 * thread_n;
   rng_pool.reserve(rng_size);
   for (int i = 0; i < rng_size; i++) {
     rng_pool.push_back(RNG(cv::getTickCount()));

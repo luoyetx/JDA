@@ -387,7 +387,40 @@ int Cart::Forward(const Mat& img, const Mat& img_h, const Mat& img_q, \
   int len = depth - 1;
   while (len--) {
     const Feature& feature = features[node_idx];
-    int val = feature.CalcFeatureValue(img, img_h, img_q, shape);
+    //int val = feature.CalcFeatureValue(img, img_h, img_q, shape);
+
+    const Mat* img_ptr;
+    switch (feature.scale) {
+    case Feature::ORIGIN:
+      img_ptr = &img; // ref
+      break;
+    case Feature::HALF:
+      img_ptr = &img_h; // ref
+      break;
+    case Feature::QUARTER:
+      img_ptr = &img_q; // ref
+      break;
+    default:
+      dieWithMsg("Unsupported SCALE");
+      break;
+    }
+
+    double x1, y1, x2, y2;
+    const int width = img_ptr->cols;
+    const int height = img_ptr->rows;
+    x1 = (shape(0, 2 * feature.landmark_id1) + feature.offset1_x)*width;
+    y1 = (shape(0, 2 * feature.landmark_id1 + 1) + feature.offset1_y)*height;
+    x2 = (shape(0, 2 * feature.landmark_id2) + feature.offset2_x)*width;
+    y2 = (shape(0, 2 * feature.landmark_id2 + 1) + feature.offset2_y)*height;
+    int x1_ = int(round(x1));
+    int y1_ = int(round(y1));
+    int x2_ = int(round(x2));
+    int y2_ = int(round(y2));
+
+    checkBoundaryOfImage(width, height, x1_, y1_);
+    checkBoundaryOfImage(width, height, x2_, y2_);
+
+    int val = int(img_ptr->at<uchar>(y1_, x1_)) - int(img_ptr->at<uchar>(y2_, x2_));
     if (val <= thresholds[node_idx]) node_idx = 2 * node_idx;
     else node_idx = 2 * node_idx + 1;
   }

@@ -142,7 +142,7 @@ public:
   double mining_factor;
   int mining_min_size;
   double mining_step_ratio;
-  double mining_th;
+  std::vector<double> mining_th;
   /*! \breif a text file for train positive dataset */
   std::string face_txt;
   /*! \breif a text file for train negative dataset */
@@ -183,6 +183,8 @@ public:
   std::vector<int> right_pupils;
   /*! \breif random generator pool */
   std::vector<cv::RNG> rng_pool;
+  /*! \breif thread number */
+  int thread_n;
 
 private:
   Config();

@@ -120,7 +120,9 @@ void DataSet::UpdateWeights() {
 
   #pragma omp parallel for
   for (int i = 0; i < size; i++) {
-    weights[i] = exp(flag*scores[i]);
+    double tmp = flag*scores[i];
+    //if (tmp > 15.) tmp = 15.;
+    weights[i] = exp(tmp);
   }
 }
 void DataSet::UpdateWeights(DataSet& pos, DataSet& neg) {
@@ -312,8 +314,8 @@ void DataSet::MoreNegSamples(int pos_size, double rate) {
   TIMER_BEGIN
     extra_size = neg_generator.Generate(*c.joincascador, size_, \
                                         imgs_, scores_, shapes_);
-    LOG("We have mined %d hard negative samples, it costs %.2lf s", \
-        extra_size, TIMER_NOW);
+    LOG("We have mined %d hard negative samples, current_bg_idx = %d, it costs %.2lf s", \
+        extra_size, neg_generator.current_idx, TIMER_NOW);
   TIMER_END
 
   const int expanded = imgs.size() + imgs_.size();
@@ -666,68 +668,97 @@ void DataSet::Resume(const string& data_file, DataSet& pos, DataSet& neg) {
 // Negative Generator
 
 NegGenerator::NegGenerator()
-  : times(0), current_idx(0), current_hd_idx(0),
-    should_flip(0), rotation_angle(0), reset_times(0) {
+  : current_idx(0), current_hd_idx(0), x(0), y(0), transform_type(0), resets(0) {
 }
 NegGenerator::~NegGenerator() {
 }
 
-/*!
- * \breif hard negative mining with slide window over an image
- * \param joincascador  joincascador
- * \param img           detection image
- * \param imgs          hard negative images
- * \param scores        hard negative scores
- * \param shapes        hard negative shapes
- * \param max_size      max size of hard negative images
- * \return              patches of this image
- */
-static int hardNegaMining(const JoinCascador& joincascador, const Mat& img, \
-                          vector<Mat>& imgs, vector<double>& scores, \
-                          vector<Mat_<double> >& shapes, int max_size) {
-  const Config& c = Config::GetInstance();
-  int patches = 0;
-  Mat img_h, img_q;
-  const double sqrt_2 = std::sqrt(2.);
-  cv::resize(img, img_h, Size(img.cols / sqrt_2, img.rows / sqrt_2));
-  cv::resize(img, img_q, Size(img.cols / 2, img.rows / 2));
-
-  int win_size_max = std::min(img.cols, img.rows);
-  for (int win_size = c.mining_min_size; win_size <= win_size_max; win_size *= c.mining_factor) {
-    int step = std::min(c.mining_min_size, int(win_size*c.mining_step_ratio));
-    int x_max = img.cols - win_size;
-    int y_max = img.rows - win_size;
-    int win_h_size = int(win_size / sqrt_2);
-    int win_q_size = win_size / 2;
-    patches += (x_max / step)*(y_max / step);
-
-    int x, y;
-    #pragma omp parallel for
-    for (int y = 0; y <= y_max; y += step) {
-      for (int x = 0; x < x_max; x += step) {
-        Rect o(x, y, win_size, win_size);
-        Rect h(x / sqrt_2, y / sqrt_2, win_h_size, win_h_size);
-        Rect q(x / 2, y / 2, win_q_size, win_q_size);
-        double score;
-        Mat_<double> shape;
-        int n;
-        bool is_face = joincascador.Validate(img(o), img_h(h), img_q(q), score, shape, n);
-        if (is_face) {
-          #pragma omp critical
-          {
-            if (imgs.size() < max_size) { // not enough
-              imgs.push_back(img(o).clone());
-              scores.push_back(score);
-              shapes.push_back(shape);
-            }
+Mat NegGenerator::NextImage() {
+  Mat patch;
+  // use hard if any
+  if (current_hd_idx < hds.size()) {
+    patch = hds[current_hd_idx].clone();
+    current_hd_idx++;
+    if (current_hd_idx >= hds.size()) {
+      hds.clear(); // release memory
+    }
+    return patch;
+  }
+  // background image
+  x += step;
+  if (x + win_size > bg_img.cols) {
+    x = 0;
+    y += step;
+    if (y + win_size > bg_img.rows) {
+      y = 0;
+      win_size *= factor;
+      if (win_size >= bg_img.cols || win_size >= bg_img.rows) {
+        // next transform
+        const Config& c = Config::GetInstance();
+        win_size = c.img_o_size;
+        // next image
+        RNG rng(cv::getTickCount());
+        factor = rng.uniform(1.1, 1.5);
+        step = rng.uniform(2, c.img_q_size);
+        while (true) {
+          current_idx++;
+          if (current_idx >= list.size()) {
+            LOG("Run out of background images. Reset current_idx and restart.");
+            current_idx = -1;
+            transform_type = (transform_type + 1) % 8;
+            resets++;
+            LOG("Current reset = %d, Current transform type = %d", resets, transform_type);
+            continue;
           }
+          bg_img = cv::imread(list[current_idx], CV_LOAD_IMAGE_GRAYSCALE);
+          if (!bg_img.data || bg_img.cols <= win_size || bg_img.rows <= win_size) {
+            // continue
+          }
+          else {
+            break;
+          }
+        }
+
+        // perform transform to the bg image
+        switch (transform_type){
+        case 0:
+          break;
+        case 1:
+          flip(bg_img, bg_img, 0);
+          transpose(bg_img, bg_img);
+          break;
+        case 2:
+          flip(bg_img, bg_img, -1);
+          break;
+        case 3:
+          flip(bg_img, bg_img, 1);
+          transpose(bg_img, bg_img);
+          break;
+        case 4:
+          flip(bg_img, bg_img, 1);
+          break;
+        case 5:
+          flip(bg_img, bg_img, -1);
+          transpose(bg_img, bg_img);
+          break;
+        case 6:
+          flip(bg_img, bg_img, -1);
+          flip(bg_img, bg_img, 1);
+          break;
+        case 7:
+          flip(bg_img, bg_img, 0);
+          transpose(bg_img, bg_img);
+          flip(bg_img, bg_img, 1);
+          break;
+        default:
+          dieWithMsg("No such transform type for background image augmentation.");
+          break;
         }
       }
     }
-
-    if (imgs.size() >= max_size) break; // enough
   }
-  return patches;
+  patch = bg_img(Rect(x, y, win_size, win_size)).clone();
+  return patch;
 }
 
 int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
@@ -738,108 +769,70 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
   scores.clear();
   shapes.clear();
 
-  const double overflow_ratio = 1.2;
-  imgs.reserve(overflow_ratio*size); // enough memory to overflow
-  scores.reserve(overflow_ratio*size);
-  shapes.reserve(overflow_ratio*size);
+  const int pool_size = c.thread_n;
+  imgs.reserve(size + pool_size); // enough memory to overflow
+  scores.reserve(size + pool_size);
+  shapes.reserve(size + pool_size);
 
+  vector<Mat> region_pool(pool_size);
+  vector<Mat> region_h_pool(pool_size);
+  vector<Mat> region_q_pool(pool_size);
+  vector<double> score_pool(pool_size);
+  vector<Mat_<double> > shape_pool(pool_size);
+  vector<int> used(pool_size);
+  vector<int> carts_go_through(pool_size);
   int nega_n = 0; // not hard nega
+  double carts_n = 0; // number of carts go through by all not hard nega, type `int` may overflow
+
   double ratio = 0.1;
-
-  LOG("current_idx = %d, total background images = %d", current_idx, list.size());
-
-  while (current_hd_idx < hds.size() && imgs.size() < size) {
-    // we still have hard negative samples to roll
-    Mat img = hds[current_hd_idx++];
-    if (!img.data) continue;
-    Mat img_h, img_q;
-    cv::resize(img, img_h, Size(c.img_h_size, c.img_h_size));
-    cv::resize(img, img_q, Size(c.img_q_size, c.img_q_size));
-    double score;
-    Mat_<double> shape;
-    int n;
-    bool is_face = joincascador.Validate(img, img_h, img_q, score, shape, n);
-    if (is_face) {
-      imgs.push_back(img);
-      scores.push_back(score);
-      shapes.push_back(shape);
-    }
-
-    if (imgs.size() >= ratio*size) {
-      LOG("We have mined %d%%, hard negative remain %d%%", int(ratio * 100), \
-          int(100. - double(current_hd_idx) / hds.size() * 100.));
-      ratio += 0.1;
-    }
-    if (current_hd_idx == hds.size()) {
-      // run out of hard negative samples
-      hds.clear();
-    }
-    nega_n++;
-  }
-
-  bool snapshoted = false; // only snapshot once
-
-  // while not enough
-  RNG rng(cv::getTickCount());
   while (imgs.size() < size) {
-    Mat img = cv::imread(list[current_idx++], CV_LOAD_IMAGE_GRAYSCALE);
-    if (current_idx == list.size()) {
-      LOG("Run out of background images");
-      if (!snapshoted) {
-        LOG("Snapshot All");
-        DataSet::Snapshot(*joincascador.pos, *joincascador.neg);
-        joincascador.Snapshot();
-        snapshoted = true;
-      }
-      reset_times++;
-      LOG("Reset current_idx and restart, reset times = %d", reset_times);
-      current_idx = 0;
-      rotation_angle += 90;
-      if (rotation_angle == 360) {
-        should_flip = 1 - should_flip;
-        rotation_angle = 0;
-      }
-      LOG("Current augment parameters, should flip = %d, rotation angle = %d", should_flip, rotation_angle);
+    // We generate a negative sample pool for validation
+    for (int i = 0; i < pool_size; i++) {
+      region_pool[i] = NextImage();
     }
 
-    if (!img.data) continue;
-
-    // augment
-    // flip
-    if (should_flip == 1) {
-      cv::flip(img, img, 1);
+    #pragma omp parallel for
+    for (int i = 0; i < pool_size; i++) {
+      cv::resize(region_pool[i], region_h_pool[i], Size(c.img_h_size, c.img_h_size));
+      cv::resize(region_pool[i], region_q_pool[i], Size(c.img_q_size, c.img_q_size));
+      cv::resize(region_pool[i], region_pool[i], Size(c.img_o_size, c.img_o_size));
+      bool is_face = joincascador.Validate(region_pool[i], region_h_pool[i], region_q_pool[i], \
+                                           score_pool[i], shape_pool[i], carts_go_through[i]);
+      if (is_face) used[i] = 1;
+      else used[i] = 0;
     }
-    // rotate
-    int x = img.cols / 2;
-    int y = img.rows / 2;
-    Mat r = cv::getRotationMatrix2D(Point2f(x, y), rotation_angle, 1);
-    cv::warpAffine(img, img, r, Size(img.cols, img.rows));
 
-    nega_n += hardNegaMining(joincascador, img, imgs, scores, shapes, size);
+    // collect
+    for (int i = 0; i < pool_size; i++) {
+      if (used[i] > 0) {
+        imgs.push_back(region_pool[i].clone()); // may not need to copy
+        scores.push_back(score_pool[i]);
+        shapes.push_back(shape_pool[i].clone()); // must copy
+      }
+      else { // not hard enough
+        nega_n++;
+        carts_n += carts_go_through[i];
+      }
+    }
 
     if (imgs.size() >= ratio*size) {
       while (imgs.size() >= ratio*size) ratio += 0.1;
-      LOG("We have mined %d%%, remain %d%%", int((ratio - 0.1) * 100.), \
+      LOG("We have mined %d%%, bg image remains %d%%", int(double(imgs.size())/size*100.), \
           int(100. - double(current_idx) / list.size() * 100.));
     }
   }
-  nega_n -= imgs.size();
 
-  if (imgs.size() > size) {
-    imgs.resize(size);
-    scores.resize(size);
-    shapes.resize(size);
-  }
-
-  times++;
   if (nega_n > 0) {
     const int patch_n = imgs.size() + nega_n;
     const double fp_rate = double(imgs.size()) / patch_n;
-    LOG("Done with mining, number of not hard enough is %d, FP = %.8lf", nega_n, fp_rate);
+    const double average_cart = double(carts_n) / nega_n;
+    LOG("Done with mining, number of not hard enough is %d", nega_n);
+    LOG("Average number of cart to reject is %.2lf, FP = %lf", average_cart, fp_rate);
   }
   else {
     LOG("Done with mining, all nega is hard enough");
   }
+
   return imgs.size();
 }
 
@@ -848,8 +841,8 @@ void NegGenerator::Load(const vector<string>& path) {
   char buff[300];
   FILE* file;
   // background images
-  current_idx = 0;
   list.clear();
+  current_idx = 0;
   for (int i = 1; i < path.size(); i++) {
     file = fopen(path[i].c_str(), "r");
     sprintf(buff, "Can not open negative dataset file list, %s", path[i].c_str());
@@ -861,7 +854,17 @@ void NegGenerator::Load(const vector<string>& path) {
   }
   RNG rng(cv::getTickCount());
   std::random_shuffle(list.begin(), list.end(), rng);
-
+  // initial bg state
+  resets = 0;
+  x = y = 0;
+  transform_type = 0;
+  win_size = c.img_o_size;
+  factor = rng.uniform(1.1, 1.5);
+  step = rng.uniform(2, c.img_q_size);
+  bg_img = cv::imread(list[current_idx], CV_LOAD_IMAGE_GRAYSCALE);
+  if (!bg_img.data) {
+    dieWithMsg("Load background image %s failed", list[current_idx].c_str());
+  }
   // load all hard negative samples
   hds.clear();
   current_hd_idx = 0;
@@ -880,8 +883,8 @@ void NegGenerator::Load(const vector<string>& path) {
     }
     fclose(file);
 
-    int threads_n = omp_get_max_threads();
-    omp_set_num_threads(3 * threads_n);
+    int thread_n = c.thread_n;
+    omp_set_num_threads(3 * thread_n);
     SLEEP(1000);
     LOG("Load All Hard Negative Samples from text file");
 
@@ -899,7 +902,7 @@ void NegGenerator::Load(const vector<string>& path) {
       hds[i] = img;
     }
 
-    omp_set_num_threads(threads_n);
+    omp_set_num_threads(thread_n);
     SLEEP(1000);
     LOG("All hard negative samples Done");
 
@@ -939,14 +942,13 @@ void NegGenerator::Load(const vector<string>& path) {
     }
     int n = 0;
     fread(&n, sizeof(int), 1, data);
-    hds.resize(n);
+    hds.reserve(n);
     for (int i = 0; i < n; i++) {
       int rows, cols;
       Mat img;
       fread(&cols, sizeof(int), 1, data);
       fread(&rows, sizeof(int), 1, data);
       if (rows == 0 || cols == 0) {
-        hds.push_back(img);
         continue;
       }
       img = Mat(rows, cols, CV_8UC1);

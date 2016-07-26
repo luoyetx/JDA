@@ -48,6 +48,12 @@ public:
    */
   void Load(const std::vector<std::string>& path);
 
+  /*!
+   * \breif Next image from bgs for hard mining
+   *  using internal state to generator a patch from a bg or just from a prepared hard negative samples
+   */
+  cv::Mat NextImage();
+
 public:
   /*! \breif background image list */
   std::vector<std::string> list;
@@ -55,11 +61,14 @@ public:
   /*! \breif hard negative list */
   std::vector<cv::Mat> hds;
   int current_hd_idx;
-  int times;
-  /*! \breif augment */
-  int should_flip;
-  int rotation_angle;
-  int reset_times;
+  /*! \breif mining status */
+  double factor;
+  int x, y;
+  int win_size;
+  int transform_type;
+  int step;
+  cv::Mat bg_img;
+  int resets; // reset times
 };
 
 /*!
