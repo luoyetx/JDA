@@ -178,6 +178,7 @@ bool JoinCascador::Validate(const Mat& img, const Mat& img_h, const Mat& img_q, 
       const Cart& cart = btcart.carts[k];
       int idx = cart.Forward(img, img_h, img_q, shape);
       score += cart.scores[idx];
+      score = (score - cart.mean) / cart.std;
       n++;
       if (score < cart.th) {
         // not a face
@@ -194,6 +195,7 @@ bool JoinCascador::Validate(const Mat& img, const Mat& img_h, const Mat& img_q, 
     const Cart& cart = btcarts[current_stage_idx].carts[k];
     int idx = cart.Forward(img, img_h, img_q, shape);
     score += cart.scores[idx];
+    score = (score - cart.mean) / cart.std;
     n++;
     if (score < cart.th) {
       // not a face

@@ -32,6 +32,8 @@ Cart::Cart(int stage, int landmark_id) {
   features.resize(nodes_n / 2); // all 0
   thresholds.resize(nodes_n / 2); // all 0
   scores.resize(nodes_n / 2); // all 0
+  mean = 0.;
+  std = 1.;
 }
 Cart::~Cart() {
 }
@@ -447,6 +449,8 @@ void Cart::SerializeFrom(FILE* fd) {
   }
   // threshold
   fread(&th, sizeof(double), 1, fd);
+  fread(&mean, sizeof(double), 1, fd);
+  fread(&std, sizeof(double), 1, fd);
 }
 
 void Cart::SerializeTo(FILE* fd) const {
@@ -468,6 +472,8 @@ void Cart::SerializeTo(FILE* fd) const {
   }
   // threshold
   fwrite(&th, sizeof(double), 1, fd);
+  fwrite(&mean, sizeof(double), 1, fd);
+  fwrite(&std, sizeof(double), 1, fd);
 }
 
 void Cart::PrintSelf() {
@@ -487,6 +493,7 @@ void Cart::PrintSelf() {
     printf("%.4lf, ", scores[i]);
   }
   printf("]\n");
+  printf("mean = %.4lf, std = %.4lf\n", mean, std);
   printf("threshold = %.4lf\n\n", th);
 }
 

@@ -127,6 +127,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
   int neg_rejected = 0;
 
   const int landmark_n = c.landmark_n;
+  const int normalization_step = 5 * landmark_n;
   RNG& rng = c.rng_pool[0];
   int drop_n = (1. - c.recall[stage])*pos.size / K; // pos drop number per cart
   if (drop_n <= 1) drop_n = 1;
@@ -165,9 +166,18 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
       LOG("Done with %d th Cart, costs %.4lf s", k + 1, TIMER_NOW);
     TIMER_END
     joincascador.current_cart_idx = k;
-    // update score
+    // update score and last_score
     pos.UpdateScores(cart);
     neg.UpdateScores(cart);
+    if (kk % normalization_step == 0) {
+      DataSet::CalcMeanAndStd(pos, neg, cart.mean, cart.std);
+      pos.ApplyMeanAndStd(cart.mean, cart.std);
+      neg.ApplyMeanAndStd(cart.mean, cart.std);
+    }
+    else {
+      cart.mean = 0.;
+      cart.std = 1.;
+    }
     // select th for pre-defined recall
     pos.QSort();
     neg.QSort();
@@ -196,8 +206,18 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
         neg.ResetScores();
         pos.UpdateScores(cart);
         neg.UpdateScores(cart);
+        if (kk % normalization_step == 0) {
+          DataSet::CalcMeanAndStd(pos, neg, cart.mean, cart.std);
+          pos.ApplyMeanAndStd(cart.mean, cart.std);
+          neg.ApplyMeanAndStd(cart.mean, cart.std);
+        }
+        else {
+          cart.mean = 0.;
+          cart.std = 1.;
+        }
         pos.QSort();
         neg.QSort();
+        JDA_Assert(cart.th == pos.CalcThresholdByNumber(1), "restart error");
       }
       else {
         // recover data scores

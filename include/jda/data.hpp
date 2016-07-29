@@ -184,6 +184,20 @@ public:
    */
   void ResetScores();
   /*!
+   * \breif Calculate mean and std of scores
+   * \param pos     positive dataset
+   * \param neg     negative dataset
+   * \param mean    mean of scores
+   * \param std     std of scores
+   */
+  static void CalcMeanAndStd(const DataSet& pos, const DataSet& neg, double& mean, double& std);
+  /*!
+   * \breif Apply mean and std to scores
+   * \breif mean    mean of scores
+   * \breif std     std of scores
+   */
+  void ApplyMeanAndStd(const double mean, const double std);
+  /*!
    * \breif Clear all
    */
   void Clear();

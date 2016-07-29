@@ -117,6 +117,7 @@ typedef struct {
   jdaNode nodes[JDA_TREE_NODE_N];
   float score[JDA_TREE_LEAF_N];
   float th;
+  float mean, std;
 } jdaCart;
 
 /*! \breif jda cascador */
@@ -373,6 +374,7 @@ static jdaResult jdaInternalDetect(jdaCascador *cascador, jdaImage o, jdaImage h
             }
             int leaf_idx = node_idx - JDA_TREE_NODE_N;
             score += cart->score[leaf_idx];
+            score = (score - cart->mean) / cart->std;
             // not a face
             if (score <= cart->th) goto next;
             lbf[k] = k*JDA_TREE_LEAF_N + leaf_idx;
@@ -511,6 +513,12 @@ void *jdaCascadorCreate(const char *model) {
       // classificatio threshold
       fread(&t8, sizeof(double), 1, fin);
       cart->th = (float)t8;
+      //fread(&t8, sizeof(double), 1, fin);
+      //cart->mean = (float)t8;
+      //fread(&t8, sizeof(double), 1, fin);
+      //cart->std = (float)t8;
+      cart->mean = 0;
+      cart->std = 1;
     }
     // global regression weight
     for (i = 0; i < JDA_LBF_N; i++) {

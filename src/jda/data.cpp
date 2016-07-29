@@ -270,6 +270,36 @@ void DataSet::ResetScores() {
   is_sorted = false;
 }
 
+void DataSet::CalcMeanAndStd(const DataSet& pos, const DataSet& neg, double& mean, double& std) {
+  mean = 0.;
+  std = 1.;
+  // calc mean
+  for (int i = 0; i < pos.size; i++) {
+    mean += pos.scores[i];
+  }
+  for (int i = 0; i < neg.size; i++) {
+    mean += neg.scores[i];
+  }
+  mean /= pos.size + neg.size;
+  // calc std
+  double var = 0.;
+  for (int i = 0; i < pos.size; i++) {
+    var += std::pow(pos.scores[i] - mean, 2);
+  }
+  for (int i = 0; i < neg.size; i++) {
+    var += std::pow(neg.scores[i] - mean, 2);
+  }
+  var /= pos.size + neg.size;
+  std = std::sqrt(var);
+}
+
+void DataSet::ApplyMeanAndStd(const double mean, const double std) {
+  #pragma omp parallel for
+  for (int i = 0; i < size; i++) {
+    scores[i] = (scores[i] - mean) / std;
+  }
+}
+
 void DataSet::Clear() {
   imgs.clear();
   imgs_half.clear();

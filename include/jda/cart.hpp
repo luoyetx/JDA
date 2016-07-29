@@ -136,6 +136,8 @@ public:
   std::vector<int> thresholds;
   /*! \breif scores to pos/neg, see more on paper in `Algorithm 3` */
   std::vector<double> scores;
+  /*! \breif mean and std to apply on the score */
+  double mean, std; // default mean = 0. and std = 1.
 };
 
 /*!
