@@ -138,6 +138,8 @@ public:
   std::vector<double> probs;
   /*! \breif recall of each stage */
   std::vector<double> recall;
+  /*! \breif score normalization step, step = normalization_step*landmark_n */
+  std::vector<int> score_normalization_steps;
   /*! \breif hard negative mining parameters */
   double mining_factor;
   int mining_min_size;

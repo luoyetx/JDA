@@ -1,6 +1,7 @@
 #ifndef DATA_HPP_
 #define DATA_HPP_
 
+#include <omp.h>
 #include <vector>
 #include <opencv2/core/core.hpp>
 
@@ -47,28 +48,61 @@ public:
    * \param path    background image file list
    */
   void Load(const std::vector<std::string>& path);
-
   /*!
    * \breif Next image from bgs for hard mining
    *  using internal state to generator a patch from a bg or just from a prepared hard negative samples
+   *
+   * \note For parallel mining, NextImage should be thread safe.
+   *
+   * \param thread_id   thread id
    */
-  cv::Mat NextImage();
+  cv::Mat NextImage(int thread_id);
+  /*!
+   * \breif Parallel hard negative mining
+   *  mining hard negative in parallel, since `NegGenerator::NextImage()` is implemented in thread safe, we
+   *  still need `write_lock` to put the mined negative sample into imgs, and calculate the statistic data.
+   *
+   * \param joincascador    JoinCascador in training
+   * \param size            how many samples we need
+   * \param imgs            negative samples
+   * \param scores          scores of negative samples
+   * \param shapes          shapes of samples, for training
+   * \param write_lock      lock for `vector::push_back()`
+   * \param nega_n          statistic data nega_n over threads
+   * \param carts_n         statistic data carts_n over threads
+   * \param ratio           statistic data mining process over threads
+   */
+  void ParallelMining(const JoinCascador& joincascador, int size, \
+                      std::vector<cv::Mat>& img, std::vector<double>& scores, \
+                      std::vector<cv::Mat_<double> >& shapes, \
+                      omp_lock_t& write_lock, \
+                      int& nega_n, double& carts_n, double& ratio);
+  /*!
+   * \breif Report how many background images have been used.
+   * \note this function may not give the correct number in multi-thread mode, but shoud be roughly correct.
+   *
+   * \return    number of mined background images
+   */
+  int ReportBgImageUsed();
 
 public:
   /*! \breif background image list */
   std::vector<std::string> list;
-  int current_idx;
   /*! \breif hard negative list */
   std::vector<cv::Mat> hds;
-  int current_hd_idx;
-  /*! \breif mining status */
-  double factor;
-  int x, y;
-  int win_size;
-  int transform_type;
-  int step;
-  cv::Mat bg_img;
-  int resets; // reset times
+  /*! \breif thread mining status */
+  struct State {
+    int current_idx;
+    int current_hd_idx;
+    double factor;
+    int x, y;
+    int win_size;
+    int transform_type;
+    int step;
+    int reset;
+    cv::Mat bg_img;
+  };
+  std::vector<State> states;
 };
 
 /*!

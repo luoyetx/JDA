@@ -344,8 +344,8 @@ void DataSet::MoreNegSamples(int pos_size, double rate) {
   TIMER_BEGIN
     extra_size = neg_generator.Generate(*c.joincascador, size_, \
                                         imgs_, scores_, shapes_);
-    LOG("We have mined %d hard negative samples, current_bg_idx = %d, it costs %.2lf s", \
-        extra_size, neg_generator.current_idx, TIMER_NOW);
+    LOG("We have mined %d hard negative samples, have used %d, it costs %.2lf s", \
+        extra_size, neg_generator.ReportBgImageUsed(), TIMER_NOW);
   TIMER_END
 
   const int expanded = imgs.size() + imgs_.size();
@@ -697,51 +697,48 @@ void DataSet::Resume(const string& data_file, DataSet& pos, DataSet& neg) {
 
 // Negative Generator
 
-NegGenerator::NegGenerator()
-  : current_idx(0), current_hd_idx(0), x(0), y(0), transform_type(0), resets(0) {
+NegGenerator::NegGenerator() {
 }
 NegGenerator::~NegGenerator() {
 }
 
-Mat NegGenerator::NextImage() {
+Mat NegGenerator::NextImage(int thread_id) {
+  // get state for this thread
+  State& s = states[thread_id];
+  const Config& c = Config::GetInstance();
+  const int thread_n = c.thread_n;
+
   Mat patch;
   // use hard if any
-  if (current_hd_idx < hds.size()) {
-    patch = hds[current_hd_idx].clone();
-    current_hd_idx++;
-    if (current_hd_idx >= hds.size()) {
-      hds.clear(); // release memory
-    }
+  if (s.current_hd_idx < hds.size()) {
+    patch = hds[s.current_hd_idx].clone();
+    s.current_hd_idx += thread_n;
     return patch;
   }
   // background image
-  x += step;
-  if (x + win_size > bg_img.cols) {
-    x = 0;
-    y += step;
-    if (y + win_size > bg_img.rows) {
-      y = 0;
-      win_size *= factor;
-      if (win_size >= bg_img.cols || win_size >= bg_img.rows) {
-        // next transform
-        const Config& c = Config::GetInstance();
-        win_size = c.img_o_size;
+  s.x += s.step;
+  if (s.x + s.win_size > s.bg_img.cols) {
+    s.x = 0;
+    s.y += s.step;
+    if (s.y + s.win_size > s.bg_img.rows) {
+      s.y = 0;
+      s.win_size *= s.factor;
+      if (s.win_size >= s.bg_img.cols || s.win_size >= s.bg_img.rows) {
         // next image
         RNG rng(cv::getTickCount());
-        factor = rng.uniform(1.1, 1.5);
-        step = rng.uniform(2, c.img_q_size);
+        s.win_size = c.img_o_size;
+        s.factor = rng.uniform(1.1, 1.5);
+        s.step = rng.uniform(2, c.img_q_size);
         while (true) {
-          current_idx++;
-          if (current_idx >= list.size()) {
-            LOG("Run out of background images. Reset current_idx and restart.");
-            current_idx = -1;
-            transform_type = (transform_type + 1) % 8;
-            resets++;
-            LOG("Current reset = %d, Current transform type = %d", resets, transform_type);
+          s.current_idx += thread_n;
+          if (s.current_idx >= list.size()) {
+            s.current_idx -= list.size();
+            s.transform_type = (s.transform_type + 1) % 8;
+            s.reset++;
             continue;
           }
-          bg_img = cv::imread(list[current_idx], CV_LOAD_IMAGE_GRAYSCALE);
-          if (!bg_img.data || bg_img.cols <= win_size || bg_img.rows <= win_size) {
+          s.bg_img = cv::imread(list[s.current_idx], CV_LOAD_IMAGE_GRAYSCALE);
+          if (!s.bg_img.data || s.bg_img.cols <= s.win_size || s.bg_img.rows <= s.win_size) {
             // continue
           }
           else {
@@ -750,35 +747,35 @@ Mat NegGenerator::NextImage() {
         }
 
         // perform transform to the bg image
-        switch (transform_type){
+        switch (s.transform_type){
         case 0:
           break;
         case 1:
-          flip(bg_img, bg_img, 0);
-          transpose(bg_img, bg_img);
+          flip(s.bg_img, s.bg_img, 0);
+          transpose(s.bg_img, s.bg_img);
           break;
         case 2:
-          flip(bg_img, bg_img, -1);
+          flip(s.bg_img, s.bg_img, -1);
           break;
         case 3:
-          flip(bg_img, bg_img, 1);
-          transpose(bg_img, bg_img);
+          flip(s.bg_img, s.bg_img, 1);
+          transpose(s.bg_img, s.bg_img);
           break;
         case 4:
-          flip(bg_img, bg_img, 1);
+          flip(s.bg_img, s.bg_img, 1);
           break;
         case 5:
-          flip(bg_img, bg_img, -1);
-          transpose(bg_img, bg_img);
+          flip(s.bg_img, s.bg_img, -1);
+          transpose(s.bg_img, s.bg_img);
           break;
         case 6:
-          flip(bg_img, bg_img, -1);
-          flip(bg_img, bg_img, 1);
+          flip(s.bg_img, s.bg_img, -1);
+          flip(s.bg_img, s.bg_img, 1);
           break;
         case 7:
-          flip(bg_img, bg_img, 0);
-          transpose(bg_img, bg_img);
-          flip(bg_img, bg_img, 1);
+          flip(s.bg_img, s.bg_img, 0);
+          transpose(s.bg_img, s.bg_img);
+          flip(s.bg_img, s.bg_img, 1);
           break;
         default:
           dieWithMsg("No such transform type for background image augmentation.");
@@ -787,8 +784,63 @@ Mat NegGenerator::NextImage() {
       }
     }
   }
-  patch = bg_img(Rect(x, y, win_size, win_size)).clone();
+  patch = s.bg_img(Rect(s.x, s.y, s.win_size, s.win_size)).clone();
   return patch;
+}
+
+void NegGenerator::ParallelMining(const JoinCascador& joincascador, int size, \
+                                  std::vector<cv::Mat>& imgs, std::vector<double>& scores, \
+                                  std::vector<cv::Mat_<double> >& shapes, \
+                                  omp_lock_t& write_lock, \
+                                  int& nega_n, double& carts_n, double& ratio) {
+  const Config& c = Config::GetInstance();
+  int thread_id = omp_get_thread_num();
+  while (true) {
+    Mat img, img_h, img_q;
+    double score;
+    int carts_go_through;
+    Mat_<double> shape;
+    img = NextImage(thread_id);
+    cv::resize(img, img, Size(c.img_o_size, c.img_o_size));
+    cv::resize(img, img_h, Size(c.img_h_size, c.img_h_size));
+    cv::resize(img, img_q, Size(c.img_q_size, c.img_q_size));
+    bool is_face = joincascador.Validate(img, img_h, img_q, score, shape, carts_go_through);
+
+    bool should_break = false;
+    omp_set_lock(&write_lock); // parallel critical block begin
+    if (is_face) {
+      imgs.push_back(img);
+      scores.push_back(score);
+      shapes.push_back(shape);
+      if (imgs.size() >= ratio*size) {
+        while (imgs.size() >= ratio*size) ratio += 0.1;
+        int bg_used = ReportBgImageUsed();
+        double used_ratio = double(bg_used) / list.size() * 100.;
+        double mined_ratio = double(imgs.size()) / size * 100.;
+        LOG("We have mined %d%%, used %d%%", int(mined_ratio), int(used_ratio));
+      }
+      if (imgs.size() >= size) should_break = true; // enough
+    }
+    else {
+      nega_n++;
+      carts_n += carts_go_through;
+    }
+    omp_unset_lock(&write_lock); // parallel critical block end
+
+    if (should_break) break;
+  }
+}
+
+int NegGenerator::ReportBgImageUsed() {
+  const Config& c = Config::GetInstance();
+  const int n = states.size();
+  const int thread_n = c.thread_n;
+  const int base_n = list.size() / thread_n; // full number of bg for a thread
+  int counter = 0;
+  for (int i = 0; i < n; i++) {
+    counter += states[i].current_idx / c.thread_n + states[i].reset * base_n;
+  }
+  return counter;
 }
 
 int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
@@ -804,53 +856,54 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
   scores.reserve(size + pool_size);
   shapes.reserve(size + pool_size);
 
-  vector<Mat> region_pool(pool_size);
-  vector<Mat> region_h_pool(pool_size);
-  vector<Mat> region_q_pool(pool_size);
-  vector<double> score_pool(pool_size);
-  vector<Mat_<double> > shape_pool(pool_size);
-  vector<int> used(pool_size);
-  vector<int> carts_go_through(pool_size);
   int nega_n = 0; // not hard nega
   double carts_n = 0; // number of carts go through by all not hard nega, type `int` may overflow
+  double ratio = 0.1; // mining process
 
-  double ratio = 0.1;
-  while (imgs.size() < size) {
-    // We generate a negative sample pool for validation
-    for (int i = 0; i < pool_size; i++) {
-      region_pool[i] = NextImage();
-    }
+  //while (imgs.size() < size) {
+  //  #pragma omp parallel for
+  //  for (int i = 0; i < pool_size; i++) {
+  //    int carts_go_through = 0;
+  //    double score = 0.;
+  //    Mat_<double> shape;
+  //    Mat img, img_h, img_q;
+  //    img = NextImage(i);
+  //    cv::resize(img, img, Size(c.img_o_size, c.img_o_size));
+  //    cv::resize(img, img_h, Size(c.img_h_size, c.img_h_size));
+  //    cv::resize(img, img_q, Size(c.img_q_size, c.img_q_size));
+  //    bool is_face = joincascador.Validate(img, img_h, img_q, score, shape, carts_go_through);
+  //    #pragma omp critical
+  //    {
+  //      if (is_face) {
+  //        imgs.push_back(img);
+  //        scores.push_back(score);
+  //        shapes.push_back(shape);
+  //      }
+  //      else {
+  //        nega_n++;
+  //        carts_n += carts_go_through;
+  //      }
+  //    }
+  //  }
 
-    #pragma omp parallel for
-    for (int i = 0; i < pool_size; i++) {
-      cv::resize(region_pool[i], region_h_pool[i], Size(c.img_h_size, c.img_h_size));
-      cv::resize(region_pool[i], region_q_pool[i], Size(c.img_q_size, c.img_q_size));
-      cv::resize(region_pool[i], region_pool[i], Size(c.img_o_size, c.img_o_size));
-      bool is_face = joincascador.Validate(region_pool[i], region_h_pool[i], region_q_pool[i], \
-                                           score_pool[i], shape_pool[i], carts_go_through[i]);
-      if (is_face) used[i] = 1;
-      else used[i] = 0;
-    }
+  //  if (imgs.size() >= ratio*size) {
+  //    while (imgs.size() >= ratio*size) ratio += 0.1;
+  //    int bg_used = ReportBgImageUsed();
+  //    double used_ratio = double(bg_used) / list.size() * 100.;
+  //    double mined_ratio = double(imgs.size()) / size * 100;
+  //    LOG("We have mined %d%%, used %d%%", int(mined_ratio), int(used_ratio));
+  //  }
+  //}
 
-    // collect
-    for (int i = 0; i < pool_size; i++) {
-      if (used[i] > 0) {
-        imgs.push_back(region_pool[i].clone()); // may not need to copy
-        scores.push_back(score_pool[i]);
-        shapes.push_back(shape_pool[i].clone()); // must copy
-      }
-      else { // not hard enough
-        nega_n++;
-        carts_n += carts_go_through[i];
-      }
-    }
+  omp_lock_t write_lock;
+  omp_init_lock(&write_lock);
 
-    if (imgs.size() >= ratio*size) {
-      while (imgs.size() >= ratio*size) ratio += 0.1;
-      LOG("We have mined %d%%, bg image remains %d%%", int(double(imgs.size())/size*100.), \
-          int(100. - double(current_idx) / list.size() * 100.));
-    }
+  #pragma omp parallel for
+  for (int i = 0; i < pool_size; i++) {
+    ParallelMining(joincascador, size, imgs, scores, shapes, write_lock, nega_n, carts_n, ratio);
   }
+
+  omp_destroy_lock(&write_lock);
 
   if (nega_n > 0) {
     const int patch_n = imgs.size() + nega_n;
@@ -872,7 +925,6 @@ void NegGenerator::Load(const vector<string>& path) {
   FILE* file;
   // background images
   list.clear();
-  current_idx = 0;
   for (int i = 1; i < path.size(); i++) {
     file = fopen(path[i].c_str(), "r");
     sprintf(buff, "Can not open negative dataset file list, %s", path[i].c_str());
@@ -885,19 +937,25 @@ void NegGenerator::Load(const vector<string>& path) {
   RNG rng(cv::getTickCount());
   std::random_shuffle(list.begin(), list.end(), rng);
   // initial bg state
-  resets = 0;
-  x = y = 0;
-  transform_type = 0;
-  win_size = c.img_o_size;
-  factor = rng.uniform(1.1, 1.5);
-  step = rng.uniform(2, c.img_q_size);
-  bg_img = cv::imread(list[current_idx], CV_LOAD_IMAGE_GRAYSCALE);
-  if (!bg_img.data) {
-    dieWithMsg("Load background image %s failed", list[current_idx].c_str());
+  int thread_n = c.thread_n;
+  states.resize(thread_n);
+  for (int i = 0; i < thread_n; i++) {
+    State& s = states[i];
+    s.reset = 0;
+    s.x = s.y = 0;
+    s.transform_type = 0;
+    s.win_size = c.img_o_size;
+    s.factor = rng.uniform(1.1, 1.5);
+    s.step = rng.uniform(2, c.img_q_size);
+    s.current_idx = i;
+    s.bg_img = cv::imread(list[s.current_idx], CV_LOAD_IMAGE_GRAYSCALE);
+    if (!s.bg_img.data) {
+      dieWithMsg("Load background image %s failed", list[s.current_idx].c_str());
+    }
+    s.current_hd_idx = i;
   }
   // load all hard negative samples
   hds.clear();
-  current_hd_idx = 0;
   if (!c.use_hard) return;
 
   string hard = path[0];

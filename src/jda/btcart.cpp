@@ -127,7 +127,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
   int neg_rejected = 0;
 
   const int landmark_n = c.landmark_n;
-  const int normalization_step = 5 * landmark_n;
+  const int normalization_step = landmark_n*c.score_normalization_steps[stage];
   RNG& rng = c.rng_pool[0];
   int drop_n = (1. - c.recall[stage])*pos.size / K; // pos drop number per cart
   if (drop_n <= 1) drop_n = 1;

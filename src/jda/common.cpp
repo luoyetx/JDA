@@ -190,6 +190,7 @@ Config::Config() {
     this->radius.push_back(stages["random_sample_radius"][i].unwrap<Number>());
     this->probs.push_back(stages["classification_p"][i].unwrap<Number>());
     this->recall.push_back(stages["recall"][i].unwrap<Number>());
+    this->score_normalization_steps.push_back(stages["score_normalization_step"][i].unwrap<Number>());
   }
 
   // data
