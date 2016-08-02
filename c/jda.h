@@ -29,7 +29,17 @@ typedef struct {
  * \param model   model file
  * \return        cascador, NULL if failed
  */
-JDA_API void *jdaCascadorCreate(const char *model);
+JDA_API void *jdaCascadorCreateDouble(const char *model);
+JDA_API void *jdaCascadorCreateFloat(const char *model);
+
+/*!
+ * \breif serialize model to a binary file
+ * \note  this function serialze float data type, can reduce model size
+ *
+ * \param cascador  jda cascador
+ * \param model     model file
+ */
+JDA_API void jdaCascadorSerializeTo(void *cascador, const char *model);
 
 /*!
  * \breif release jda cascador

@@ -10,11 +10,20 @@
 #define inline __inline
 #endif
 
-// jda global constance
-
-#define JDA_T             5
-#define JDA_K             290
-#define JDA_LANDMARK_N    29
+/*!
+ * \breif jda global constance
+ * \param JDA_T               number of stages
+ * \param JDA_K               number of carts every stage
+ * \param JDA_LANDMARK_N      number of landmarks
+ * \param JDA_TREE_DEPTH      depth of a cart
+ * \param JDA_TREE_LEAF_N     leaf number of a cart
+ * \param JDA_CART_N          number of total carts in the model
+ * \param JDA_LANDMARK_DIM    dimension of landmarks
+ * \param JDA_LBF_N           dimension of local binary feature
+ */
+#define JDA_T             3
+#define JDA_K             540
+#define JDA_LANDMARK_N    27
 #define JDA_TREE_DEPTH    4
 #define JDA_TREE_LEAF_N   (1 << (JDA_TREE_DEPTH - 1))
 #define JDA_TREE_NODE_N   (JDA_TREE_LEAF_N - 1)
@@ -94,6 +103,7 @@ JDA_VECTOR(float);
 
 /*! \breif jda bbox */
 typedef struct {
+  /*! breif x, y, w, h */
   int x, y, size;
 } jdaBBox;
 
@@ -102,36 +112,51 @@ typedef float jdaShape[JDA_LANDMARK_DIM];
 
 /*!\breif jda cart node */
 typedef struct {
+  /*! breif scale */
   int scale;
+  /*! breif landmark id */
   int landmark1_x;
   int landmark2_x;
+  /*! breif landmark offset to generate feature value */
   float landmark1_offset_x;
   float landmark1_offset_y;
   float landmark2_offset_x;
   float landmark2_offset_y;
+  /*! \breif feature threshold */
   int th;
 } jdaNode;
 
 /*! \breif jda cart */
 typedef struct {
+  /*! \breif nodes in this cart */
   jdaNode nodes[JDA_TREE_NODE_N];
+  /*! \breif scores stored in the leaf nodes */
   float score[JDA_TREE_LEAF_N];
+  /*! \breif score thrshold */
   float th;
+  /*! \breif mean and std apply to the score */
   float mean, std;
 } jdaCart;
 
 /*! \breif jda cascador */
 typedef struct {
+  /*! \breif all carts in the model */
   jdaCart carts[JDA_CART_N];
+  /*! \breif regression weights of every stage */
   float ws[JDA_T][JDA_LBF_N][JDA_LANDMARK_DIM];
+  /*! \breif mean shape of the face */
   float mean_shape[JDA_LANDMARK_DIM];
+  /*! \breif final score threshold */
+  float th;
 } jdaCascador;
 
 /*! \breif jda image */
 typedef struct {
-  int w;
-  int h;
+  /*! \breif width and height */
+  int w, h;
+  /*! \breif step of a row in the image, usally equals to width */
   int step;
+  /*! \breif gray image data */
   unsigned char *data;
 } jdaImage;
 
@@ -376,7 +401,7 @@ static jdaResult jdaInternalDetect(jdaCascador *cascador, jdaImage o, jdaImage h
             score += cart->score[leaf_idx];
             score = (score - cart->mean) / cart->std;
             // not a face
-            if (score <= cart->th) goto next;
+            if (score < cart->th) goto next;
             lbf[k] = k*JDA_TREE_LEAF_N + leaf_idx;
             cart++;
           }
@@ -389,6 +414,9 @@ static jdaResult jdaInternalDetect(jdaCascador *cascador, jdaImage o, jdaImage h
             }
           }
         }
+        // final threshold
+        if (score < cascador->th) goto next;
+
         jdaBBox bbox;
         bbox.x = x; bbox.y = y;
         bbox.size = win_size;
@@ -456,7 +484,7 @@ jdaResult jdaDetect(void *cascador, unsigned char *data, int width, int height) 
  * \breif serialize model from JDA
  * \note  JDA dump data type is double
  */
-void *jdaCascadorCreate(const char *model) {
+void *jdaCascadorCreateDouble(const char *model) {
   FILE *fin = fopen(model, "rb");
   if (!fin) return NULL;
   jdaCascador *cascador = (jdaCascador*)malloc(sizeof(jdaCascador));
@@ -465,21 +493,21 @@ void *jdaCascadorCreate(const char *model) {
     return NULL;
   }
 
-  int t4;
-  double t8;
+  int i4;
+  double f8;
   int t, k, i, j;
   // meta
-  fread(&t4, sizeof(int), 1, fin);
-  fread(&t4, sizeof(int), 1, fin);
-  fread(&t4, sizeof(int), 1, fin);
-  fread(&t4, sizeof(int), 1, fin);
-  fread(&t4, sizeof(int), 1, fin);
-  fread(&t4, sizeof(int), 1, fin);
-  fread(&t4, sizeof(int), 1, fin);
+  fread(&i4, sizeof(int), 1, fin);
+  fread(&i4, sizeof(int), 1, fin);
+  fread(&i4, sizeof(int), 1, fin);
+  fread(&i4, sizeof(int), 1, fin);
+  fread(&i4, sizeof(int), 1, fin);
+  fread(&i4, sizeof(int), 1, fin);
+  fread(&i4, sizeof(int), 1, fin);
   // mean shape
   for (i = 0; i < JDA_LANDMARK_DIM; i++) {
-    fread(&t8, sizeof(double), 1, fin);
-    cascador->mean_shape[i] = (float)t8;
+    fread(&f8, sizeof(double), 1, fin);
+    cascador->mean_shape[i] = (float)f8;
   }
   // carts
   for (t = 0; t < JDA_T; t++) {
@@ -488,49 +516,204 @@ void *jdaCascadorCreate(const char *model) {
       // feature
       for (i = 0; i < JDA_TREE_NODE_N; i++) {
         jdaNode *node = &cart->nodes[i];
-        fread(&t4, sizeof(int), 1, fin);
-        node->scale = t4;
-        fread(&t4, sizeof(int), 1, fin);
-        node->landmark1_x = t4 << 1;
-        fread(&t4, sizeof(int), 1, fin);
-        node->landmark2_x = t4 << 1;
-        fread(&t8, sizeof(double), 1, fin);
-        node->landmark1_offset_x = (float)t8;
-        fread(&t8, sizeof(double), 1, fin);
-        node->landmark1_offset_y = (float)t8;
-        fread(&t8, sizeof(double), 1, fin);
-        node->landmark2_offset_x = (float)t8;
-        fread(&t8, sizeof(double), 1, fin);
-        node->landmark2_offset_y = (float)t8;
-        fread(&t4, sizeof(int), 1, fin);
-        node->th = t4;
+        fread(&i4, sizeof(int), 1, fin);
+        node->scale = i4;
+        fread(&i4, sizeof(int), 1, fin);
+        node->landmark1_x = i4 << 1;
+        fread(&i4, sizeof(int), 1, fin);
+        node->landmark2_x = i4 << 1;
+        fread(&f8, sizeof(double), 1, fin);
+        node->landmark1_offset_x = (float)f8;
+        fread(&f8, sizeof(double), 1, fin);
+        node->landmark1_offset_y = (float)f8;
+        fread(&f8, sizeof(double), 1, fin);
+        node->landmark2_offset_x = (float)f8;
+        fread(&f8, sizeof(double), 1, fin);
+        node->landmark2_offset_y = (float)f8;
+        fread(&i4, sizeof(int), 1, fin);
+        node->th = i4;
       }
       // scores
       for (i = 0; i < JDA_TREE_LEAF_N; i++) {
-        fread(&t8, sizeof(double), 1, fin);
-        cart->score[i] = (float)t8;
+        fread(&f8, sizeof(double), 1, fin);
+        cart->score[i] = (float)f8;
       }
       // classificatio threshold
-      fread(&t8, sizeof(double), 1, fin);
-      cart->th = (float)t8;
-      //fread(&t8, sizeof(double), 1, fin);
-      //cart->mean = (float)t8;
-      //fread(&t8, sizeof(double), 1, fin);
-      //cart->std = (float)t8;
-      cart->mean = 0;
-      cart->std = 1;
+      fread(&f8, sizeof(double), 1, fin);
+      cart->th = (float)f8;
+      fread(&f8, sizeof(double), 1, fin);
+      cart->mean = (float)f8;
+      fread(&f8, sizeof(double), 1, fin);
+      cart->std = (float)f8;
     }
     // global regression weight
     for (i = 0; i < JDA_LBF_N; i++) {
       for (j = 0; j < JDA_LANDMARK_DIM; j++) {
-        fread(&t8, sizeof(double), 1, fin);
-        cascador->ws[t][i][j] = (float)t8;
+        fread(&f8, sizeof(double), 1, fin);
+        cascador->ws[t][i][j] = (float)f8;
       }
     }
   }
-  fread(&t4, sizeof(int), 1, fin);
+  fread(&i4, sizeof(int), 1, fin);
   fclose(fin);
+  // set final score threshold, this can be changed
+  cascador->th = 0;
   return (void*)cascador;
+}
+
+void *jdaCascadorCreateFloat(const char *model) {
+  FILE *fin = fopen(model, "rb");
+  if (!fin) return NULL;
+  jdaCascador *cascador = (jdaCascador*)malloc(sizeof(jdaCascador));
+  if (!cascador) {
+    fclose(fin);
+    return NULL;
+  }
+
+  int i4;
+  float f4;
+  int t, k, i, j;
+  // meta
+  fread(&i4, sizeof(int), 1, fin);
+  fread(&i4, sizeof(int), 1, fin);
+  fread(&i4, sizeof(int), 1, fin);
+  fread(&i4, sizeof(int), 1, fin);
+  fread(&i4, sizeof(int), 1, fin);
+  fread(&i4, sizeof(int), 1, fin);
+  fread(&i4, sizeof(int), 1, fin);
+  // mean shape
+  for (i = 0; i < JDA_LANDMARK_DIM; i++) {
+    fread(&f4, sizeof(float), 1, fin);
+    cascador->mean_shape[i] = f4;
+  }
+  // carts
+  for (t = 0; t < JDA_T; t++) {
+    for (k = 0; k < JDA_K; k++) {
+      jdaCart *cart = &cascador->carts[t*JDA_K + k];
+      // feature
+      for (i = 0; i < JDA_TREE_NODE_N; i++) {
+        jdaNode *node = &cart->nodes[i];
+        fread(&i4, sizeof(int), 1, fin);
+        node->scale = i4;
+        fread(&i4, sizeof(int), 1, fin);
+        node->landmark1_x = i4 << 1;
+        fread(&i4, sizeof(int), 1, fin);
+        node->landmark2_x = i4 << 1;
+        fread(&f4, sizeof(float), 1, fin);
+        node->landmark1_offset_x = f4;
+        fread(&f4, sizeof(float), 1, fin);
+        node->landmark1_offset_y = f4;
+        fread(&f4, sizeof(float), 1, fin);
+        node->landmark2_offset_x = f4;
+        fread(&f4, sizeof(float), 1, fin);
+        node->landmark2_offset_y = f4;
+        fread(&i4, sizeof(int), 1, fin);
+        node->th = i4;
+      }
+      // scores
+      for (i = 0; i < JDA_TREE_LEAF_N; i++) {
+        fread(&f4, sizeof(float), 1, fin);
+        cart->score[i] = f4;
+      }
+      // classificatio threshold
+      fread(&f4, sizeof(float), 1, fin);
+      cart->th = f4;
+      fread(&f4, sizeof(float), 1, fin);
+      cart->mean = f4;
+      fread(&f4, sizeof(float), 1, fin);
+      cart->std = f4;
+    }
+    // global regression weight
+    for (i = 0; i < JDA_LBF_N; i++) {
+      for (j = 0; j < JDA_LANDMARK_DIM; j++) {
+        fread(&f4, sizeof(float), 1, fin);
+        cascador->ws[t][i][j] = f4;
+      }
+    }
+  }
+  fread(&i4, sizeof(int), 1, fin);
+  fclose(fin);
+  // set final score threshold, this can be changed
+  cascador->th = 0;
+  return (void*)cascador;
+}
+
+/*!
+ * \breif serialize model to a binary file
+ * \note  this function serialze float data type, can reduce model size
+ */
+void jdaCascadorSerializeTo(void *cascador_, const char *model) {
+  FILE *fout = fopen(model, "wb");
+  if (!fout) return;
+  jdaCascador *cascador = (jdaCascador*)cascador_;
+  int i4;
+  float f4;
+  int t, k, i, j;
+  // meta
+  i4 = 0; // mask
+  fwrite(&i4, sizeof(int), 1, fout);
+  i4 = JDA_T;
+  fwrite(&i4, sizeof(int), 1, fout);
+  i4 = JDA_K;
+  fwrite(&i4, sizeof(int), 1, fout);
+  i4 = JDA_LANDMARK_N;
+  fwrite(&i4, sizeof(int), 1, fout);
+  i4 = JDA_TREE_DEPTH;
+  fwrite(&i4, sizeof(int), 1, fout);
+  i4 = JDA_T + 1;
+  fwrite(&i4, sizeof(int), 1, fout);
+  i4 = -1;
+  fwrite(&i4, sizeof(int), 1, fout);
+  // mean shape
+  fwrite(cascador->mean_shape, sizeof(float), JDA_LANDMARK_DIM, fout);
+  // carts
+  for (t = 0; t < JDA_T; t++) {
+    for (k = 0; k < JDA_K; k++) {
+      jdaCart *cart = &cascador->carts[t*JDA_K + k];
+      // feature
+      for (i = 0; i < JDA_TREE_NODE_N; i++) {
+        jdaNode *node = &cart->nodes[i];
+        i4 = node->scale;
+        fwrite(&i4, sizeof(int), 1, fout);
+        i4 = node->landmark1_x >> 1;
+        fwrite(&i4, sizeof(int), 1, fout);
+        i4 = node->landmark2_x >> 1;
+        fwrite(&i4, sizeof(int), 1, fout);
+        f4 = node->landmark1_offset_x;
+        fwrite(&f4, sizeof(float), 1, fout);
+        f4 = node->landmark1_offset_y;
+        fwrite(&f4, sizeof(float), 1, fout);
+        f4 = node->landmark2_offset_x;
+        fwrite(&f4, sizeof(float), 1, fout);
+        f4 = node->landmark2_offset_y;
+        fwrite(&f4, sizeof(float), 1, fout);
+        i4 = node->th;
+        fwrite(&i4, sizeof(int), 1, fout);
+      }
+      // scores
+      for (i = 0; i < JDA_TREE_LEAF_N; i++) {
+        f4 = cart->score[i];
+        fwrite(&f4, sizeof(float), 1, fout);
+      }
+      // classificatio threshold
+      f4 = cart->th;
+      fwrite(&f4, sizeof(float), 1, fout);
+      f4 = cart->mean;
+      fwrite(&f4, sizeof(float), 1, fout);
+      f4 = cart->std;
+      fwrite(&f4, sizeof(float), 1, fout);
+    }
+    // global regression weight
+    for (i = 0; i < JDA_LBF_N; i++) {
+      for (j = 0; j < JDA_LANDMARK_DIM; j++) {
+        f4 = cascador->ws[t][i][j];
+        fwrite(&f4, sizeof(float), 1, fout);
+      }
+    }
+  }
+  i4 = 0; // mask
+  fwrite(&i4, sizeof(int), 1, fout);
+  fclose(fout);
 }
 
 void jdaCascadorRelease(void *cascador) {

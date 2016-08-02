@@ -792,7 +792,7 @@ void NegGenerator::ParallelMining(const JoinCascador& joincascador, int size, \
                                   std::vector<cv::Mat>& imgs, std::vector<double>& scores, \
                                   std::vector<cv::Mat_<double> >& shapes, \
                                   omp_lock_t& write_lock, \
-                                  int& nega_n, double& carts_n, double& ratio) {
+                                  double& nega_n, double& carts_n, double& ratio) {
   const Config& c = Config::GetInstance();
   int thread_id = omp_get_thread_num();
   while (true) {
@@ -856,7 +856,7 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
   scores.reserve(size + pool_size);
   shapes.reserve(size + pool_size);
 
-  int nega_n = 0; // not hard nega
+  double nega_n = 0; // not hard nega
   double carts_n = 0; // number of carts go through by all not hard nega, type `int` may overflow
   double ratio = 0.1; // mining process
 
@@ -906,11 +906,11 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
   omp_destroy_lock(&write_lock);
 
   if (nega_n > 0) {
-    const int patch_n = imgs.size() + nega_n;
-    const double fp_rate = double(imgs.size()) / patch_n;
-    const double average_cart = double(carts_n) / nega_n;
-    LOG("Done with mining, number of not hard enough is %d", nega_n);
-    LOG("Average number of cart to reject is %.2lf, FP = %lf", average_cart, fp_rate);
+    const double patch_n = imgs.size() + nega_n;
+    const double fp_rate = imgs.size() / patch_n;
+    const double average_cart = carts_n / nega_n;
+    LOG("Done with mining, number of not hard enough is %.0lf", nega_n);
+    LOG("Average number of cart to reject is %.2lf, FP = %.8lf", average_cart, fp_rate);
   }
   else {
     LOG("Done with mining, all nega is hard enough");

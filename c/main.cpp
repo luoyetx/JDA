@@ -8,7 +8,10 @@ using namespace cv;
 using namespace std;
 
 int main(int argc, char* argv[]) {
-  void* cascador = jdaCascadorCreate("jda.model");
+  void* cascador = jdaCascadorCreateDouble("jda.model");
+  jdaCascadorSerializeTo(cascador, "jda_float32.model");
+  jdaCascadorRelease(cascador);
+  cascador = jdaCascadorCreateFloat("jda_float32.model");
 
   cv::Mat img = cv::imread("test.jpg");
   //cv::resize(img, img, Size(640, 480));

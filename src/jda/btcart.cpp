@@ -192,6 +192,9 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
       restarts++;
       LOG("***** Drop %d, Drop rate neg is %.4lf%%, Restart current Cart *****", will_removed, tmp_drop_rate*100.);
       LOG("***** Restart Time: %d *****", restarts);
+      LOG("Current trained Cart below");
+      cart.PrintSelf();
+
       // compare with best cart for now
       if (tmp_drop_rate > best_drop_rate) {
         best_drop_rate = tmp_drop_rate;
@@ -217,7 +220,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
         }
         pos.QSort();
         neg.QSort();
-        JDA_Assert(cart.th == pos.CalcThresholdByNumber(1), "restart error");
+        //JDA_Assert(cart.th == pos.CalcThresholdByNumber(1), "restart error");
       }
       else {
         // recover data scores

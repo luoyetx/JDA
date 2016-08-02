@@ -76,7 +76,7 @@ public:
                       std::vector<cv::Mat>& img, std::vector<double>& scores, \
                       std::vector<cv::Mat_<double> >& shapes, \
                       omp_lock_t& write_lock, \
-                      int& nega_n, double& carts_n, double& ratio);
+                      double& nega_n, double& carts_n, double& ratio);
   /*!
    * \breif Report how many background images have been used.
    * \note this function may not give the correct number in multi-thread mode, but shoud be roughly correct.
