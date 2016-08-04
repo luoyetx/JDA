@@ -107,6 +107,17 @@ public:
 
 /*!
  * \breif DataSet Wrapper
+ *  This class present the Pos data and Neg data, some functions can only be called by Pos data and some can
+ *  only be called by Neg data. In order to support the faces which don't have the ground truth shape (in this way
+ *  the algorithm can accepts more data), we use `shape_mask` to indicate where a face has a gt shape or not, Neg data
+ *  are always be false.
+ *
+ * \note how to prepare the face which don't have gt shape
+ *  In face.txt, every line indicate a face with image path at first, then the face bounding box and landmarks. If we set
+ *  the landmark position less than zero, we assume this face don't have gt shape and set shape_mask = -1.
+ *
+ * \note
+ *  You should regenerate jda_train_data.data if your previous data don't have shape_mask field.
  */
 class DataSet {
 public:
@@ -255,6 +266,15 @@ public:
    * \breif Dump images to file system
    */
   void Dump(const std::string& dir) const;
+  /*!
+   * \breif query if the face has the shape
+   * \param index   data index
+   * \return        true for having the gt shape
+   */
+  inline bool HasGtShape(int index) const {
+    if (is_pos && shape_mask[index] > 0) return true;
+    else return false;
+  }
 
 public:
   /*! \breif generator for more negative samples */
@@ -266,6 +286,8 @@ public:
   // all shapes follows (x_1, y_1, x_2, y_2, ... , x_n, y_n)
   /*! \breif ground-truth shapes for face */
   std::vector<cv::Mat_<double> > gt_shapes;
+  /*! \breif shape mask, indicate whether this face has a gt shape, 1 for true and -1 for false */
+  std::vector<int> shape_mask;
   /*! \breif current shapes */
   std::vector<cv::Mat_<double> > current_shapes;
   /*! \breif scores, see more about `f_i` on paper */

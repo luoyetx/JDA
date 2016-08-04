@@ -129,8 +129,9 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
   const int landmark_n = c.landmark_n;
   const int normalization_step = landmark_n*c.score_normalization_steps[stage];
   RNG& rng = c.rng_pool[0];
-  int drop_n = (1. - c.recall[stage])*pos.size / K; // pos drop number per cart
-  if (drop_n <= 1) drop_n = 1;
+  //int drop_n = (1. - c.recall[stage])*pos.size / K; // pos drop number per cart
+  //if (drop_n <= 1) drop_n = 1;
+  int drop_n = c.drops[stage];
 
   const int start_of_cart = joincascador.current_cart_idx + 1;
   int restarts = 0;
@@ -181,8 +182,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     // select th for pre-defined recall
     pos.QSort();
     neg.QSort();
-    //cart.th = pos.CalcThresholdByNumber(drop_n);
-    cart.th = pos.CalcThresholdByNumber(1);
+    cart.th = pos.CalcThresholdByNumber(drop_n);
     int pos_n = pos.size;
     int neg_n = neg.size;
     int will_removed = neg.PreRemove(cart.th);
@@ -269,12 +269,18 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
     neg_lbf[i] = GenLBF(neg.imgs[i], neg.current_shapes[i]);
   }
 
-  // regression
-  vector<int> pos_idx(pos.size);
-  for (int i = 0; i < pos.size; i++) pos_idx[i] = i;
-  Mat_<double> shape_residual = pos.CalcShapeResidual(pos_idx);
+  // regression, use valid face which has gt_shape
+  vector<int> valid_pos_idx;
+  vector<Mat_<int> > valid_pos_lbf;
+  for (int i = 0; i < pos.size; i++) {
+    if (pos.HasGtShape(i)) {
+      valid_pos_idx.push_back(i);
+      valid_pos_lbf.push_back(pos_lbf[i]);
+    }
+  }
+  Mat_<double> shape_residual_valid = pos.CalcShapeResidual(valid_pos_idx);
   LOG("Start Global Regression");
-  GlobalRegression(pos_lbf, shape_residual);
+  GlobalRegression(valid_pos_lbf, shape_residual_valid);
   // update shapes
   #pragma omp parallel for
   for (int i = 0; i < pos_n; i++) {
@@ -290,7 +296,15 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
   LOG("|      Summary     |");
   LOG("====================");
   // regression error
-  double e = calcMeanError(pos.gt_shapes, pos.current_shapes);
+  vector<Mat_<double> > valid_gt_shapes;
+  vector<Mat_<double> > valid_current_shapes;
+  for (int i = 0; i < pos.size; i++) {
+    if (pos.HasGtShape(i)) {
+      valid_gt_shapes.push_back(pos.gt_shapes[i]);
+      valid_current_shapes.push_back(pos.current_shapes[i]);
+    }
+  }
+  double e = calcMeanError(valid_gt_shapes, valid_current_shapes);
   LOG("Regression Mean Error = %.4lf", e);
 
   // accept and reject rate

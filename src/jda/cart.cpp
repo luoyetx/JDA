@@ -224,8 +224,8 @@ void Cart::SplitNodeWithClassification(const DataSet& pos, const vector<int>& po
 
       const double p_ratio = double(current_p) / pos_n;
       const double n_ratio = double(current_n) / neg_n;
-      if (p_ratio < 0.1 || p_ratio > 0.9) continue;
-      if (n_ratio < 0.1 || n_ratio > 0.9) continue;
+      if (p_ratio < 0.05 || p_ratio > 0.95) continue;
+      if (n_ratio < 0.05 || n_ratio > 0.95) continue;
 
       double w_l = wp_l + wn_l;
       double w_r = wp_r + wn_r;
@@ -253,6 +253,8 @@ void Cart::SplitNodeWithClassification(const DataSet& pos, const vector<int>& po
 
 /*!
  * \breif Calculate Variance of vector
+ * \param vec   vector
+ * \return      variance of the vec
  */
 static double calcVariance(const vector<double>& vec) {
   if (vec.size() == 0) return 0.;
@@ -315,8 +317,12 @@ void Cart::SplitNodeWithRegression(const DataSet& pos, const vector<int>& pos_id
     vector<double> left_x, left_y, right_x, right_y;
     left_x.reserve(pos_n); left_y.reserve(pos_n);
     right_x.reserve(pos_n); right_y.reserve(pos_n);
-    int threshold_ = pos_feature_sorted(0, int(pos_n*rng.uniform(0.1, 0.9)));
+    int threshold_ = pos_feature_sorted(0, int(pos_n*rng.uniform(0.05, 0.95)));
     for (int j = 0; j < pos_n; j++) {
+      // check if has gt shape
+      if (!pos.HasGtShape(pos_idx[j])) {
+        continue;
+      }
       if (pos_feature(i, j) <= threshold_) {
         left_x.push_back(shape_residual(j, 0));
         left_y.push_back(shape_residual(j, 1));

@@ -162,6 +162,8 @@ public:
    * \breif Global Regression Training for landmarks
    *  we only use DataSet of pos, X = lbf, Y = shape_residual
    *  see more detail on paper in section 4
+   * \param lbf             local binary feature of pos dataset, X
+   * \param shape_residual  shape residual of pos dataset, Y
    */
   void GlobalRegression(const std::vector<cv::Mat_<int> >& lbf, \
                         const cv::Mat_<double>& shape_residual);

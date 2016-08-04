@@ -76,12 +76,17 @@ Mat_<double> DataSet::CalcShapeResidual(const vector<int>& idx, int landmark_id)
 }
 
 Mat_<double> DataSet::CalcMeanShape() {
+  JDA_Assert(is_pos == true, "Negative Dataset can not use `CalcMeanShape`");
   mean_shape = gt_shapes[0].clone();
   const int n = gt_shapes.size();
+  int valid_n = 0;
   for (int i = 1; i < n; i++) {
-    mean_shape += gt_shapes[i];
+    if (HasGtShape(i)) {
+      mean_shape += gt_shapes[i];
+      valid_n++;
+    }
   }
-  mean_shape /= n;
+  mean_shape /= valid_n;
   return mean_shape;
 }
 
@@ -183,7 +188,10 @@ void DataSet::Swap(int i, int j) {
   std::swap(imgs[i], imgs[j]);
   std::swap(imgs_half[i], imgs_half[j]);
   std::swap(imgs_quarter[i], imgs_quarter[j]);
-  if (is_pos) std::swap(gt_shapes[i], gt_shapes[j]);
+  if (is_pos) {
+    std::swap(shape_mask[i], shape_mask[j]);
+    std::swap(gt_shapes[i], gt_shapes[j]);
+  }
   std::swap(current_shapes[i], current_shapes[j]);
   std::swap(scores[i], scores[j]);
   std::swap(last_scores[i], last_scores[j]);
@@ -212,7 +220,10 @@ void DataSet::Remove(double th) {
   imgs.resize(offset);
   imgs_half.resize(offset);
   imgs_quarter.resize(offset);
-  if (is_pos) gt_shapes.resize(offset);
+  if (is_pos) {
+    shape_mask.resize(offset);
+    gt_shapes.resize(offset);
+  }
   current_shapes.resize(offset);
   scores.resize(offset);
   last_scores.resize(offset);
@@ -306,6 +317,7 @@ void DataSet::Clear() {
   imgs_quarter.clear();
   current_shapes.clear();
   gt_shapes.clear();
+  shape_mask.clear();
   scores.clear();
   last_scores.clear();
   weights.clear();
@@ -315,12 +327,13 @@ void DataSet::Clear() {
 
 void DataSet::Dump(const string& dir) const {
   const int n = size;
+  const Config& c = Config::GetInstance();
 
   #pragma omp parallel for
   for (int i = 0; i < size; i++) {
     char buff[300];
     sprintf(buff, "%s/%06d.jpg", dir.c_str(), i);
-    Mat img = drawShape(imgs[i], current_shapes[i] * Config::GetInstance().img_o_size);
+    Mat img = drawShape(imgs[i], current_shapes[i] * c.img_o_size);
     cv::imwrite(buff, img);
   }
 }
@@ -420,6 +433,7 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
   imgs_half.clear();
   imgs_quarter.clear();
   gt_shapes.clear();
+  shape_mask.clear();
   // read all meta data
   while (fscanf(file, "%s", buff) > 0) {
     path.push_back(string(buff));
@@ -430,10 +444,14 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
     // shape
     Mat_<double> shape(1, 2 * landmark_n);
     const double* ptr = shape.ptr<double>(0);
+    bool no_shape = true;
     for (int i = 0; i < 2 * landmark_n; i++) {
       fscanf(file, "%lf", ptr + i);
+      if (ptr[i] >= 0) no_shape = false;
     }
     gt_shapes.push_back(shape);
+    if (no_shape) shape_mask.push_back(-1);
+    else shape_mask.push_back(1);
   }
   fclose(file);
 
@@ -443,6 +461,7 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
   imgs_half.resize(size);
   imgs_quarter.resize(size);
   gt_shapes.resize(size);
+  shape_mask.resize(size);
 
   #pragma omp parallel for
   for (int i = 0; i < n; i++) {
@@ -490,6 +509,8 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
         gt_shapes[i + n](0, 2 * idx2) = x2;
         gt_shapes[i + n](0, 2 * idx2 + 1) = y2;
       }
+      // shape_mask
+      shape_mask[i + n] = shape_mask[i];
     }
   }
 
@@ -557,6 +578,8 @@ static void writeDataSet(const DataSet& data, FILE* fout) {
     }
     // gt_shape if positive samples
     if (data.is_pos) {
+      // shape_mask
+      fwrite(&data.shape_mask[i], sizeof(int), 1, fout);
       const Mat_<double>& gt_shape = data.gt_shapes[i];
       fwrite(gt_shape.ptr<double>(0), sizeof(double), gt_shape.cols, fout);
     }
@@ -597,7 +620,10 @@ static void readDataSet(DataSet& data, FILE* fin) {
   data.imgs.resize(n);
   data.imgs_half.resize(n);
   data.imgs_quarter.resize(n);
-  if (data.is_pos) data.gt_shapes.resize(n);
+  if (data.is_pos) {
+    data.shape_mask.resize(n);
+    data.gt_shapes.resize(n);
+  }
   data.current_shapes.resize(n);
   data.scores.resize(n);
   data.last_scores.resize(n);
@@ -628,6 +654,8 @@ static void readDataSet(DataSet& data, FILE* fin) {
     }
     // gt_shape if positive samples
     if (data.is_pos) {
+      // shape_mask
+      fread(&data.shape_mask[i], sizeof(int), 1, fin);
       Mat_<double>& gt_shape = data.gt_shapes[i];
       gt_shape = Mat_<double>::zeros(1, 2 * c.landmark_n);
       fread(gt_shape.ptr<double>(0), sizeof(double), gt_shape.cols, fin);
