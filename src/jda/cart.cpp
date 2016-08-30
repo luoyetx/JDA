@@ -224,8 +224,8 @@ void Cart::SplitNodeWithClassification(const DataSet& pos, const vector<int>& po
 
       const double p_ratio = double(current_p) / pos_n;
       const double n_ratio = double(current_n) / neg_n;
-      if (p_ratio < 0.05 || p_ratio > 0.95) continue;
-      if (n_ratio < 0.05 || n_ratio > 0.95) continue;
+      if (p_ratio < 0.1 || p_ratio > 0.9) continue;
+      if (n_ratio < 0.1 || n_ratio > 0.9) continue;
 
       double w_l = wp_l + wn_l;
       double w_r = wp_r + wn_r;
@@ -317,7 +317,7 @@ void Cart::SplitNodeWithRegression(const DataSet& pos, const vector<int>& pos_id
     vector<double> left_x, left_y, right_x, right_y;
     left_x.reserve(pos_n); left_y.reserve(pos_n);
     right_x.reserve(pos_n); right_y.reserve(pos_n);
-    int threshold_ = pos_feature_sorted(0, int(pos_n*rng.uniform(0.05, 0.95)));
+    int threshold_ = pos_feature_sorted(0, int(pos_n*rng.uniform(0.1, 0.9)));
     for (int j = 0; j < pos_n; j++) {
       // check if has gt shape
       if (!pos.HasGtShape(pos_idx[j])) {
@@ -395,40 +395,7 @@ int Cart::Forward(const Mat& img, const Mat& img_h, const Mat& img_q, \
   int len = depth - 1;
   while (len--) {
     const Feature& feature = features[node_idx];
-    //int val = feature.CalcFeatureValue(img, img_h, img_q, shape);
-
-    const Mat* img_ptr;
-    switch (feature.scale) {
-    case Feature::ORIGIN:
-      img_ptr = &img; // ref
-      break;
-    case Feature::HALF:
-      img_ptr = &img_h; // ref
-      break;
-    case Feature::QUARTER:
-      img_ptr = &img_q; // ref
-      break;
-    default:
-      dieWithMsg("Unsupported SCALE");
-      break;
-    }
-
-    double x1, y1, x2, y2;
-    const int width = img_ptr->cols;
-    const int height = img_ptr->rows;
-    x1 = (shape(0, 2 * feature.landmark_id1) + feature.offset1_x)*width;
-    y1 = (shape(0, 2 * feature.landmark_id1 + 1) + feature.offset1_y)*height;
-    x2 = (shape(0, 2 * feature.landmark_id2) + feature.offset2_x)*width;
-    y2 = (shape(0, 2 * feature.landmark_id2 + 1) + feature.offset2_y)*height;
-    int x1_ = int(round(x1));
-    int y1_ = int(round(y1));
-    int x2_ = int(round(x2));
-    int y2_ = int(round(y2));
-
-    checkBoundaryOfImage(width, height, x1_, y1_);
-    checkBoundaryOfImage(width, height, x2_, y2_);
-
-    int val = int(img_ptr->at<uchar>(y1_, x1_)) - int(img_ptr->at<uchar>(y2_, x2_));
+    int val = feature.CalcFeatureValue(img, img_h, img_q, shape);
     if (val <= thresholds[node_idx]) node_idx = 2 * node_idx;
     else node_idx = 2 * node_idx + 1;
   }

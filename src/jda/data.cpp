@@ -29,17 +29,16 @@ Mat_<int> DataSet::CalcFeatureValues(const vector<Feature>& feature_pool, \
 
   Mat_<int> features(n, m);
 
-  for (int i = 0; i < n; i++) {
-    const Feature& feature = feature_pool[i];
-    int* ptr = features.ptr<int>(i);
+  #pragma omp parallel for
+  for (int j = 0; j < m; j++) {
+    const Mat& img = imgs[idx[j]];
+    const Mat& img_half = imgs_half[idx[j]];
+    const Mat& img_quarter = imgs_quarter[idx[j]];
+    const Mat_<double>& shape = current_shapes[idx[j]];
 
-    #pragma omp parallel for
-    for (int j = 0; j < m; j++) {
-      const Mat& img = imgs[idx[j]];
-      const Mat& img_half = imgs_half[idx[j]];
-      const Mat& img_quarter = imgs_quarter[idx[j]];
-      const Mat_<double>& shape = current_shapes[idx[j]];
-      ptr[j] = feature.CalcFeatureValue(img, img_half, img_quarter, shape);
+    for (int i = 0; i < n; i++) {
+      const Feature& feature = feature_pool[i];
+      features[i][j] = feature.CalcFeatureValue(img, img_half, img_quarter, shape);
     }
   }
 
@@ -470,6 +469,10 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
     if (!origin.data) {
       dieWithMsg("Can not open %s", path[i].c_str());
     }
+
+    //Mat image_with_shape = drawShape(origin, gt_shapes[i]);
+    //showImage(image_with_shape);
+
     cvtColor(origin, origin, CV_BGR2GRAY);
     // get face
     Mat face = getFace(origin, bboxes[i]);
@@ -775,7 +778,7 @@ Mat NegGenerator::NextImage(int thread_id) {
         }
 
         // perform transform to the bg image
-        switch (s.transform_type){
+        switch (s.transform_type) {
         case 0:
           break;
         case 1:
@@ -887,41 +890,6 @@ int NegGenerator::Generate(const JoinCascador& joincascador, int size, \
   double nega_n = 0; // not hard nega
   double carts_n = 0; // number of carts go through by all not hard nega, type `int` may overflow
   double ratio = 0.1; // mining process
-
-  //while (imgs.size() < size) {
-  //  #pragma omp parallel for
-  //  for (int i = 0; i < pool_size; i++) {
-  //    int carts_go_through = 0;
-  //    double score = 0.;
-  //    Mat_<double> shape;
-  //    Mat img, img_h, img_q;
-  //    img = NextImage(i);
-  //    cv::resize(img, img, Size(c.img_o_size, c.img_o_size));
-  //    cv::resize(img, img_h, Size(c.img_h_size, c.img_h_size));
-  //    cv::resize(img, img_q, Size(c.img_q_size, c.img_q_size));
-  //    bool is_face = joincascador.Validate(img, img_h, img_q, score, shape, carts_go_through);
-  //    #pragma omp critical
-  //    {
-  //      if (is_face) {
-  //        imgs.push_back(img);
-  //        scores.push_back(score);
-  //        shapes.push_back(shape);
-  //      }
-  //      else {
-  //        nega_n++;
-  //        carts_n += carts_go_through;
-  //      }
-  //    }
-  //  }
-
-  //  if (imgs.size() >= ratio*size) {
-  //    while (imgs.size() >= ratio*size) ratio += 0.1;
-  //    int bg_used = ReportBgImageUsed();
-  //    double used_ratio = double(bg_used) / list.size() * 100.;
-  //    double mined_ratio = double(imgs.size()) / size * 100;
-  //    LOG("We have mined %d%%, used %d%%", int(mined_ratio), int(used_ratio));
-  //  }
-  //}
 
   omp_lock_t write_lock;
   omp_init_lock(&write_lock);

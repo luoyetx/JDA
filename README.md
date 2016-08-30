@@ -1,7 +1,7 @@
 JDA
 ===
 
-C++ implementation of Joint Cascade Face Detection and Alignment.
+C++ implementation of Joint Cascade Face Detection and Alignment. [Chinese Version](README.zh.md).
 
 ### Fetech Code
 
@@ -47,7 +47,7 @@ You should prepare your own data. You need two kinds of data, face with landmark
 ....
 ```
 
-bbox in `face.txt` indicate the face region. You can turn on data augment which will flip the face, but you also need to give **symmetric landmarks index** for flip operation. If bbox is out of range of the original image, the program will fill the rest region with black.
+bbox in `face.txt` indicate the face region. You can turn on data augment which will flip the face, but you also need to give **symmetric landmarks index** for flip operation. If bbox is out of range of the original image, the program will fill the rest region with black. Now, we can use face with no landmark to train the algorithm. Just set all x, y to -1 and this face will be considered with no landmark.
 
 `background.txt` is much more simpler. Every line indicates where the background image in the file system.
 

@@ -21,6 +21,7 @@
         "random_sample_radius": [0.3, 0.2, 0.15, 0.12, 0.1],
         "classification_p": [0.9, 0.8, 0.7, 0.6, 0.5],
         "recall": [0.99, 0.99, 0.99, 0.99, 0.99],
+        "drop_n": [1, 1, 1, 1, 1],
         "neg_pos_ratio": [1.0, 1.0, 1.0, 1.0, 1.0],
         "score_normalization_step": [5, 5, 5, 5, 5]
     },
