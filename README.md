@@ -34,7 +34,7 @@ $ make
 
 ### Config
 
-We use `config.json` for configuration. `config.template.json` is a template, please copy one and rename it to `config.json`. **Attention**, all relative path is start from `build` directory, and please use `/` instead of `\\` even if you are on Windows platform.
+We use `config.json` for configuration. `config.template.json` is a template, please copy one and rename it to `config.json`. **Attention**, all relative path is start from `build` directory, and please use `/` instead of `\\` even if you are on Windows platform. I write a file to explain the config, checkout [here](config.md).
 
 ### Data
 
