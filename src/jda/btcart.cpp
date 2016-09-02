@@ -284,11 +284,11 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
   // update shapes
   #pragma omp parallel for
   for (int i = 0; i < pos_n; i++) {
-    pos.current_shapes[i] += GenDeltaShape(pos_lbf[i]);
+    pos.current_shapes[i] += GenDeltaShape(pos_lbf[i], pos.stp_mc[i]);
   }
   #pragma omp parallel for
   for (int i = 0; i < neg_n; i++) {
-    neg.current_shapes[i] += GenDeltaShape(neg_lbf[i]);
+    neg.current_shapes[i] += GenDeltaShape(neg_lbf[i], neg.stp_mc[i]);
   }
 
   // summary
@@ -396,14 +396,15 @@ Mat_<int> BoostCart::GenLBF(const Mat& img, const Mat_<double>& shape) const {
   Mat img_h, img_q;
   cv::resize(img, img_h, Size(c.img_h_size, c.img_h_size));
   cv::resize(img, img_q, Size(c.img_q_size, c.img_q_size));
+  STParameter stp_mc = STParameter::Calc(shape, c.joincascador->mean_shape);
   for (int k = 0; k < K; k++) {
-    ptr[k] = offset + carts[k].Forward(img, img_h, img_q, shape);
+    ptr[k] = offset + carts[k].Forward(img, img_h, img_q, shape, stp_mc);
     offset += base;
   }
   return lbf;
 }
 
-Mat_<double> BoostCart::GenDeltaShape(const Mat_<int>& lbf) const {
+Mat_<double> BoostCart::GenDeltaShape(const Mat_<int>& lbf, const STParameter& stp_mc) const {
   const int landmark_dim = w.cols;
   const int m = lbf.cols;
   Mat_<double> delta_shape = Mat_<double>::zeros(1, landmark_dim);
@@ -412,11 +413,13 @@ Mat_<double> BoostCart::GenDeltaShape(const Mat_<int>& lbf) const {
   const int* lbf_ptr = lbf.ptr<int>(0);
   for (int i = 0; i < m; i++) {
     const double* w_ptr = w.ptr<double>(lbf_ptr[i]);
-    for (int j = 0; j < landmark_dim; j++) {
+    for (int j = 0; j < landmark_dim; j += 2) {
       ds_ptr[j] += w_ptr[j];
+      ds_ptr[j + 1] += w_ptr[j + 1];
     }
   }
 
+  stp_mc.Apply(delta_shape, delta_shape);
   return delta_shape;
 }
 

@@ -14,43 +14,6 @@ using namespace jsmn;
 
 namespace jda {
 
-int Feature::CalcFeatureValue(const Mat& o, const Mat& h, const Mat& q, \
-                              const Mat_<double>& s) const {
-  Mat img;
-  switch (scale) {
-  case ORIGIN:
-    img = o; // ref
-    break;
-  case HALF:
-    img = h; // ref
-    break;
-  case QUARTER:
-    img = q; // ref
-    break;
-  default:
-    dieWithMsg("Unsupported SCALE");
-    break;
-  }
-
-  double x1, y1, x2, y2;
-  const int width = img.cols;
-  const int height = img.rows;
-  x1 = (s(0, 2 * landmark_id1) + offset1_x)*width;
-  y1 = (s(0, 2 * landmark_id1 + 1) + offset1_y)*height;
-  x2 = (s(0, 2 * landmark_id2) + offset2_x)*width;
-  y2 = (s(0, 2 * landmark_id2 + 1) + offset2_y)*height;
-  int x1_ = int(round(x1));
-  int y1_ = int(round(y1));
-  int x2_ = int(round(x2));
-  int y2_ = int(round(y2));
-
-  checkBoundaryOfImage(width, height, x1_, y1_);
-  checkBoundaryOfImage(width, height, x2_, y2_);
-
-  int val = int(img.at<uchar>(y1_, x1_)) - int(img.at<uchar>(y2_, x2_));
-  return val;
-}
-
 void LOG(const char* fmt, ...) {
   va_list args;
   va_start(args, fmt);
@@ -246,6 +209,7 @@ Config::Config() {
     symmetric_landmarks[0][i] = left[i].unwrap<Number>() - offset;
     symmetric_landmarks[1][i] = right[i].unwrap<Number>() - offset;
   }
+  with_similarity_transform = face["similarity_transform"].unwrap<Boolean>();
 
   // pupils
   jsmn::Object& pupils = face["pupils"].unwrap<Object>();

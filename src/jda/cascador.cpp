@@ -41,6 +41,9 @@ void JoinCascador::Train(DataSet& pos, DataSet& neg) {
     }
     LOG("Train %d th stages", t + 1);
     TIMER_BEGIN
+      // calculate similiarity transform parameter first
+      pos.CalcSTParameters(mean_shape);
+      neg.CalcSTParameters(mean_shape);
       btcarts[t].Train(pos, neg);
       LOG("End of train %d th stages, costs %.4lf s", t + 1, TIMER_NOW);
     TIMER_END
@@ -170,13 +173,15 @@ bool JoinCascador::Validate(const Mat& img, const Mat& img_h, const Mat& img_q, 
   int* lbf_ptr = lbf.ptr<int>(0);
   const int base = 1 << (c.tree_depth - 1);
   int offset = 0;
+  STParameter stp_mc;
   // stage [0, current_stage_idx)
   for (int t = 0; t < current_stage_idx; t++) {
     const BoostCart& btcart = btcarts[t];
+    stp_mc = STParameter::Calc(shape, mean_shape);
     offset = 0;
     for (int k = 0; k < c.K; k++) {
       const Cart& cart = btcart.carts[k];
-      int idx = cart.Forward(img, img_h, img_q, shape);
+      int idx = cart.Forward(img, img_h, img_q, shape, stp_mc);
       score += cart.scores[idx];
       score = (score - cart.mean) / cart.std;
       n++;
@@ -188,12 +193,12 @@ bool JoinCascador::Validate(const Mat& img, const Mat& img_h, const Mat& img_q, 
       offset += base;
     }
     // global regression
-    shape += btcart.GenDeltaShape(lbf);
+    shape += btcart.GenDeltaShape(lbf, stp_mc);
   }
   // current stage, cart [0, current_cart_idx]
   for (int k = 0; k <= current_cart_idx; k++) {
     const Cart& cart = btcarts[current_stage_idx].carts[k];
-    int idx = cart.Forward(img, img_h, img_q, shape);
+    int idx = cart.Forward(img, img_h, img_q, shape, stp_mc);
     score += cart.scores[idx];
     score = (score - cart.mean) / cart.std;
     n++;

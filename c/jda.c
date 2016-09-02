@@ -168,6 +168,88 @@ typedef struct {
 #define JDA_MIN(x, y) (((x)<(y))?(x):(y))
 
 /*!
+ * \breif similarity transform parameter
+ */
+typedef struct {
+  /*! \breif scale */
+  float scale;
+  /*! \breif rotation matrix */
+  float rot[2][2];
+} STParameter;
+
+/*!
+ * \breif calculate similarity transform parameter from shape2 to shape1
+ * \param stp     transform parameter result
+ * \param shape1  shape1
+ * \param shape2  shape2
+ */
+static void jdaCalcSTParameter(STParameter *stp, jdaShape shape1, jdaShape shape2) {
+  int i;
+  float x1_center, y1_center, x2_center, y2_center;
+  x1_center = y1_center = x2_center = y2_center = 0.f;
+  for (i = 0; i < JDA_LANDMARK_DIM; i += 2) {
+    x1_center += shape1[i];
+    y1_center += shape1[i + 1];
+    x2_center += shape2[i];
+    y2_center += shape2[i + 1];
+  }
+  x1_center /= JDA_LANDMARK_N;
+  y1_center /= JDA_LANDMARK_N;
+  x2_center /= JDA_LANDMARK_N;
+  y2_center /= JDA_LANDMARK_N;
+
+  jdaShape s1, s2;
+  for (i = 0; i < JDA_LANDMARK_DIM; i += 2) {
+    s1[i] = shape1[i] - x1_center;
+    s1[i + 1] = shape1[i + 1] - y1_center;
+    s2[i] = shape2[i] - x2_center;
+    s2[i + 1] = shape2[i + 1] - y2_center;
+  }
+  float xx1, yy1, xx2, yy2;
+  xx1 = yy1 = xx2 = yy2 = 0.f;
+  for (i = 0; i < JDA_LANDMARK_DIM; i += 2) {
+    xx1 += s1[i] * s1[i];
+    yy1 += s1[i + 1] * s1[i + 1];
+    xx2 += s2[i] * s2[i];
+    yy2 += s2[i + 1] * s2[i + 1];
+  }
+  float scale1, scale2;
+  scale1 = sqrtf(xx1*xx1 + yy1*yy1);
+  scale2 = sqrtf(xx2*xx2 + yy2*yy2);
+
+  for (i = 0; i < JDA_LANDMARK_DIM; i += 2) {
+    s1[i] /= scale1;
+    s1[i + 1] /= scale1;
+    s2[i] /= scale2;
+    s2[i + 1] /= scale2;
+  }
+  float num, den;
+  num = den = 0.f;
+  for (i = 0; i < JDA_LANDMARK_DIM; i += 2) {
+    num += s1[i + 1] * s2[i] - s1[i] * s2[i + 1];
+    den += s1[i] * s2[i] + s1[i + 1] * s2[i + 1];
+  }
+  float norm = sqrtf(num*num + den*den);
+  float sin_theta = num / norm;
+  float cos_theta = den / norm;
+  stp->scale = scale1 / scale2;
+  stp->rot[0][0] = cos_theta; stp->rot[0][1] = -sin_theta;
+  stp->rot[1][0] = sin_theta; stp->rot[1][1] = cos_theta;
+}
+
+/*!
+ * \breif apply similarity transform from point1 to point2
+ * \param stp     transform parameter
+ * \param x1, y1  point1
+ * \param x2, y2  point2, point2 shouldn't be point1
+ */
+static inline
+void jdaSTApplyPoint(STParameter *stp, float x1, float y1, float *x2, float *y2) {
+  *x2 = stp->scale*(stp->rot[0][0] * x1 + stp->rot[0][1] * y1);
+  *y2 = stp->scale*(stp->rot[1][0] * x1 + stp->rot[1][1] * y1);
+}
+
+/*!
  * \breif create image
  * \param w   w
  * \param h   h
@@ -360,6 +442,10 @@ static jdaResult jdaInternalDetect(jdaCascador *cascador, jdaImage o, jdaImage h
 
         // validate
         jdaShape shape;
+        STParameter stp_mc;
+        stp_mc.scale = 1.f;
+        stp_mc.rot[0][0] = 1.f; stp_mc.rot[0][1] = 0.f;
+        stp_mc.rot[1][0] = 0.f; stp_mc.rot[1][1] = 1.f;
         float score = 0.f;
         int lbf[JDA_K];
         jdaCart *cart = cascador->carts;
@@ -367,6 +453,7 @@ static jdaResult jdaInternalDetect(jdaCascador *cascador, jdaImage o, jdaImage h
         int t, k, i;
         // stages
         for (t = 0; t < JDA_T; t++) {
+          if (t > 0) jdaCalcSTParameter(&stp_mc, shape, cascador->mean_shape);
           // carts
           for (k = 0; k < JDA_K; k++) {
             // nodes
@@ -375,10 +462,13 @@ static jdaResult jdaInternalDetect(jdaCascador *cascador, jdaImage o, jdaImage h
               jdaNode *node = &cart->nodes[node_idx];
               int landmark1 = node->landmark1_x;
               int landmark2 = node->landmark2_x;
-              float x1 = shape[landmark1] + node->landmark1_offset_x;
-              float y1 = shape[landmark1 + 1] + node->landmark1_offset_y;
-              float x2 = shape[landmark2] + node->landmark2_offset_x;
-              float y2 = shape[landmark2 + 1] + node->landmark2_offset_y;
+              float offset1_x, offset1_y, offset2_x, offset2_y;
+              jdaSTApplyPoint(&stp_mc, node->landmark1_offset_x, node->landmark1_offset_y, &offset1_x, &offset1_y);
+              jdaSTApplyPoint(&stp_mc, node->landmark2_offset_x, node->landmark2_offset_y, &offset2_x, &offset2_y);
+              float x1 = shape[landmark1] + offset1_x;
+              float y1 = shape[landmark1 + 1] + offset1_y;
+              float x2 = shape[landmark2] + offset2_x;
+              float y2 = shape[landmark2 + 1] + offset2_y;
               jdaImage *p = ps + node->scale;
               int x1_ = (int)(x1*p->w);
               int y1_ = (int)(y1*p->w);
@@ -407,11 +497,19 @@ static jdaResult jdaInternalDetect(jdaCascador *cascador, jdaImage o, jdaImage h
           }
           // regression
           jdaShape *ws = cascador->ws[t];
+          jdaShape delta_shape = { 0 };
           for (k = 0; k < JDA_K; k++) {
             float *w = ws[lbf[k]];
-            for (i = 0; i < JDA_LANDMARK_DIM; i++) {
-              shape[i] += w[i];
+            for (i = 0; i < JDA_LANDMARK_DIM; i += 2) {
+              delta_shape[i] += w[i];
+              delta_shape[i + 1] += w[i + 1];
             }
+          }
+          float dx, dy;
+          for (i = 0; i < JDA_LANDMARK_DIM; i += 2) {
+            jdaSTApplyPoint(&stp_mc, delta_shape[i], delta_shape[i + 1], &dx, &dy);
+            shape[i] += dx;
+            shape[i + 1] += dy;
           }
         }
         // final threshold

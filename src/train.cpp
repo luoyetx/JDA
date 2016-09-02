@@ -65,8 +65,16 @@ void resume() {
 
   DataSet pos, neg;
   LOG("Load Positive And Negative DataSet");
-  DataSet::LoadDataSet(pos, neg);
-  joincascador.mean_shape = pos.CalcMeanShape();
+  char data_file[] = "../data/jda_train_data.data";
+  if (EXISTS(data_file)) {
+    LOG("Load Positive And Negative DataSet from %s", data_file);
+    DataSet::Resume(data_file, pos, neg);
+  }
+  else {
+    LOG("Load Positive And Negative DataSet");
+    DataSet::LoadDataSet(pos, neg);
+    DataSet::Snapshot(pos, neg);
+  }
 
   LOG("Forward Positive DataSet");
   DataSet pos_remain;
@@ -76,9 +84,12 @@ void resume() {
   pos_remain.imgs_quarter.reserve(pos_size);
   pos_remain.gt_shapes.reserve(pos_size);
   pos_remain.current_shapes.reserve(pos_size);
+  pos_remain.shape_mask.reserve(pos_size);
   pos_remain.scores.reserve(pos_size);
   pos_remain.last_scores.reserve(pos_size);
   pos_remain.weights.reserve(pos_size);
+  pos_remain.stp_cm.reserve(pos_size);
+  pos_remain.stp_mc.reserve(pos_size);
   // remove tf data points, update score and shape
   for (int i = 0; i < pos_size; i++) {
     int not_used;
@@ -90,14 +101,18 @@ void resume() {
       pos_remain.imgs_quarter.push_back(pos.imgs_quarter[i]);
       pos_remain.gt_shapes.push_back(pos.gt_shapes[i]);
       pos_remain.current_shapes.push_back(pos.current_shapes[i]);
+      pos_remain.shape_mask.push_back(pos.shape_mask[i]);
       pos_remain.scores.push_back(pos.scores[i]);
       pos_remain.last_scores.push_back(0);
       pos_remain.weights.push_back(pos.weights[i]);
+      pos_remain.stp_cm.push_back(STParameter());
+      pos_remain.stp_mc.push_back(STParameter());
     }
   }
   pos_remain.is_pos = true;
   pos_remain.is_sorted = false;
   pos_remain.size = pos_remain.imgs.size();
+  pos_remain.mean_shape = pos.mean_shape;
   neg.Clear();
 
   LOG("Start Resume Training Status from %dth stage", joincascador.current_stage_idx);

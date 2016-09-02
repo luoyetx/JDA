@@ -1,4 +1,4 @@
-config.md
+config.zh.md
 =========
 
 config 文件的注解。
@@ -67,7 +67,8 @@ config 文件的注解。
             "offset": 1, // 同上
             "left": [9], // 左边瞳孔的下标，如果没有瞳孔点，可以用多个点来代表瞳孔点
             "right": [14] // 右边瞳孔点的下标
-        }
+        },
+        "similarity_transform": false // 是否做相似性变换
     },
     "resume_model": "../model/jda_xxx.model", // 没有用到
     "snapshot_iter": 600 // 每隔多少棵树暂存下当前的模型和数据

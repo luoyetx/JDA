@@ -67,7 +67,8 @@ explain the config.
             "offset": 1,
             "left": [9], // left pupils, if there's no pupil landmark, use some landmarks to calculate pupils
             "right": [14] // right pupils
-        }
+        },
+        "similarity_transform": false // whether do similarity transform or not
     },
     "resume_model": "../model/jda_xxx.model", // not used
     "snapshot_iter": 600 // snapshot after 600 carts

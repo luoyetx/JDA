@@ -349,7 +349,7 @@ void Cart::SplitNodeWithRegression(const DataSet& pos, const vector<int>& pos_id
   // Done
 }
 
-void Cart::GenFeaturePool(vector<Feature>& feature_pool) {
+void Cart::GenFeaturePool(vector<Feature>& feature_pool) const {
   Config& c = Config::GetInstance();
   const int landmark_n = c.landmark_n;
   feature_pool.resize(featNum);
@@ -390,12 +390,12 @@ void Cart::GenFeaturePool(vector<Feature>& feature_pool) {
 }
 
 int Cart::Forward(const Mat& img, const Mat& img_h, const Mat& img_q, \
-                  const Mat_<double>& shape) const {
+                  const Mat_<double>& shape, const STParameter& stp_mc) const {
   int node_idx = 1;
   int len = depth - 1;
   while (len--) {
     const Feature& feature = features[node_idx];
-    int val = feature.CalcFeatureValue(img, img_h, img_q, shape);
+    int val = feature.CalcFeatureValue(img, img_h, img_q, shape, stp_mc);
     if (val <= thresholds[node_idx]) node_idx = 2 * node_idx;
     else node_idx = 2 * node_idx + 1;
   }

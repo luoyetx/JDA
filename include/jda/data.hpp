@@ -14,6 +14,42 @@ class Feature;
 class JoinCascador;
 
 /*!
+ * \breif similarity transform parameter
+ */
+class STParameter {
+public:
+  STParameter() : scale(1.) {
+    rot[0][0] = 1.;
+    rot[0][1] = 0.;
+    rot[1][0] = 0.;
+    rot[1][1] = 1.;
+  }
+  /*!
+   * \breif calculate parameter between two shape, sR: shape2 -> shape1
+   * \param shape1  shape1
+   * \param shape2  shape2
+   * \return        similarity transform paramter from shape2 to shape1
+   */
+  static STParameter Calc(const cv::Mat_<double>& shape1, const cv::Mat_<double>& shape2);
+  /*!
+   * \breif apply similarity transform, shape1 -> shape2, point1 -> point2
+   * \param shape1    origin shape
+   * \param shape2    transformed shape, should malloc the memory before call this function, can be shape1
+   * \param x1, y1    origin point
+   * \param x2, y2    transformed point
+   */
+  void Apply(const cv::Mat_<double>& shape1, cv::Mat_<double>& shape2) const;
+  inline void Apply(double x1, double y1, double& x2, double& y2) const {
+    x2 = scale*(rot[0][0] * x1 + rot[0][1] * y1);
+    y2 = scale*(rot[1][0] * x1 + rot[1][1] * y1);
+  }
+
+public:
+  double scale;
+  double rot[2][2];
+};
+
+/*!
  * \breif Negative Training Sample Generator
  *  hard negative training sample will be needed if less negative alives
  */
@@ -275,6 +311,11 @@ public:
     if (is_pos && shape_mask[index] > 0) return true;
     else return false;
   }
+  /*!
+   * \breif calculate similarity transform parameter for every sample
+   * \param mean_shape  mean shape of the face
+   */
+  void CalcSTParameters(const cv::Mat_<double>& mean_shape);
 
 public:
   /*! \breif generator for more negative samples */
@@ -295,6 +336,9 @@ public:
   std::vector<double> last_scores;
   /*! \breif weights, see more about `w_i` on paper */
   std::vector<double> weights;
+  /*! \breif similarity transform parameters */
+  std::vector<STParameter> stp_cm; // current_shape to mean_shape
+  std::vector<STParameter> stp_mc; // mean_shape to current_shape
   /*! \breif is positive dataset */
   bool is_pos;
   /*! \breif mean shape of positive dataset */

@@ -15,8 +15,126 @@ using namespace std;
 
 namespace jda {
 
+int Feature::CalcFeatureValue(const Mat& o, const Mat& h, const Mat& q, \
+                              const Mat_<double>& s, const STParameter& stp_mc) const {
+  Mat img;
+  switch (scale) {
+  case ORIGIN:
+    img = o; // ref
+    break;
+  case HALF:
+    img = h; // ref
+    break;
+  case QUARTER:
+    img = q; // ref
+    break;
+  default:
+    dieWithMsg("Unsupported SCALE");
+    break;
+  }
+
+  double x1, y1, x2, y2;
+  const int width = img.cols;
+  const int height = img.rows;
+
+  double offset1_x, offset1_y, offset2_x, offset2_y;
+  stp_mc.Apply(this->offset1_x, this->offset1_y, offset1_x, offset1_y);
+  stp_mc.Apply(this->offset2_x, this->offset2_y, offset2_x, offset2_y);
+
+  x1 = (s(0, 2 * landmark_id1) + offset1_x)*width;
+  y1 = (s(0, 2 * landmark_id1 + 1) + offset1_y)*height;
+  x2 = (s(0, 2 * landmark_id2) + offset2_x)*width;
+  y2 = (s(0, 2 * landmark_id2 + 1) + offset2_y)*height;
+  int x1_ = int(round(x1));
+  int y1_ = int(round(y1));
+  int x2_ = int(round(x2));
+  int y2_ = int(round(y2));
+
+  checkBoundaryOfImage(width, height, x1_, y1_);
+  checkBoundaryOfImage(width, height, x2_, y2_);
+
+  int val = int(img.at<uchar>(y1_, x1_)) - int(img.at<uchar>(y2_, x2_));
+  return val;
+}
+
+/*!
+ * \breif calculate similarity transform parameter
+ *  more detail about this function http://blog.luoyetx.com/2016/01/face-similarity-transform/
+ */
+STParameter STParameter::Calc(const Mat_<double>& shape1, const Mat_<double>& shape2) {
+  STParameter param;
+
+  // if not use similarity transform, return the default parameter
+  if (!Config::GetInstance().with_similarity_transform) {
+    return param;
+  }
+
+  double x1_center, y1_center, x2_center, y2_center;
+  int landmark_n = shape1.cols / 2;
+  x1_center = y1_center = x2_center = y2_center = 0.;
+  for (int i = 0; i < landmark_n; i++) {
+    x1_center += shape1(0, 2 * i);
+    y1_center += shape1(0, 2 * i + 1);
+    x2_center += shape2(0, 2 * i);
+    y2_center += shape2(0, 2 * i + 1);
+  }
+  x1_center /= landmark_n;
+  y1_center /= landmark_n;
+  x2_center /= landmark_n;
+  y2_center /= landmark_n;
+
+  Mat_<double> temp1(shape1.rows, shape1.cols);
+  Mat_<double> temp2(shape2.rows, shape2.cols);
+  for (int i = 0; i < landmark_n; i++) {
+    temp1(0, 2 * i) = shape1(0, 2 * i) - x1_center;
+    temp1(0, 2 * i + 1) = shape1(0, 2 * i + 1) - y1_center;
+    temp2(0, 2 * i) = shape2(0, 2 * i) - x2_center;
+    temp2(0, 2 * i + 1) = shape2(0, 2 * i + 1) - y2_center;
+  }
+  double scale1 = cv::norm(temp1);
+  double scale2 = cv::norm(temp2);
+  param.scale = scale1 / scale2;
+  temp1 /= scale1;
+  temp2 /= scale2;
+
+  double num, den;
+  num = den = 0.;
+  for (int i = 0; i < landmark_n; i++) {
+    num += temp1(0, 2 * i + 1) * temp2(0, 2 * i) - temp1(0, 2 * i) * temp2(0, 2 * i + 1);
+    den += temp1(0, 2 * i) * temp2(0, 2 * i) + temp1(0, 2 * i + 1) * temp2(0, 2 * i + 1);
+  }
+
+  double norm = std::sqrt(num*num + den*den);
+  double sin_theta = num / norm;
+  double cos_theta = den / norm;
+  param.rot[0][0] = cos_theta; param.rot[0][1] = -sin_theta;
+  param.rot[1][0] = sin_theta; param.rot[1][1] = cos_theta;
+
+  return param;
+}
+
+void STParameter::Apply(const Mat_<double>& shape1, Mat_<double>& shape2) const {
+  int n = shape1.cols / 2;
+  for (int i = 0; i < n; i++) {
+    double x1, y1, x2, y2;
+    x1 = shape1(0, 2 * i);
+    y1 = shape1(0, 2 * i + 1);
+    Apply(x1, y1, x2, y2);
+    shape2(0, 2 * i) = x2;
+    shape2(0, 2 * i + 1) = y2;
+  }
+}
+
 DataSet::DataSet() {}
 DataSet::~DataSet() {}
+
+void DataSet::CalcSTParameters(const Mat_<double>& mean_shape) {
+  #pragma omp parallel for
+  for (int i = 0; i < size; i++) {
+    stp_mc[i] = STParameter::Calc(current_shapes[i], mean_shape);
+    stp_cm[i] = STParameter::Calc(mean_shape, current_shapes[i]);
+  }
+}
 
 Mat_<int> DataSet::CalcFeatureValues(const vector<Feature>& feature_pool, \
                                      const vector<int>& idx) const {
@@ -38,7 +156,7 @@ Mat_<int> DataSet::CalcFeatureValues(const vector<Feature>& feature_pool, \
 
     for (int i = 0; i < n; i++) {
       const Feature& feature = feature_pool[i];
-      features[i][j] = feature.CalcFeatureValue(img, img_half, img_quarter, shape);
+      features[i][j] = feature.CalcFeatureValue(img, img_half, img_quarter, shape, stp_mc[i]);
     }
   }
 
@@ -54,7 +172,9 @@ Mat_<double> DataSet::CalcShapeResidual(const vector<int>& idx) const {
 
   #pragma omp parallel for
   for (int i = 0; i < n; i++) {
-    shape_residual.row(i) = gt_shapes[idx[i]] - current_shapes[idx[i]];
+    Mat_<double> residual = gt_shapes[idx[i]] - current_shapes[idx[i]];
+    stp_cm[idx[i]].Apply(residual, residual);
+    residual.copyTo(shape_residual.row(i));
   }
   return shape_residual;
 }
@@ -66,10 +186,14 @@ Mat_<double> DataSet::CalcShapeResidual(const vector<int>& idx, int landmark_id)
 
   #pragma omp parallel for
   for (int i = 0; i < n; i++) {
-    shape_residual(i, 0) = gt_shapes[idx[i]](0, 2 * landmark_id) - \
-                           current_shapes[idx[i]](0, 2 * landmark_id);
-    shape_residual(i, 1) = gt_shapes[idx[i]](0, 2 * landmark_id + 1) - \
-                           current_shapes[idx[i]](0, 2 * landmark_id + 1);
+    double x1, y1, x2, y2;
+    x1 = gt_shapes[idx[i]](0, 2 * landmark_id) - \
+         current_shapes[idx[i]](0, 2 * landmark_id);
+    y1 = gt_shapes[idx[i]](0, 2 * landmark_id + 1) - \
+         current_shapes[idx[i]](0, 2 * landmark_id + 1);
+    stp_cm[idx[i]].Apply(x1, y1, x2, y2);
+    shape_residual(i, 0) = x2;
+    shape_residual(i, 1) = y2;
   }
   return shape_residual;
 }
@@ -176,7 +300,7 @@ void DataSet::UpdateScores(const Cart& cart) {
     const Mat& img_h = imgs_half[i];
     const Mat& img_q = imgs_quarter[i];
     const Mat_<double>& shape = current_shapes[i];
-    int leaf_node_idx = cart.Forward(img, img_h, img_q, shape);
+    int leaf_node_idx = cart.Forward(img, img_h, img_q, shape, stp_mc[i]);
     last_scores[i] = scores[i]; // cache
     scores[i] += cart.scores[leaf_node_idx];
   }
@@ -195,6 +319,8 @@ void DataSet::Swap(int i, int j) {
   std::swap(scores[i], scores[j]);
   std::swap(last_scores[i], last_scores[j]);
   std::swap(weights[i], weights[j]);
+  std::swap(stp_cm[i], stp_cm[j]);
+  std::swap(stp_mc[i], stp_mc[j]);
 }
 
 double DataSet::CalcThresholdByRate(double rate) {
@@ -227,6 +353,8 @@ void DataSet::Remove(double th) {
   scores.resize(offset);
   last_scores.resize(offset);
   weights.resize(offset);
+  stp_cm.resize(offset);
+  stp_mc.resize(offset);
   // new size
   size = offset;
 }
@@ -320,6 +448,8 @@ void DataSet::Clear() {
   scores.clear();
   last_scores.clear();
   weights.clear();
+  stp_cm.clear();
+  stp_mc.clear();
   is_sorted = false;
   size = 0;
 }
@@ -369,6 +499,8 @@ void DataSet::MoreNegSamples(int pos_size, double rate) {
   scores.reserve(expanded);
   last_scores.reserve(expanded);
   weights.reserve(expanded);
+  stp_cm.reserve(expanded);
+  stp_mc.reserve(expanded);
   for (int i = 0; i < extra_size; i++) {
     Mat half, quarter;
     cv::resize(imgs_[i], imgs_[i], Size(c.img_o_size, c.img_o_size));
@@ -381,9 +513,13 @@ void DataSet::MoreNegSamples(int pos_size, double rate) {
     scores.push_back(scores_[i]);
     last_scores.push_back(0);
     weights.push_back(0); // all weights will be updated by calling `UpdateWeights`
+    stp_cm.push_back(STParameter());
+    stp_mc.push_back(STParameter());
   }
   size = expanded;
   is_sorted = false;
+  // calculate similarity transform parameter
+  CalcSTParameters(c.joincascador->mean_shape);
 }
 
 /*!
@@ -522,6 +658,8 @@ void DataSet::LoadPositiveDataSet(const string& positive) {
   scores.resize(size);
   last_scores.resize(size);
   weights.resize(size);
+  stp_cm.resize(size);
+  stp_mc.resize(size);
   std::fill(weights.begin(), weights.end(), 0);
   std::fill(scores.begin(), scores.end(), 0);
   std::fill(last_scores.begin(), last_scores.end(), 0);
@@ -631,6 +769,8 @@ static void readDataSet(DataSet& data, FILE* fin) {
   data.scores.resize(n);
   data.last_scores.resize(n);
   data.weights.resize(n);
+  data.stp_cm.resize(n);
+  data.stp_mc.resize(n);
   data.is_sorted = false;
   data.size = n;
 

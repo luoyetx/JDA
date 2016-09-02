@@ -61,7 +61,8 @@
             "offset": 1,
             "left": [9],
             "right": [14]
-        }
+        },
+        "similarity_transform": false
     },
     "resume_model": "../model/jda_xxx.model",
     "snapshot_iter": 600

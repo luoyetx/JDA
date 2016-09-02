@@ -59,6 +59,7 @@ namespace jda {
 
 // forward declaration
 class JoinCascador;
+class STParameter;
 
 /*!
  * \breif Feature used by Cart
@@ -87,10 +88,11 @@ public:
    * \param h   half of original image
    * \param q   quarter of original image
    * \param s   shape of origin image
+   * \param stp similarity transform parameter
    * \return    feature value
    */
   int CalcFeatureValue(const cv::Mat& o, const cv::Mat& h, const cv::Mat& q, \
-                       const cv::Mat_<double>& s) const;
+                       const cv::Mat_<double>& s, const STParameter& stp) const;
 
 public:
   /*! \breif scale */
@@ -142,6 +144,8 @@ public:
   std::vector<int> drops;
   /*! \breif score normalization step, step = normalization_step*landmark_n */
   std::vector<int> score_normalization_steps;
+  /*! \breif whether to use similarity transform */
+  bool with_similarity_transform;
   /*! \breif hard negative mining parameters */
   double mining_factor;
   int mining_min_size;
