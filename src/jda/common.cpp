@@ -169,7 +169,9 @@ Config::Config() {
   }
 
   // status
-  resume_model = json_config["resume_model"].unwrap<jsmn::String>();
+  jsmn::Object& resume = json_config["resume"].unwrap<jsmn::Object>();
+  resume_model = resume["model"].unwrap<jsmn::String>();
+  resume_data = resume["data"].unwrap<jsmn::String>();
   snapshot_iter = json_config["snapshot_iter"].unwrap<Number>();
 
   // fddb benchmark

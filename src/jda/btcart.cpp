@@ -13,7 +13,7 @@ using namespace std;
 namespace jda {
 
 /*!
- * \breif draw the distribution of scores
+ * \brief draw the distribution of scores
  * \note  scores should be in order
  */
 static void draw_density_graph(vector<double>& pos_scores, vector<double>& neg_scores, \
@@ -317,7 +317,7 @@ void BoostCart::Train(DataSet& pos, DataSet& neg) {
 }
 
 /*!
- * \breif Fully Free Model from liblinear
+ * \brief Fully Free Model from liblinear
  */
 static inline void freeModel(struct model* model) {
   free(model->w);

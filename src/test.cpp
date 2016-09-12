@@ -11,7 +11,7 @@ using namespace cv;
 using namespace std;
 using namespace jda;
 
-/*! \breif Test over your own data */
+/*! \brief Test over your own data */
 void test() {
   Config& c = Config::GetInstance();
   c.shift_size = 0.; // no shift
@@ -68,7 +68,7 @@ void test() {
 }
 
 /*!
- * \breif Test JoinCascador Face Detection over FDDB
+ * \brief Test JoinCascador Face Detection over FDDB
  */
 void fddb() {
   Config& c = Config::GetInstance();

@@ -12,7 +12,7 @@ class JoinCascador;
 class STParameter;
 
 /*!
- * \breif Classification and Regression Random Tree
+ * \brief Classification and Regression Random Tree
  *  see more detail on paper in section 4 about `CR_k^t`
  *  We organize the nodes in sequence, the index is started from 1
  *  the structure is shown below
@@ -23,7 +23,7 @@ class STParameter;
 class Cart {
 public:
   /*!
-   * \breif default constructor, with parameters from config
+   * \brief default constructor, with parameters from config
    * \param stage         which stage this cart lie in
    * \param landmark_id   which landmark this cart training for regression
    */
@@ -32,16 +32,16 @@ public:
 
 public:
   /*!
-   * \breif Generate feature pool, the pool size is determined by Config.feats[stage]
+   * \brief Generate feature pool, the pool size is determined by Config.feats[stage]
    * \param feature_pool    feature pool
    */
   void GenFeaturePool(std::vector<Feature>& feature_pool) const;
   /*!
-   * \breif Wrapper for `SplitNode`
+   * \brief Wrapper for `SplitNode`
    */
   void Train(const DataSet& pos, const DataSet& neg);
   /*!
-   * \breif Split node with training data
+   * \brief Split node with training data
    * \param pos         positive dataset
    * \param neg         negative dataset
    * \param pos_idx     index of used positive dataset
@@ -52,7 +52,7 @@ public:
                  const DataSet& neg, const std::vector<int>& neg_idx, \
                  int node_idx);
   /*!
-   * \breif Classification
+   * \brief Classification
    *  split node with classification, minimum Gini
    *  `f = argmax_{f \in F} H_{root} - (H_{left} + H_{right})`
    *
@@ -71,7 +71,7 @@ public:
                                           const cv::Mat_<int>& neg_feature, \
                                           int& feature_id, int& threshold);
   /*!
-   * \breif Regression
+   * \brief Regression
    *  split node with regression, minimize variance of shape_residual
    *  `f = argmax_{f \in F} S_{root} - (S_{left} + S_{right})`
    *
@@ -90,21 +90,21 @@ public:
                                       const cv::Mat_<double>& shape_residual, \
                                       int& feature_id, int& threshold);
   /*!
-   * \breif Write parameters to a binary file
+   * \brief Write parameters to a binary file
    * \param   file discriptor of the model file
    */
   void SerializeTo(FILE* fd) const;
   /*!
-   * \breif Read parameters from a binary file
+   * \brief Read parameters from a binary file
    * \param fd    file discriptor of the model file
    */
   void SerializeFrom(FILE* fd);
-  /*! \breif Print out the Cart */
+  /*! \brief Print out the Cart */
   void PrintSelf();
 
 public:
   /*!
-   * \breif Forward a data point to leaf node
+   * \brief Forward a data point to leaf node
    * \param img     original region
    * \param img_h   half of original region
    * \param img_q   quarter of original region
@@ -116,40 +116,40 @@ public:
               const cv::Mat& img_q, const cv::Mat_<double>& shape, const STParameter& stp) const;
 
 public:
-  /*! \breif cascade stage */
+  /*! \brief cascade stage */
   int stage;
-  /*! \breif depth of cart */
+  /*! \brief depth of cart */
   int depth;
-  /*! \breif numbers of nodes, `nodes_n = 2^depth` */
+  /*! \brief numbers of nodes, `nodes_n = 2^depth` */
   int nodes_n;
-  /*! \breif number of feature points used in training */
+  /*! \brief number of feature points used in training */
   int featNum;
-  /*! \breif radius for sampling feature points */
+  /*! \brief radius for sampling feature points */
   double radius;
-  /*! \breif number of leaf on cart */
+  /*! \brief number of leaf on cart */
   int leafNum;
-  /*! \breif landmark id for regression in this tree */
+  /*! \brief landmark id for regression in this tree */
   int landmark_id;
-  /*! \breif threshold, see more on paper about `\theta_k^t` */
+  /*! \brief threshold, see more on paper about `\theta_k^t` */
   double th;
-  /*! \breif features used by this cart, in sequence */
+  /*! \brief features used by this cart, in sequence */
   std::vector<Feature> features;
-  /*! \breif thresholds associated with features */
+  /*! \brief thresholds associated with features */
   std::vector<int> thresholds;
-  /*! \breif scores to pos/neg, see more on paper in `Algorithm 3` */
+  /*! \brief scores to pos/neg, see more on paper in `Algorithm 3` */
   std::vector<double> scores;
-  /*! \breif mean and std to apply on the score */
+  /*! \brief mean and std to apply on the score */
   double mean, std; // default mean = 0. and std = 1.
 };
 
 /*!
- * \breif Boost Classification and Regression Tree
+ * \brief Boost Classification and Regression Tree
  *  every stage has a BoostCart which combined by boosted Cart
  */
 class BoostCart {
 public:
   /*!
-   * \breif default constructor, with parameters from config
+   * \brief default constructor, with parameters from config
    * \param stage   which stage this boost cart lie in
    */
   BoostCart(int stage);
@@ -157,11 +157,11 @@ public:
 
 public:
   /*!
-   * \breif Train boosted Cart
+   * \brief Train boosted Cart
    */
   void Train(DataSet& pos, DataSet& neg);
   /*!
-   * \breif Global Regression Training for landmarks
+   * \brief Global Regression Training for landmarks
    *  we only use DataSet of pos, X = lbf, Y = shape_residual
    *  see more detail on paper in section 4
    * \param lbf             local binary feature of pos dataset, X
@@ -172,14 +172,14 @@ public:
 
 public:
   /*!
-   * \breif Generate Local Binary Feature
+   * \brief Generate Local Binary Feature
    * \param img     region
    * \param shape   shape
    * \return        one row of local binary feature
    */
   cv::Mat_<int> GenLBF(const cv::Mat& img, const cv::Mat_<double>& shape) const;
   /*!
-   * \breif Generate delta shape with given lbf
+   * \brief Generate delta shape with given lbf
    * \param lbf     lbf generated by `GenLBF`
    * \param stp_mc  similarity transform parameter from mean_shape to current_shape
    * \return        one row of delta shape
@@ -187,13 +187,13 @@ public:
   cv::Mat_<double> GenDeltaShape(const cv::Mat_<int>& lbf, const STParameter& stp_mc) const;
 
 public:
-  /*! \breif number of carts */
+  /*! \brief number of carts */
   int K;
-  /*! \breif which stage this boost cart lies */
+  /*! \brief which stage this boost cart lies */
   int stage;
-  /*! \breif boosted carts */
+  /*! \brief boosted carts */
   std::vector<Cart> carts;
-  /*! \breif weight of global regression */
+  /*! \brief weight of global regression */
   cv::Mat_<double> w; // stages x LBF_N x 2*landmark_n
 };
 

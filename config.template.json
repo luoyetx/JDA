@@ -64,6 +64,9 @@
         },
         "similarity_transform": false
     },
-    "resume_model": "../model/jda_xxx.model",
+    "resume": {
+        "model": "../model/jda_xxx.model",
+        "data": "../data/data_xxx.data"
+    },
     "snapshot_iter": 600
 }

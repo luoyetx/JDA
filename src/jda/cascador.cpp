@@ -211,7 +211,7 @@ bool JoinCascador::Validate(const Mat& img, const Mat& img_h, const Mat& img_q, 
 }
 
 /*!
- * \breif detect single scale
+ * \brief detect single scale
  */
 static void detectSingleScale(const JoinCascador& joincascador, const Mat& img, int step, \
                               int win_size, vector<Rect>& rects, vector<double>& scores, \
@@ -262,8 +262,8 @@ static void detectSingleScale(const JoinCascador& joincascador, const Mat& img, 
 }
 
 /*!
- * \breif detect multi scale
- * \note    detection parameters can be configured in `config.json`
+ * \brief detect multi scale
+ * \note  detection parameters can be configured in `config.json`
  */
 static void detectMultiScale(const JoinCascador& joincascador, const Mat& img, \
                              vector<Rect>& rects, vector<double>& scores, \
@@ -376,7 +376,7 @@ static void detectMultiScale1(const JoinCascador& joincascador, const Mat& img, 
 }
 
 /*!
- * \breif nms Non-maximum suppression
+ * \brief nms Non-maximum suppression
  *  the algorithm is from https://github.com/ShaoqingRen/SPP_net/blob/master/nms%2Fnms_mex.cpp
  *
  * \param rects     area of faces
@@ -441,7 +441,7 @@ int JoinCascador::Detect(const Mat& img, vector<Rect>& rects, vector<double>& sc
   else {
     detectMultiScale1(*this, img, rects_, scores_, shapes_, statisic);
   }
-  
+
   //const double overlap = 0.3;
   const double overlap = c.fddb_overlap;
   vector<int> picked;

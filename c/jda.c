@@ -11,7 +11,7 @@
 #endif
 
 /*!
- * \breif jda global constance
+ * \brief jda global constance
  * \param JDA_T               number of stages
  * \param JDA_K               number of carts every stage
  * \param JDA_LANDMARK_N      number of landmarks
@@ -32,7 +32,7 @@
 #define JDA_LBF_N         (JDA_K*JDA_TREE_LEAF_N)
 
 /*!
- * \breif A marco based generic vector type for C
+ * \brief A marco based generic vector type for C
  * \note  the vector is only support for operation `insert`
  *
  * \usage
@@ -101,16 +101,16 @@ JDA_VECTOR(float);
 
 // data structures
 
-/*! \breif jda bbox */
+/*! \brief jda bbox */
 typedef struct {
   /*! breif x, y, w, h */
   int x, y, size;
 } jdaBBox;
 
-/*! \breif jda shape */
+/*! \brief jda shape */
 typedef float jdaShape[JDA_LANDMARK_DIM];
 
-/*!\breif jda cart node */
+/*!\brief jda cart node */
 typedef struct {
   /*! breif scale */
   int scale;
@@ -122,41 +122,41 @@ typedef struct {
   float landmark1_offset_y;
   float landmark2_offset_x;
   float landmark2_offset_y;
-  /*! \breif feature threshold */
+  /*! \brief feature threshold */
   int th;
 } jdaNode;
 
-/*! \breif jda cart */
+/*! \brief jda cart */
 typedef struct {
-  /*! \breif nodes in this cart */
+  /*! \brief nodes in this cart */
   jdaNode nodes[JDA_TREE_NODE_N];
-  /*! \breif scores stored in the leaf nodes */
+  /*! \brief scores stored in the leaf nodes */
   float score[JDA_TREE_LEAF_N];
-  /*! \breif score thrshold */
+  /*! \brief score thrshold */
   float th;
-  /*! \breif mean and std apply to the score */
+  /*! \brief mean and std apply to the score */
   float mean, std;
 } jdaCart;
 
-/*! \breif jda cascador */
+/*! \brief jda cascador */
 typedef struct {
-  /*! \breif all carts in the model */
+  /*! \brief all carts in the model */
   jdaCart carts[JDA_CART_N];
-  /*! \breif regression weights of every stage */
+  /*! \brief regression weights of every stage */
   float ws[JDA_T][JDA_LBF_N][JDA_LANDMARK_DIM];
-  /*! \breif mean shape of the face */
+  /*! \brief mean shape of the face */
   float mean_shape[JDA_LANDMARK_DIM];
-  /*! \breif final score threshold */
+  /*! \brief final score threshold */
   float th;
 } jdaCascador;
 
-/*! \breif jda image */
+/*! \brief jda image */
 typedef struct {
-  /*! \breif width and height */
+  /*! \brief width and height */
   int w, h;
-  /*! \breif step of a row in the image, usally equals to width */
+  /*! \brief step of a row in the image, usally equals to width */
   int step;
-  /*! \breif gray image data */
+  /*! \brief gray image data */
   unsigned char *data;
 } jdaImage;
 
@@ -168,17 +168,17 @@ typedef struct {
 #define JDA_MIN(x, y) (((x)<(y))?(x):(y))
 
 /*!
- * \breif similarity transform parameter
+ * \brief similarity transform parameter
  */
 typedef struct {
-  /*! \breif scale */
+  /*! \brief scale */
   float scale;
-  /*! \breif rotation matrix */
+  /*! \brief rotation matrix */
   float rot[2][2];
 } STParameter;
 
 /*!
- * \breif calculate similarity transform parameter from shape2 to shape1
+ * \brief calculate similarity transform parameter from shape2 to shape1
  * \param stp     transform parameter result
  * \param shape1  shape1
  * \param shape2  shape2
@@ -238,7 +238,7 @@ static void jdaCalcSTParameter(STParameter *stp, jdaShape shape1, jdaShape shape
 }
 
 /*!
- * \breif apply similarity transform from point1 to point2
+ * \brief apply similarity transform from point1 to point2
  * \param stp     transform parameter
  * \param x1, y1  point1
  * \param x2, y2  point2, point2 shouldn't be point1
@@ -250,7 +250,7 @@ void jdaSTApplyPoint(STParameter *stp, float x1, float y1, float *x2, float *y2)
 }
 
 /*!
- * \breif create image
+ * \brief create image
  * \param w   w
  * \param h   h
  * \return    image
@@ -265,7 +265,7 @@ jdaImage jdaImageCreate(int w, int h) {
 }
 
 /*!
- * \breif release internal data buffer
+ * \brief release internal data buffer
  * \note  don't release the image which borrow from others
  *
  * \param img   image to free
@@ -276,7 +276,7 @@ void jdaImageRelease(jdaImage *img) {
 }
 
 /*!
- * \breif resize image, bilinear interpolation
+ * \brief resize image, bilinear interpolation
  * \param img   image
  * \param w     w
  * \param h     h
@@ -312,7 +312,7 @@ static jdaImage jdaImageResize(jdaImage img, int w, int h) {
 }
 
 /*!
- * \breif nms
+ * \brief nms
  * \param result  jda detection result
  * \return        merged result
  */
@@ -579,7 +579,7 @@ jdaResult jdaDetect(void *cascador, unsigned char *data, int width, int height) 
 }
 
 /*!
- * \breif serialize model from JDA
+ * \brief serialize model from JDA
  * \note  JDA dump data type is double
  */
 void *jdaCascadorCreateDouble(const char *model) {
@@ -737,7 +737,7 @@ void *jdaCascadorCreateFloat(const char *model) {
 }
 
 /*!
- * \breif serialize model to a binary file
+ * \brief serialize model to a binary file
  * \note  this function serialze float data type, can reduce model size
  */
 void jdaCascadorSerializeTo(void *cascador_, const char *model) {

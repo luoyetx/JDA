@@ -10,7 +10,7 @@ namespace jda {
 class DataSet;
 class BoostCart;
 
-/*! \breif statisic of Detection */
+/*! \brief statisic of Detection */
 class DetectionStatisic {
 public:
   DetectionStatisic()
@@ -25,12 +25,12 @@ public:
 };
 
 /*!
- * \breif JoinCascador for face classification and landmark regression
+ * \brief JoinCascador for face classification and landmark regression
  */
 class JoinCascador {
 public:
   /*!
-   * \breif default constructor
+   * \brief default constructor
    *  This will establish the whole model with parameters from config
    */
   JoinCascador();
@@ -38,12 +38,12 @@ public:
 
 public:
   /*!
-   * \breif Train JoinCascador
+   * \brief Train JoinCascador
    *  See Full Algorithm on paper `Algorithm 3`
    */
   void Train(DataSet& pos, DataSet& neg);
   /*!
-   * \breif Snapshot current model
+   * \brief Snapshot current model
    *  Save all model parameters currently trained, this will be used for `Resume`.
    *  A model file will be save at `../model/jda_tmp_{%time%}_{stage}.model`,
    *  `%time%` is the saving time point format `%Y%m%D-%H%M%S` like `20151011-103625`
@@ -51,7 +51,7 @@ public:
    */
   void Snapshot() const;
   /*!
-   * \breif Resume the Training Status
+   * \brief Resume the Training Status
    *  Resume the Training Status from a Snapshot model file. We will load the model
    *  parameters and check if the global parameters are the same as `Config`, if not,
    *  the program will be terminateed. After the parameters loaded, Positive Samples
@@ -62,19 +62,19 @@ public:
    */
   void Resume(FILE* fd);
   /*!
-   * \breif Write parameters to a binary file
+   * \brief Write parameters to a binary file
    * \param   file discriptor of the model file
    */
   void SerializeTo(FILE* fd) const;
   /*!
-   * \breif Read parameters from a binary file
+   * \brief Read parameters from a binary file
    * \param fd    file discriptor of the model file
    */
   void SerializeFrom(FILE* fd);
 
 public:
   /*!
-   * \breif Validate a region whether a face or not
+   * \brief Validate a region whether a face or not
    *  In training state, we use this function for hard negative mining based on
    *  the training status. In testing state, we just go through all carts to get
    *  a face score for this region. The training status is based on `current_stage_idx`
@@ -91,7 +91,7 @@ public:
   bool Validate(const cv::Mat& img, const cv::Mat& img_h, const cv::Mat& img_q, \
                 double& score, cv::Mat_<double>& shape, int& n) const;
   /*!
-   * \breif Detect faces in a gray image
+   * \brief Detect faces in a gray image
    *  Currently using Sliding Window to search face regions and Non-Maximum Suppression
    *  to group the regions, represented by cv::Rect. All shapes will be relocated in the
    *  original image.
@@ -109,21 +109,21 @@ public:
              std::vector<cv::Mat_<double> >& shapes, DetectionStatisic& statisic) const;
 
 public:
-  /*! \breif number of stages */
+  /*! \brief number of stages */
   int T;
-  /*! \breif number of carts */
+  /*! \brief number of carts */
   int K;
-  /*! \breif number of landmarks */
+  /*! \brief number of landmarks */
   int landmark_n;
-  /*! \breif depth of a cart tree */
+  /*! \brief depth of a cart tree */
   int tree_depth;
-  /*! \breif mean shape of positive training data */
+  /*! \brief mean shape of positive training data */
   cv::Mat_<double> mean_shape;
-  /*! \breif carts */
+  /*! \brief carts */
   std::vector<BoostCart> btcarts;
 
   /*!
-   * \breif training status
+   * \brief training status
    *  we have trained the model to current_stage_idx and current_cart_idx
    *  (current_stage_idx, current_stage_idx) = (2, 99) means we have done with stage 0, 1
    *  we are currently on stage 2, we also have done with cart 0, 1, ..., 99. And we are about to
@@ -137,7 +137,7 @@ public:
    */
   int current_stage_idx;
   int current_cart_idx;
-  /*! \breif training data */
+  /*! \brief training data */
   DataSet* pos;
   DataSet* neg;
 };

@@ -58,7 +58,7 @@ int Feature::CalcFeatureValue(const Mat& o, const Mat& h, const Mat& q, \
 }
 
 /*!
- * \breif calculate similarity transform parameter
+ * \brief calculate similarity transform parameter
  *  more detail about this function http://blog.luoyetx.com/2016/01/face-similarity-transform/
  */
 STParameter STParameter::Calc(const Mat_<double>& shape1, const Mat_<double>& shape2) {
@@ -133,6 +133,15 @@ void DataSet::CalcSTParameters(const Mat_<double>& mean_shape) {
   for (int i = 0; i < size; i++) {
     stp_mc[i] = STParameter::Calc(current_shapes[i], mean_shape);
     stp_cm[i] = STParameter::Calc(mean_shape, current_shapes[i]);
+    //stp_cm[i].scale = 1. / stp_mc[i].scale;
+    //double a, b, norm;
+    //a = stp_cm[i].rot[0][0];
+    //b = stp_cm[i].rot[0][1];
+    //norm = a*a + b*b;
+    //stp_cm[i].rot[0][0] = a / norm;
+    //stp_cm[i].rot[0][1] = b / norm;
+    //stp_cm[i].rot[1][0] = -b / norm;
+    //stp_cm[i].rot[1][1] = a / norm;
   }
 }
 
@@ -523,7 +532,7 @@ void DataSet::MoreNegSamples(int pos_size, double rate) {
 }
 
 /*!
- * \breif get face from original image using bbox
+ * \brief get face from original image using bbox
  * \note  if bbox out of range, fill the rest with black
  *
  * \param img     original image
@@ -682,7 +691,7 @@ void DataSet::LoadDataSet(DataSet& pos, DataSet& neg) {
 }
 
 /*!
- * \breif Write DataSet to binary file
+ * \brief Write DataSet to binary file
  * \param data    DataSet
  * \param fout    binary file discriptor
  */
@@ -737,7 +746,7 @@ static void writeDataSet(const DataSet& data, FILE* fout) {
 }
 
 /*!
- * \breif Read DataSet from a binary file and initialize all memory
+ * \brief Read DataSet from a binary file and initialize all memory
  * \note  nega_generator will be initialized in this function
  *
  * \param data    DataSet

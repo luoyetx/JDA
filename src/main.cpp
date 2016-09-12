@@ -10,7 +10,7 @@ void live();
 void fddb();
 void dump();
 
-/*! \breif command help */
+/*! \brief command help */
 static const char help[] = "Joint Cascade Face Detection and Alignment\n\n"
                            "train:  train JDA classifier and regressor for face detection\n"
                            "        and face alignemnt\n"
@@ -20,7 +20,7 @@ static const char help[] = "Joint Cascade Face Detection and Alignment\n\n"
                            "fddb:   detection over fddb\n\n";
 
 /*!
- * \breif Command Dispatch
+ * \brief Command Dispatch
  */
 int main(int argc, char* argv[]) {
   if (argc != 2) {

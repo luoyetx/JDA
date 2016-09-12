@@ -14,7 +14,7 @@
 extern "C" {
 #endif
 
-/*! \breif result */
+/*! \brief result */
 typedef struct {
   int n; // number of faces
   int landmark_n; // number of landmarks
@@ -25,7 +25,7 @@ typedef struct {
 } jdaResult;
 
 /*!
- * \breif create jda cascador
+ * \brief create jda cascador
  * \param model   model file
  * \return        cascador, NULL if failed
  */
@@ -33,7 +33,7 @@ JDA_API void *jdaCascadorCreateDouble(const char *model);
 JDA_API void *jdaCascadorCreateFloat(const char *model);
 
 /*!
- * \breif serialize model to a binary file
+ * \brief serialize model to a binary file
  * \note  this function serialze float data type, can reduce model size
  *
  * \param cascador  jda cascador
@@ -42,13 +42,13 @@ JDA_API void *jdaCascadorCreateFloat(const char *model);
 JDA_API void jdaCascadorSerializeTo(void *cascador, const char *model);
 
 /*!
- * \breif release jda cascador
+ * \brief release jda cascador
  * \param cascador  jda cascador
  */
 JDA_API void jdaCascadorRelease(void *cascador);
 
 /*!
- * \breif detect face
+ * \brief detect face
  * \param cascador  jda cascador
  * \param img       image data
  * \param width     image width
@@ -58,7 +58,7 @@ JDA_API void jdaCascadorRelease(void *cascador);
 JDA_API jdaResult jdaDetect(void *cascador, unsigned char *img, int width, int height);
 
 /*!
- * \breif release detection result memory
+ * \brief release detection result memory
  */
 JDA_API void jdaResultRelease(jdaResult result);
 

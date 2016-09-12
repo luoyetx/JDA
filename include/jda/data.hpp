@@ -14,7 +14,7 @@ class Feature;
 class JoinCascador;
 
 /*!
- * \breif similarity transform parameter
+ * \brief similarity transform parameter
  */
 class STParameter {
 public:
@@ -25,14 +25,14 @@ public:
     rot[1][1] = 1.;
   }
   /*!
-   * \breif calculate parameter between two shape, sR: shape2 -> shape1
+   * \brief calculate parameter between two shape, sR: shape2 -> shape1
    * \param shape1  shape1
    * \param shape2  shape2
    * \return        similarity transform paramter from shape2 to shape1
    */
   static STParameter Calc(const cv::Mat_<double>& shape1, const cv::Mat_<double>& shape2);
   /*!
-   * \breif apply similarity transform, shape1 -> shape2, point1 -> point2
+   * \brief apply similarity transform, shape1 -> shape2, point1 -> point2
    * \param shape1    origin shape
    * \param shape2    transformed shape, should malloc the memory before call this function, can be shape1
    * \param x1, y1    origin point
@@ -50,7 +50,7 @@ public:
 };
 
 /*!
- * \breif Negative Training Sample Generator
+ * \brief Negative Training Sample Generator
  *  hard negative training sample will be needed if less negative alives
  */
 class NegGenerator {
@@ -60,7 +60,7 @@ public:
 
 public:
   /*!
-   * \breif Generate more negative samples
+   * \brief Generate more negative samples
    *  We will generate negative training samples from origin images, all generated samples
    *  should be hard enough to get through all stages of Join Cascador in current training
    *  state, it may be very hard to generate enough hard negative samples, we may fail with
@@ -80,12 +80,12 @@ public:
                std::vector<cv::Mat>& imgs, std::vector<double>& scores, \
                std::vector<cv::Mat_<double> >& shapes);
   /*!
-   * \breif Load nagetive image file list from path
+   * \brief Load nagetive image file list from path
    * \param path    background image file list
    */
   void Load(const std::vector<std::string>& path);
   /*!
-   * \breif Next image from bgs for hard mining
+   * \brief Next image from bgs for hard mining
    *  using internal state to generator a patch from a bg or just from a prepared hard negative samples
    *
    * \note For parallel mining, NextImage should be thread safe.
@@ -94,7 +94,7 @@ public:
    */
   cv::Mat NextImage(int thread_id);
   /*!
-   * \breif Parallel hard negative mining
+   * \brief Parallel hard negative mining
    *  mining hard negative in parallel, since `NegGenerator::NextImage()` is implemented in thread safe, we
    *  still need `write_lock` to put the mined negative sample into imgs, and calculate the statistic data.
    *
@@ -114,7 +114,7 @@ public:
                       omp_lock_t& write_lock, \
                       double& nega_n, double& carts_n, double& ratio);
   /*!
-   * \breif Report how many background images have been used.
+   * \brief Report how many background images have been used.
    * \note this function may not give the correct number in multi-thread mode, but shoud be roughly correct.
    *
    * \return    number of mined background images
@@ -122,11 +122,11 @@ public:
   int ReportBgImageUsed();
 
 public:
-  /*! \breif background image list */
+  /*! \brief background image list */
   std::vector<std::string> list;
-  /*! \breif hard negative list */
+  /*! \brief hard negative list */
   std::vector<cv::Mat> hds;
-  /*! \breif thread mining status */
+  /*! \brief thread mining status */
   struct State {
     int current_idx;
     int current_hd_idx;
@@ -142,7 +142,7 @@ public:
 };
 
 /*!
- * \breif DataSet Wrapper
+ * \brief DataSet Wrapper
  *  This class present the Pos data and Neg data, some functions can only be called by Pos data and some can
  *  only be called by Neg data. In order to support the faces which don't have the ground truth shape (in this way
  *  the algorithm can accepts more data), we use `shape_mask` to indicate where a face has a gt shape or not, Neg data
@@ -162,7 +162,7 @@ public:
 
 public:
   /*!
-   * \breif Load Postive DataSet
+   * \brief Load Postive DataSet
    *  All positive samples are listed in this text file with each line represents a sample.
    *  We assume all positive samples are processed and generated before our program runs,
    *  this including resize the training samples, grayscale and data augmentation
@@ -171,7 +171,7 @@ public:
    */
   void LoadPositiveDataSet(const std::string& positive);
   /*!
-   * \breif Load Negative DataSet
+   * \brief Load Negative DataSet
    *  We generate negative samples like positive samples before the program runs. Each line
    *  of the text file hold another text file which holds the real negative sample path in
    *  the filesystem, in this way, we can easily add more negative sample groups without
@@ -181,13 +181,13 @@ public:
    */
   void LoadNegativeDataSet(const std::vector<std::string>& negative);
   /*!
-   * \breif Wrapper for `LoadPositiveDataSet` and `LoadNegative DataSet`
+   * \brief Wrapper for `LoadPositiveDataSet` and `LoadNegative DataSet`
    *  Since positive dataset and negative dataset may share some information between
    *  each other, we need to load them all together
    */
   static void LoadDataSet(DataSet& pos, DataSet& neg);
   /*!
-   * \breif Calculate feature values from `feature_pool` with `idx`
+   * \brief Calculate feature values from `feature_pool` with `idx`
    *
    * \param feature_pool    features
    * \param idx             index of dataset to calculate feature value
@@ -197,7 +197,7 @@ public:
   cv::Mat_<int> CalcFeatureValues(const std::vector<Feature>& feature_pool, \
                                   const std::vector<int>& idx) const;
   /*!
-   * \breif Calcualte shape residual of landmark_id over positive dataset
+   * \brief Calcualte shape residual of landmark_id over positive dataset
    *  If a landmark id is given, we only generate the shape residual of that landmark
    * \param idx           index of positive dataset
    * \param landmark_id   landmark id to calculate shape residual
@@ -211,7 +211,7 @@ public:
    */
   cv::Mat_<double> CalcMeanShape();
   /*!
-   * \breif Random Shapes, a random perturbations on mean_shape
+   * \brief Random Shapes, a random perturbations on mean_shape
    * \param mean_shape    mean shape of positive samples
    * \param shape         random shape
    * \param shapes        this vector should already malloc memory for shapes
@@ -219,53 +219,53 @@ public:
   static void RandomShape(const cv::Mat_<double>& mean_shape, cv::Mat_<double>& shape);
   static void RandomShapes(const cv::Mat_<double>& mean_shape, std::vector<cv::Mat_<double> >& shapes);
   /*!
-   * \breif Update weights
+   * \brief Update weights
    *  `w_i = e^{-y_i*f_i}`, see more on paper in section 4.2
    */
   void UpdateWeights();
   static void UpdateWeights(DataSet& pos, DataSet& neg);
   /*!
-   * \breif Update scores by cart
+   * \brief Update scores by cart
    *  `f_i = f_i + Cart(x, s)`, see more on paper in `Algorithm 3`
    */
   void UpdateScores(const Cart& cart);
   /*!
-   * \breif Calculate threshold which seperate scores in two part
+   * \brief Calculate threshold which seperate scores in two part
    *  `sum(scores < th) / N = rate`
    */
   double CalcThresholdByRate(double rate);
   double CalcThresholdByNumber(int remove);
   /*!
-   * \breif Adjust DataSet by removing scores < th
+   * \brief Adjust DataSet by removing scores < th
    * \param th    threshold
    */
   void Remove(double th);
   /*!
-   * \breif Get removed number if we perform remove operation
+   * \brief Get removed number if we perform remove operation
    * \param th    threshold
    */
   int PreRemove(double th);
   /*!
-   * \breif Swap data point
+   * \brief Swap data point
    */
   void Swap(int i, int j);
   /*!
-   * \breif More Negative Samples if needed (only neg dataset needs)
+   * \brief More Negative Samples if needed (only neg dataset needs)
    * \param pos_size    positive dataset size, reference for generating
    * \param rate        N(negative) / N(positive)
    */
   void MoreNegSamples(int pos_size, double rate);
   /*!
-   * \breif Quick Sort by scores descending
+   * \brief Quick Sort by scores descending
    */
   void QSort();
   void _QSort_(int left, int right);
   /*!
-   * \breif Reset score to last_score
+   * \brief Reset score to last_score
    */
   void ResetScores();
   /*!
-   * \breif Calculate mean and std of scores
+   * \brief Calculate mean and std of scores
    * \param pos     positive dataset
    * \param neg     negative dataset
    * \param mean    mean of scores
@@ -273,23 +273,23 @@ public:
    */
   static void CalcMeanAndStd(const DataSet& pos, const DataSet& neg, double& mean, double& std);
   /*!
-   * \breif Apply mean and std to scores
-   * \breif mean    mean of scores
-   * \breif std     std of scores
+   * \brief Apply mean and std to scores
+   * \brief mean    mean of scores
+   * \brief std     std of scores
    */
   void ApplyMeanAndStd(const double mean, const double std);
   /*!
-   * \breif Clear all
+   * \brief Clear all
    */
   void Clear();
   /*!
-   * \breif Snapshot all data into a binary file for Resume() maybe
+   * \brief Snapshot all data into a binary file for Resume() maybe
    * \param   pos
    * \param   neg
    */
   static void Snapshot(const DataSet& pos, const DataSet& neg);
   /*!
-   * \breif Resume data from a binary file generated by Snapshot
+   * \brief Resume data from a binary file generated by Snapshot
    * \note  it is useful to generate a binary file for training data which
    *        the load process may cost too much time if your data is very big
    *
@@ -299,11 +299,11 @@ public:
    */
   static void Resume(const std::string& data_file, DataSet& pos, DataSet& neg);
   /*!
-   * \breif Dump images to file system
+   * \brief Dump images to file system
    */
   void Dump(const std::string& dir) const;
   /*!
-   * \breif query if the face has the shape
+   * \brief query if the face has the shape
    * \param index   data index
    * \return        true for having the gt shape
    */
@@ -312,40 +312,40 @@ public:
     else return false;
   }
   /*!
-   * \breif calculate similarity transform parameter for every sample
+   * \brief calculate similarity transform parameter for every sample
    * \param mean_shape  mean shape of the face
    */
   void CalcSTParameters(const cv::Mat_<double>& mean_shape);
 
 public:
-  /*! \breif generator for more negative samples */
+  /*! \brief generator for more negative samples */
   NegGenerator neg_generator;
-  /*! \breif face/none-face images */
+  /*! \brief face/none-face images */
   std::vector<cv::Mat> imgs;
   std::vector<cv::Mat> imgs_half;
   std::vector<cv::Mat> imgs_quarter;
   // all shapes follows (x_1, y_1, x_2, y_2, ... , x_n, y_n)
-  /*! \breif ground-truth shapes for face */
+  /*! \brief ground-truth shapes for face */
   std::vector<cv::Mat_<double> > gt_shapes;
-  /*! \breif shape mask, indicate whether this face has a gt shape, 1 for true and -1 for false */
+  /*! \brief shape mask, indicate whether this face has a gt shape, 1 for true and -1 for false */
   std::vector<int> shape_mask;
-  /*! \breif current shapes */
+  /*! \brief current shapes */
   std::vector<cv::Mat_<double> > current_shapes;
-  /*! \breif scores, see more about `f_i` on paper */
+  /*! \brief scores, see more about `f_i` on paper */
   std::vector<double> scores;
   std::vector<double> last_scores;
-  /*! \breif weights, see more about `w_i` on paper */
+  /*! \brief weights, see more about `w_i` on paper */
   std::vector<double> weights;
-  /*! \breif similarity transform parameters */
+  /*! \brief similarity transform parameters */
   std::vector<STParameter> stp_cm; // current_shape to mean_shape
   std::vector<STParameter> stp_mc; // mean_shape to current_shape
-  /*! \breif is positive dataset */
+  /*! \brief is positive dataset */
   bool is_pos;
-  /*! \breif mean shape of positive dataset */
+  /*! \brief mean shape of positive dataset */
   cv::Mat_<double> mean_shape;
-  /*! \breif is sorted by scores */
+  /*! \brief is sorted by scores */
   bool is_sorted;
-  /*! \breif size of dataset */
+  /*! \brief size of dataset */
   int size;
 };
 

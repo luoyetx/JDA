@@ -14,7 +14,7 @@ using namespace std;
 
 namespace jda {
 
-/*! \breif is zeros */
+/*! \brief is zeros */
 static inline bool isZero(double num) {
   if (std::abs(num) < 1e-9) return true;
   else return false;
@@ -162,7 +162,7 @@ void Cart::SplitNode(const DataSet& pos, const vector<int>& pos_idx, \
 }
 
 /*!
- * \breif Calculate Entropy
+ * \brief Calculate Entropy
  * \param p   p
  * \return    entropy
  */
@@ -252,7 +252,7 @@ void Cart::SplitNodeWithClassification(const DataSet& pos, const vector<int>& po
 }
 
 /*!
- * \breif Calculate Variance of vector
+ * \brief Calculate Variance of vector
  * \param vec   vector
  * \return      variance of the vec
  */

@@ -22,7 +22,7 @@
 #endif
 
 /*!
- * \breif Timer for evaluation
+ * \brief Timer for evaluation
  *
  * \usage
  *  TIMER_BEGIN
@@ -62,7 +62,7 @@ class JoinCascador;
 class STParameter;
 
 /*!
- * \breif Feature used by Cart
+ * \brief Feature used by Cart
  *  see more detail on paper in section 4.2
  */
 class Feature {
@@ -80,7 +80,7 @@ public:
     offset2_x = offset2_y = 0.;
   }
   /*!
-   * \breif Calculate feature value
+   * \brief Calculate feature value
    *  We have three scaled image and one shape of original image, the shape of half size
    *  and quarter size will be calculated in this function for feature value
    *
@@ -95,16 +95,16 @@ public:
                        const cv::Mat_<double>& s, const STParameter& stp) const;
 
 public:
-  /*! \breif scale */
+  /*! \brief scale */
   int scale;
-  /*! \breif landmark ids */
+  /*! \brief landmark ids */
   int landmark_id1, landmark_id2;
-  /*! \breif relative offset range in [0, 1] */
+  /*! \brief relative offset range in [0, 1] */
   double offset1_x, offset1_y, offset2_x, offset2_y;
 };
 
 /*!
- * \breif Configure of JDA
+ * \brief Configure of JDA
  */
 class Config {
 public:
@@ -115,58 +115,59 @@ public:
 
 public:
   // parameters of `Config`, see initialization in `common.cpp::Config()`
-  /*! \breif stages */
+  /*! \brief stages */
   int T;
-  /*! \breif number of boost carts in each stage */
+  /*! \brief number of boost carts in each stage */
   int K;
-  /*! \breif number of landmarks */
+  /*! \brief number of landmarks */
   int landmark_n;
-  /*! \breif depth of cart */
+  /*! \brief depth of cart */
   int tree_depth;
-  /*! \breif size of all training data */
+  /*! \brief size of all training data */
   bool multi_scale; // whether use multi scale or not
   int img_o_size;
   int img_h_size;
   int img_q_size;
-  /*! \breif maximum random shift size on mean shape range [0, shift_size] */
+  /*! \brief maximum random shift size on mean shape range [0, shift_size] */
   double shift_size;
-  /*! \breif N(negative) / N(postive) */
+  /*! \brief N(negative) / N(postive) */
   std::vector<double> nps;
-  /*! \breif sample radius of feature points in each stages */
+  /*! \brief sample radius of feature points in each stages */
   std::vector<double> radius;
-  /*! \breif feature numbers used by carts in each stages */
+  /*! \brief feature numbers used by carts in each stages */
   std::vector<int> feats;
-  /*! \breif probability of classification in each stages */
+  /*! \brief probability of classification in each stages */
   std::vector<double> probs;
-  /*! \breif recall of each stage */
+  /*! \brief recall of each stage */
   std::vector<double> recall;
-  /*! \breif drop number */
+  /*! \brief drop number */
   std::vector<int> drops;
-  /*! \breif score normalization step, step = normalization_step*landmark_n */
+  /*! \brief score normalization step, step = normalization_step*landmark_n */
   std::vector<int> score_normalization_steps;
-  /*! \breif whether to use similarity transform */
+  /*! \brief whether to use similarity transform */
   bool with_similarity_transform;
-  /*! \breif hard negative mining parameters */
+  /*! \brief hard negative mining parameters */
   double mining_factor;
   int mining_min_size;
   double mining_step_ratio;
   std::vector<double> mining_th;
-  /*! \breif a text file for train positive dataset */
+  /*! \brief a text file for train positive dataset */
   std::string face_txt;
-  /*! \breif a text file for train negative dataset */
+  /*! \brief a text file for train negative dataset */
   std::vector<std::string> bg_txts;
   bool use_hard;
-  /*! \breif a text file for face detection test */
+  /*! \brief a text file for face detection test */
   std::string test_txt;
-  /*! \breif esp */
+  /*! \brief esp */
   double esp;
-  /*! \breif global training join casacdor */
+  /*! \brief global training join casacdor */
   JoinCascador* joincascador;
-  /*! \breif snapshot per iters */
+  /*! \brief snapshot per iters */
   int snapshot_iter;
-  /*! \breif resume model */
+  /*! \brief resume model and data */
   std::string resume_model;
-  /*! \breif detection parameters */
+  std::string resume_data;
+  /*! \brief detection parameters */
   std::string fddb_dir;
   int fddb_step;
   double fddb_scale_factor;
@@ -177,21 +178,21 @@ public:
   bool fddb_draw_score;
   bool fddb_draw_shape;
   int fddb_detect_method;
-  /*! \breif restart of a cart */
+  /*! \brief restart of a cart */
   bool restart_on;
   int restart_times;
   int restart_stage;
   std::vector<double> restart_th;
-  /*! \breif online augment parameters */
+  /*! \brief online augment parameters */
   bool face_augment_on;
   int landmark_offset;
   std::vector<std::vector<int> > symmetric_landmarks;
-  /*! \breif pupils for calculating regreesin error*/
+  /*! \brief pupils for calculating regreesin error*/
   std::vector<int> left_pupils;
   std::vector<int> right_pupils;
-  /*! \breif random generator pool */
+  /*! \brief random generator pool */
   std::vector<cv::RNG> rng_pool;
-  /*! \breif thread number */
+  /*! \brief thread number */
   int thread_n;
 
 private:
@@ -202,22 +203,22 @@ private:
 };
 
 /*!
- * \breif Printf with timestamp
+ * \brief Printf with timestamp
  */
 void LOG(const char* fmt, ...);
 /*!
- * \breif Terminate the program with a message
+ * \brief Terminate the program with a message
  *
  * \note the message shouldn't be too long
  */
 void dieWithMsg(const char* fmt, ...);
 /*!
- * \breif Calculate Mean Error between gt_shapes and current_shapes
+ * \brief Calculate Mean Error between gt_shapes and current_shapes
  */
 double calcMeanError(const std::vector<cv::Mat_<double> >& gt_shapes, \
                      const std::vector<cv::Mat_<double> >& current_shapes);
 /*!
- * \breif Check the point (x, y) in Image, modify if needed
+ * \brief Check the point (x, y) in Image, modify if needed
  * \param w   width of image
  * \param h   height of image
  * \param x   x of point
@@ -230,7 +231,7 @@ inline void checkBoundaryOfImage(int w, int h, int& x, int& y) {
   if (y >= h) y = h - 1;
 }
 /*!
- * \breif Draw shape in the image with optional bounding box
+ * \brief Draw shape in the image with optional bounding box
  * \param img     image
  * \param shape   absolute shape binding to the image
  * \param bbox    bounding box of a face binding to the image
@@ -239,7 +240,7 @@ inline void checkBoundaryOfImage(int w, int h, int& x, int& y) {
 cv::Mat drawShape(const cv::Mat& img, const cv::Mat_<double>& shape);
 cv::Mat drawShape(const cv::Mat& img, const cv::Mat_<double>& shape, const cv::Rect& bbox);
 /*!
- * \breif Show image with shape
+ * \brief Show image with shape
  * \param img   image to show
  */
 void showImage(const cv::Mat& img);
