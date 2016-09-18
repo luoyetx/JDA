@@ -70,7 +70,10 @@ explain the config.
         },
         "similarity_transform": false // whether do similarity transform or not
     },
-    "resume_model": "../model/jda_xxx.model", // not used
+    "resume": {
+        "model": "../model/jda_xxx.model", // snapshot model
+        "data": "../data/data_xxx.data" // snapshot data
+    },
     "snapshot_iter": 600 // snapshot after 600 carts
 }
 ```

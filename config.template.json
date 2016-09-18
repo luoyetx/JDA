@@ -1,17 +1,17 @@
 {
     "T": 5,
-    "K": 1080,
+    "K": 540,
     "landmark_n": 27,
     "tree_depth": 4,
     "random_shift": 0.02,
     "image_size": {
-        "multi_scale": true,
-        "origin_size": 64,
-        "half_size": 46,
-        "quarter_size": 32
+        "multi_scale": false,
+        "origin_size": 48,
+        "half_size": 36,
+        "quarter_size": 24
     },
     "hard_negative_mining": {
-        "mining_th": [0.5, 0.5, 0.5, 0.5, 0.5],
+        "mining_th": [0.2, 0.2, 0.2, 0.2, 0.2],
         "min_size": 32,
         "factor": 1.3,
         "step_ratio": 0.5
@@ -23,7 +23,7 @@
         "recall": [0.99, 0.99, 0.99, 0.99, 0.99],
         "drop_n": [1, 1, 1, 1, 1],
         "neg_pos_ratio": [1.0, 1.0, 1.0, 1.0, 1.0],
-        "score_normalization_step": [5, 5, 5, 5, 5]
+        "score_normalization_step": [10, 10, 10, 10, 10]
     },
     "data": {
         "use_hard": false,
@@ -33,7 +33,7 @@
     },
     "fddb": {
         "dir": "../data/fddb",
-        "out": false,
+        "out": true,
         "nms": true,
         "draw_score": true,
         "draw_shape": true,
@@ -46,7 +46,7 @@
     "cart": {
         "restart": {
             "on": false,
-            "th": [0.0025, 0.0025, 0.0025, 0.0025, 0.0025],
+            "th": [0.001, 0.001, 0.001, 0.001, 0.001],
             "times": 5
         }
     },

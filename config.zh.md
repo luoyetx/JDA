@@ -70,7 +70,10 @@ config 文件的注解。
         },
         "similarity_transform": false // 是否做相似性变换
     },
-    "resume_model": "../model/jda_xxx.model", // 没有用到
+    "resume": {
+        "model": "../model/jda_xxx.model", // 暂存的模型
+        "data": "../data/data_xxx.data" // 暂存的数据，需要和模型一致
+    },
     "snapshot_iter": 600 // 每隔多少棵树暂存下当前的模型和数据
 }
 ```
