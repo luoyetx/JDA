@@ -1,0 +1,73 @@
+{
+    "T": 5,
+    "K": 540,
+    "landmark_n_": 27,
+    "landmark_n": 5,
+    "tree_depth": 4,
+    "random_shift": 0.02,
+    "image_size": {
+        "multi_scale": false,
+        "origin_size": 48,
+        "half_size": 36,
+        "quarter_size": 24
+    },
+    "hard_negative_mining": {
+        "mining_th": [0.2, 0.2, 0.2, 0.2, 0.2],
+        "min_size": 20,
+        "factor": 1.2,
+        "step_ratio": 0.5
+    },
+    "stages": {
+        "feature_pool_size": [2000, 2000, 2000, 2000, 2000],
+        "random_sample_radius": [0.3, 0.2, 0.15, 0.12, 0.1],
+        "classification_p": [0.9, 0.8, 0.7, 0.6, 0.5],
+        "recall": [0.99, 0.99, 0.99, 0.99, 0.99],
+        "drop_n": [2, 2, 2, 2, 2],
+        "neg_pos_ratio": [1.0, 1.0, 1.0, 1.0, 1.0],
+        "score_normalization_step": [10, 10, 10, 10, 10]
+    },
+    "data": {
+        "use_hard": false,
+        "face": "../data/face.5w.txt",
+        "background": ["../data/dump/hard.data", "../data/bg_linux.txt"],
+        "test": "../data/test.txt"
+    },
+    "fddb": {
+        "dir": "../data/fddb",
+        "out": true,
+        "nms": true,
+        "draw_score": true,
+        "draw_shape": true,
+        "minimum_size": 20,
+        "step": 5,
+        "scale": 1.2,
+        "overlap": 0.3,
+        "method": 1
+    },
+    "cart": {
+        "restart": {
+            "on": true,
+            "th": [0.001, 0.001, 0.001, 0.001, 0.001],
+            "times": 5
+        }
+    },
+    "face": {
+        "online_augment": true,
+        "symmetric_landmarks": {
+            "offset": 1,
+            "left": [1, 2, 5, 6, 7, 8, 9, 19, 22],
+            "right": [4, 3, 12, 11, 10, 13, 14, 21, 23]
+        },
+        "pupils": {
+            "offset": 1,
+            "left": [9],
+            "right": [14]
+        },
+      "similarity_transform": false
+    },
+    "resume": {
+      "model": "../model/jda_tmp_20160910-033949_stage_4_cart_540.model",
+      "data": "../data/dump/jda_data_20160910-033948_stage_4_cart_540.data"
+  },
+    "snapshot_iter": 600
+}

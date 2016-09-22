@@ -106,6 +106,8 @@ All model file is saved as a binary file. The model parameters have two data typ
 
 For more details of the model file layout, please refer to `cascador.cpp` and `cart.cpp`.
 
+**Update**, I have upload a model, checkout [here](model).
+
 ### FDDB Benchmark
 
 [FDDB][fddb] is widely used for face detection evaluation, download the data and extract to `data` directory.
