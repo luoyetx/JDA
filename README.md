@@ -3,6 +3,10 @@ JDA
 
 C++ implementation of Joint Cascade Face Detection and Alignment. [Chinese Version](README.zh.md).
 
+### Warning
+
+The algorithm is hard to tuning and may cost you much time to train the model even with a powerful machine. I warn you because I have abandoned this project and won't update it any more. I'm moving forward to deep learning method. There're many works has been done in this area. See [kpzhang93/MTCNN_face_detection_alignment](https://github.com/kpzhang93/MTCNN_face_detection_alignment) for a reference, it's awesome.
+
 ### Fetech Code
 
 I recommend using [Git](https://git-scm.com/) to fetch the source code. If you are not familiar with Git, there is a [tutorial](https://git-scm.com/book/en/v2) you can follow.
@@ -137,7 +141,7 @@ Welcome any bug report and any question or idea through the [issues](https://git
 
 ### QQ Group
 
-There is a QQ group 347185749. If you are a [Tencent QQ][qq] user, welcome to join this group and we can discuss more there.
+There is a QQ group 347185749. If you are a [Tencent QQ][qq] user, welcome to join this group to discuss face related algorithm.
 
 ### License
 
